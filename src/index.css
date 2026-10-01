@@ -1,0 +1,134 @@
+@import "tailwindcss";
+
+@theme {
+  --color-venm-bg: #ffffff;
+  --color-venm-surface: #fafafa;
+  --color-venm-card: #ffffff;
+  --color-venm-border: #e5e5e5;
+  --color-venm-text: #111111;
+  --color-venm-muted: #666666;
+  --color-venm-accent: #111111;
+  --color-venm-green: #16a34a;
+
+  --font-sans: 'Lexend', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+@layer base {
+  :root {
+    --bg-light: #ffffff;
+    --card-light: #ffffff;
+    --text-primary: #111111;
+    --text-secondary: #666666;
+    --border-color: #e5e5e5;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    background-color: #ffffff;
+    color: #111111;
+    font-family: 'Lexend', sans-serif;
+  }
+
+  body {
+    background-color: #ffffff;
+    color: #111111;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  /* Clean minimal scrollbar */
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #fafafa;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #d4d4d4;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #a3a3a3;
+  }
+}
+
+/* Minimal Card Utility */
+.venm-card {
+  background-color: #ffffff;
+  border: 1px solid #e5e5e5;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.venm-card:hover {
+  border-color: #111111;
+}
+
+/* Primary Solid Button */
+.btn-venm-primary {
+  background-color: #111111;
+  color: #ffffff;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+.btn-venm-primary:hover {
+  background-color: #262626;
+  transform: translateY(-1px);
+}
+
+/* Outlined Button */
+.btn-venm-secondary {
+  background-color: transparent;
+  color: #111111;
+  border: 1px solid #111111;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+}
+
+.btn-venm-secondary:hover {
+  background-color: #111111;
+  color: #ffffff;
+}
+
+/* Subtle status badges */
+.badge-status {
+  font-size: 10px;
+  font-family: monospace;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+
+.badge-status-active {
+  background-color: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.badge-status-neutral {
+  background-color: #f4f4f5;
+  color: #52525b;
+  border: 1px solid #e4e4e7;
+}
+
+.badge-status-accent {
+  background-color: #faf5ff;
+  color: #6b21a8;
+  border: 1px solid #e9d5ff;
+}
+
+/* Respect user motion settings */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

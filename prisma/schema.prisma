@@ -1,0 +1,124 @@
+// Prisma Schema for VENM Catalog
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("ADMIN")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Collection {
+  id           String    @id @default(uuid())
+  name         String
+  slug         String    @unique
+  tagline      String?
+  description  String?
+  coverImage   String
+  season       String?
+  status       String    @default("ACTIVE") // ACTIVE | COMING_SOON
+  featured     Boolean   @default(false)
+  displayOrder Int       @default(0)
+  products     Product[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Category {
+  id           String    @id @default(uuid())
+  name         String
+  slug         String    @unique
+  description  String?
+  status       String    @default("Active")
+  displayOrder Int       @default(0)
+  products     Product[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Product {
+  id             String      @id @default(uuid())
+  name           String
+  slug           String      @unique
+  description    String?
+  details        String      @default("[]") // JSON string of spec bullets
+  collectionId   String?
+  collection     Collection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+  categoryId     String?
+  category       Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  collectionName String?
+  categoryName   String?
+  images         String      @default("[]") // JSON string array of image URLs
+  sizes          String      @default("[]") // JSON string array of size tags
+  availability   String      @default("IN STOCK") // IN STOCK | MADE TO ORDER | LIMITED EDITION | DRAFT | SOLD OUT
+  isFeatured     Boolean     @default(false)
+  isNavratriEdit Boolean     @default(false)
+  tags           String      @default("[]") // JSON string array
+  garmentCare    String?
+  displayOrder   Int         @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+}
+
+model Campaign {
+  id             String    @id @default(uuid())
+  name           String
+  slug           String    @unique
+  description    String?
+  image          String?
+  announcement   String?
+  startDate      String?
+  endDate        String?
+  status         String    @default("ACTIVE") // ACTIVE | SCHEDULED | ENDED
+  theme          String?   @default("Festive")
+  festivalLights Boolean   @default(true)
+  dandiya        Boolean   @default(true)
+  chunri         Boolean   @default(true)
+  bangles        Boolean   @default(false)
+  festivalGlow   Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model HomepageSection {
+  id           String   @id @default(uuid())
+  sectionKey   String   @unique // hero | featured_collection | featured_products | brand_statement | lookbook | final_cta
+  name         String
+  enabled      Boolean  @default(true)
+  displayOrder Int      @default(0)
+  content      String   @default("{}") // JSON string of content fields
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Media {
+  id        String   @id @default(uuid())
+  name      String
+  url       String
+  type      String?  @default("image/webp")
+  size      String?
+  category  String?  @default("Products")
+  usedBy    String?  @default("Catalog")
+  altText   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Setting {
+  id         String   @id @default(uuid())
+  sectionKey String   @unique // general | whatsapp | social | seo
+  data       String   @default("{}") // JSON string of settings
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
