@@ -2,17 +2,29 @@
 // Handles all HTTP communications between Frontend (React) and Backend (Node/Express/Prisma)
 
 const getBaseUrl = () => {
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-  // Production fallback: If running in browser and hostname is not localhost, use relative '/api'
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+  const envUrl = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_API_URL : null;
+  const isBrowser = typeof window !== 'undefined';
+  const isLocalHost = isBrowser && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+  // In production deployment (non-localhost browser origin):
+  if (isBrowser && !isLocalHost) {
+    // If VITE_API_URL is configured and is NOT pointing to localhost, use it
+    if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+      return envUrl;
+    }
+    // Default production fallback: relative /api endpoint on current host
     return '/api';
+  }
+
+  // In local development:
+  if (envUrl) {
+    return envUrl;
   }
   return 'http://localhost:5000/api';
 };
 
 const API_BASE_URL = getBaseUrl();
+
 
 async function request(endpoint, options = {}) {
   const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
