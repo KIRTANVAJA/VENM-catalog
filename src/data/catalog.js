@@ -122,8 +122,15 @@ export const PRODUCTS = [
     ],
     isFeatured: true,
     isNavratriEdit: true,
-    sizes: ["S", "M", "L", "XL"],
-    availability: "IN STOCK",
+    sizes: ["S", "M", "L", "XL", "Custom"],
+    availability: "REQUESTABLE",
+    estimatedPrice: "Estimated from ₹2,200",
+    minPrice: "1800",
+    maxPrice: "2500",
+    priceDisplayMode: "STARTING_FROM",
+    customizationInfo: "Custom Gujarati mirrorwork positioning, distressed accents, and tailored sizing available.",
+    sizingInfo: "Custom sizing available according to your requirements.",
+    sourceAttribution: "VENM Studio Design",
     tags: ["NavratriEdit", "IndoWestern", "Outerwear", "Tactical"],
     garmentCare: "Dry clean only. Do not iron directly on mirrorwork patches."
   },
@@ -148,8 +155,15 @@ export const PRODUCTS = [
     ],
     isFeatured: true,
     isNavratriEdit: true,
-    sizes: ["XS", "S", "M", "L", "XL"],
-    availability: "IN STOCK",
+    sizes: ["XS", "S", "M", "L", "XL", "Custom"],
+    availability: "REQUESTABLE",
+    estimatedPrice: "₹2,400 – ₹3,200",
+    minPrice: "2400",
+    maxPrice: "3200",
+    priceDisplayMode: "PRICE_RANGE",
+    customizationInfo: "Laser-etching pattern selection, inseam length customization, and custom wash options.",
+    sizingInfo: "Waist and inseam can be tailored precisely to your measurements.",
+    sourceAttribution: "VENM Custom Denim Reference",
     tags: ["NavratriEdit", "RawDenim", "Bottoms", "WideLeg"],
     garmentCare: "Hand wash cold inside out. Hang dry."
   },
@@ -173,8 +187,15 @@ export const PRODUCTS = [
     ],
     isFeatured: true,
     isNavratriEdit: true,
-    sizes: ["S", "M", "L", "XL"],
-    availability: "IN STOCK",
+    sizes: ["S", "M", "L", "XL", "Custom"],
+    availability: "REQUESTABLE",
+    estimatedPrice: "Estimated from ₹1,450",
+    minPrice: "1450",
+    maxPrice: "1800",
+    priceDisplayMode: "STARTING_FROM",
+    customizationInfo: "Custom graphic placement, neon stitch accents, and oversized fit preferences.",
+    sizingInfo: "Custom chest width and shoulder drop can be tailored upon request.",
+    sourceAttribution: "VENM Graphic Reference",
     tags: ["NavratriEdit", "GraphicTee", "Tops", "Streetwear"],
     garmentCare: "Machine wash cold. Warm iron on reverse."
   },
@@ -198,8 +219,15 @@ export const PRODUCTS = [
     ],
     isFeatured: true,
     isNavratriEdit: true,
-    sizes: ["S/M", "L/XL"],
-    availability: "MADE TO ORDER",
+    sizes: ["S/M", "L/XL", "Custom"],
+    availability: "REQUESTABLE",
+    estimatedPrice: "₹3,000 – ₹4,200",
+    minPrice: "3000",
+    maxPrice: "4200",
+    priceDisplayMode: "PRICE_RANGE",
+    customizationInfo: "Provide your own Bandhani fabric or choose from our hand-loomed options.",
+    sizingInfo: "Custom drape length and sleeve width can be configured to requirement.",
+    sourceAttribution: "VENM Hybrid Kimono Reference",
     tags: ["NavratriEdit", "Ethnic", "IndoWestern", "Hybrid"],
     garmentCare: "Dry clean only."
   },
@@ -223,8 +251,15 @@ export const PRODUCTS = [
     ],
     isFeatured: true,
     isNavratriEdit: false,
-    sizes: ["S", "M", "L", "XL"],
-    availability: "IN STOCK",
+    sizes: ["S", "M", "L", "XL", "Custom"],
+    availability: "REQUESTABLE",
+    estimatedPrice: "Estimated from ₹2,100",
+    minPrice: "2100",
+    maxPrice: "2800",
+    priceDisplayMode: "STARTING_FROM",
+    customizationInfo: "Choice of linen-viscose, silk-cotton, or raw khadi base fabric.",
+    sizingInfo: "Tailored to your body measurements or standard sizes.",
+    sourceAttribution: "VENM Indo-Western Silhouette",
     tags: ["IndoWestern", "Ethnic", "Minimalist"],
     garmentCare: "Hand wash or gentle machine wash."
   },
@@ -248,8 +283,13 @@ export const PRODUCTS = [
     ],
     isFeatured: true,
     isNavratriEdit: false,
-    sizes: ["XS", "S", "M", "L", "XL"],
-    availability: "IN STOCK",
+    sizes: ["XS", "S", "M", "L", "XL", "Custom"],
+    availability: "REQUESTABLE",
+    estimatedPrice: "Estimated from ₹2,600",
+    priceDisplayMode: "STARTING_FROM",
+    customizationInfo: "Custom embroidery placement and dye washes available upon request.",
+    sizingInfo: "Standard boxy streetwear fit or custom chest dimensions.",
+    sourceAttribution: "VENM Kinetic Streetwear",
     tags: ["Streetwear", "Hoodie", "Outerwear", "Essential"],
     garmentCare: "Machine wash cold inside out. Flat dry."
   },
@@ -273,8 +313,13 @@ export const PRODUCTS = [
     ],
     isFeatured: false,
     isNavratriEdit: true,
-    sizes: ["S", "M", "L", "XL"],
-    availability: "IN STOCK",
+    sizes: ["S", "M", "L", "XL", "Custom"],
+    availability: "REQUESTABLE",
+    estimatedPrice: "Estimated from ₹2,400",
+    priceDisplayMode: "STARTING_FROM",
+    customizationInfo: "Custom hardware finishes, pocket counts, and ankle bungee details.",
+    sizingInfo: "Adjustable waist and custom length tailoring available.",
+    sourceAttribution: "VENM Cargo Reference",
     tags: ["Cargo", "Denim", "Tactical", "Bottoms"],
     garmentCare: "Machine wash cold with like colors."
   },
@@ -298,7 +343,12 @@ export const PRODUCTS = [
     isFeatured: false,
     isNavratriEdit: false,
     sizes: ["ONE SIZE"],
-    availability: "IN STOCK",
+    availability: "REQUESTABLE",
+    estimatedPrice: "Estimated from ₹1,100",
+    priceDisplayMode: "STARTING_FROM",
+    customizationInfo: "Custom monogramming or oxidised jewellery attachment customization.",
+    sizingInfo: "Standard 25 Liter dimension or custom bag sizes.",
+    sourceAttribution: "VENM Gear Reference",
     tags: ["Accessories", "Tote", "Canvas"],
     garmentCare: "Wipe clean with a damp cloth."
   },
@@ -321,8 +371,15 @@ export const PRODUCTS = [
     ],
     isFeatured: true,
     isNavratriEdit: true,
-    sizes: ["S", "M", "L", "XL"],
-    availability: "LIMITED EDITION",
+    sizes: ["S", "M", "L", "XL", "Custom"],
+    availability: "REQUESTABLE",
+    estimatedPrice: "₹3,800 – ₹5,000",
+    minPrice: "3800",
+    maxPrice: "5000",
+    priceDisplayMode: "PRICE_RANGE",
+    customizationInfo: "Custom lining colors, mirror stud density, and bespoke sleeve embroidery.",
+    sizingInfo: "Fitted bomber or oversized flight silhouette according to preference.",
+    sourceAttribution: "VENM Bomber Reference",
     tags: ["NavratriEdit", "Bomber", "Outerwear", "Mirrorwork"],
     garmentCare: "Specialist dry clean only."
   },
@@ -346,8 +403,13 @@ export const PRODUCTS = [
     ],
     isFeatured: false,
     isNavratriEdit: false,
-    sizes: ["S", "M", "L", "XL"],
-    availability: "IN STOCK",
+    sizes: ["S", "M", "L", "XL", "Custom"],
+    availability: "REQUESTABLE",
+    estimatedPrice: "Estimated from ₹1,650",
+    priceDisplayMode: "STARTING_FROM",
+    customizationInfo: "Custom piping contrast colors and zip hardware finishes.",
+    sizingInfo: "Custom length and shoulder measurements available.",
+    sourceAttribution: "VENM Y2K Reference",
     tags: ["Y2K", "Polo", "Tops", "Athletic"],
     garmentCare: "Machine wash cold inside out."
   },
@@ -370,8 +432,13 @@ export const PRODUCTS = [
     ],
     isFeatured: false,
     isNavratriEdit: true,
-    sizes: ["S", "M", "L", "XL"],
-    availability: "IN STOCK",
+    sizes: ["S", "M", "L", "XL", "Custom"],
+    availability: "REQUESTABLE",
+    estimatedPrice: "Estimated from ₹2,200",
+    priceDisplayMode: "STARTING_FROM",
+    customizationInfo: "Provide your own saree/khadi fabric or choose our hand-loomed selections.",
+    sizingInfo: "Custom layering fit or sharp structured cut.",
+    sourceAttribution: "VENM Handloomed Overshirt Reference",
     tags: ["Ethnic", "Overshirt", "Handloomed", "Tops"],
     garmentCare: "Hand wash cold separately."
   },
@@ -394,8 +461,13 @@ export const PRODUCTS = [
     ],
     isFeatured: false,
     isNavratriEdit: true,
-    sizes: ["ONE SIZE"],
-    availability: "IN STOCK",
+    sizes: ["ONE SIZE", "Custom"],
+    availability: "REQUESTABLE",
+    estimatedPrice: "Estimated from ₹950",
+    priceDisplayMode: "STARTING_FROM",
+    customizationInfo: "Under-visor fabric customization and custom initial embroidery.",
+    sizingInfo: "Adjustable metal strapback fitting.",
+    sourceAttribution: "VENM Accessory Reference",
     tags: ["Accessories", "Headwear", "Cap"],
     garmentCare: "Spot clean with damp cloth."
   }
@@ -411,11 +483,11 @@ export function getProductBySlug(slug) {
 }
 
 export function getFeaturedProducts() {
-  return PRODUCTS.filter((p) => p.isFeatured);
+  return PRODUCTS.filter((p) => p.isFeatured && p.availability !== 'DRAFT');
 }
 
 export function getNavratriProducts() {
-  return PRODUCTS.filter((p) => p.isNavratriEdit || p.collectionSlug === "navratri");
+  return PRODUCTS.filter((p) => (p.isNavratriEdit || p.collectionSlug === "navratri") && p.availability !== 'DRAFT');
 }
 
 export function getAllCollections() {
@@ -427,6 +499,48 @@ export function getCollectionBySlug(slug) {
 }
 
 export function getProductsByCollection(slug) {
-  if (!slug || slug === "all") return PRODUCTS;
-  return PRODUCTS.filter((p) => p.collectionSlug === slug);
+  if (!slug || slug === "all") return PRODUCTS.filter((p) => p.availability !== 'DRAFT');
+  return PRODUCTS.filter((p) => p.collectionSlug === slug && p.availability !== 'DRAFT');
 }
+
+// REFERENCE MODEL FORMATTERS
+export function formatReferencePrice(product) {
+  if (!product) return 'Price on Request';
+  const mode = product.priceDisplayMode || 'STARTING_FROM';
+  if (mode === 'CUSTOM_QUOTE') {
+    return 'Price on Request';
+  }
+  if (mode === 'PRICE_RANGE' && (product.minPrice || product.estimatedPrice?.includes('–'))) {
+    if (product.minPrice && product.maxPrice) {
+      const minStr = String(product.minPrice).startsWith('₹') ? product.minPrice : `₹${product.minPrice}`;
+      const maxStr = String(product.maxPrice).startsWith('₹') ? product.maxPrice : `₹${product.maxPrice}`;
+      return `Estimated: ${minStr} – ${maxStr}`;
+    }
+    return product.estimatedPrice.startsWith('Estimated') ? product.estimatedPrice : `Estimated price: ${product.estimatedPrice}`;
+  }
+  if (product.estimatedPrice) {
+    if (product.estimatedPrice.toLowerCase().includes('estimated') || product.estimatedPrice.toLowerCase().includes('from') || product.estimatedPrice.toLowerCase().includes('request')) {
+      return product.estimatedPrice;
+    }
+    const priceStr = String(product.estimatedPrice).startsWith('₹') ? product.estimatedPrice : `₹${product.estimatedPrice}`;
+    return `Estimated from ${priceStr}`;
+  }
+  return 'Price on Request';
+}
+
+export function getReferenceStatusCTA(product) {
+  if (!product) return { text: 'REQUEST THIS LOOK', isRequestable: true };
+  const status = (product.availability || 'REQUESTABLE').toUpperCase();
+
+  if (status === 'PAUSED' || status === 'REQUEST_PAUSED') {
+    return { text: 'REQUESTS TEMPORARILY PAUSED', isRequestable: false };
+  }
+  if (status === 'COMING_SOON') {
+    return { text: 'COMING SOON', isRequestable: false };
+  }
+  if (status === 'DRAFT') {
+    return { text: 'DRAFT REFERENCE', isRequestable: false };
+  }
+  return { text: 'REQUEST THIS LOOK', isRequestable: true };
+}
+

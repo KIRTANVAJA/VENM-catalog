@@ -68,7 +68,7 @@ async function main() {
   }
   console.log(`✅ ${categories.length} Categories seeded`);
 
-  // 4. Seed Products
+  // 4. Seed Products / References
   for (let i = 0; i < PRODUCTS.length; i++) {
     const p = PRODUCTS[i];
     await prisma.product.upsert({
@@ -82,7 +82,14 @@ async function main() {
         category: p.category,
         images: JSON.stringify(p.images || []),
         sizes: JSON.stringify(p.sizes || []),
-        availability: p.availability || 'IN STOCK',
+        availability: p.availability || 'REQUESTABLE',
+        estimatedPrice: p.estimatedPrice || 'Estimated from ₹1,800',
+        minPrice: p.minPrice || '',
+        maxPrice: p.maxPrice || '',
+        priceDisplayMode: p.priceDisplayMode || 'STARTING_FROM',
+        customizationInfo: p.customizationInfo || 'Custom embroidery, fit adjustments, and design alterations available.',
+        sizingInfo: p.sizingInfo || 'Custom sizing available according to your requirements.',
+        sourceAttribution: p.sourceAttribution || 'VENM Reference Design',
         isFeatured: Boolean(p.isFeatured),
         isNavratriEdit: Boolean(p.isNavratriEdit),
         tags: JSON.stringify(p.tags || []),
@@ -100,7 +107,14 @@ async function main() {
         category: p.category,
         images: JSON.stringify(p.images || []),
         sizes: JSON.stringify(p.sizes || []),
-        availability: p.availability || 'IN STOCK',
+        availability: p.availability || 'REQUESTABLE',
+        estimatedPrice: p.estimatedPrice || 'Estimated from ₹1,800',
+        minPrice: p.minPrice || '',
+        maxPrice: p.maxPrice || '',
+        priceDisplayMode: p.priceDisplayMode || 'STARTING_FROM',
+        customizationInfo: p.customizationInfo || 'Custom embroidery, fit adjustments, and design alterations available.',
+        sizingInfo: p.sizingInfo || 'Custom sizing available according to your requirements.',
+        sourceAttribution: p.sourceAttribution || 'VENM Reference Design',
         isFeatured: Boolean(p.isFeatured),
         isNavratriEdit: Boolean(p.isNavratriEdit),
         tags: JSON.stringify(p.tags || []),
@@ -109,7 +123,7 @@ async function main() {
       }
     });
   }
-  console.log(`✅ ${PRODUCTS.length} Products seeded`);
+  console.log(`✅ ${PRODUCTS.length} References seeded`);
 
   // 5. Seed Campaigns
   await prisma.campaign.upsert({
@@ -141,7 +155,7 @@ async function main() {
         contactEmail: "venm1310@gmail.com",
         contactPhone: "+91 96649 84749",
         location: "Ahmedabad, Gujarat, India",
-        footerText: "CONTEMPORARY GUJARATI ETHOS FUSED WITH METROPOLITAN STREETWEAR & INDO-WESTERN SILHOUETTES.",
+        footerText: "FASHION REFERENCE CATALOG & BESPOKE CUSTOM REQUEST PLATFORM. GUJARATI ETHOS FUSED WITH METROPOLITAN STREETWEAR.",
         siteStatus: "LIVE",
         logoUrl: "/assets/brand/venm-logo.png"
       })
@@ -152,8 +166,8 @@ async function main() {
         number: "+91 96649 84749",
         rawNumber: "919664984749",
         enabled: true,
-        buttonText: "INQUIRE ON WHATSAPP",
-        defaultTemplate: `Hi VENM! 👋\nI'm interested in: {{product_name}}\nCollection: {{collection}}\nCategory: {{category}}\nSize: {{size}}\n\nCould you please share availability and bespoke details?\nThank you!`
+        buttonText: "REQUEST THIS LOOK",
+        defaultTemplate: `Hi VENM! 👋\n\nI'd like to request this look:\n\nReference:\n{{product_name}}\n\nReference ID:\n{{product_id}}\n\nEstimated Price:\n{{estimated_price}}\n\nRequest Option:\n{{request_type}}\n\nI'd like to discuss:\n• Customization\n• Sizing / measurements\n• Garment sourcing / My own garment\n\nReference URL:\n{{product_url}}\n\nPlease let me know how we can take this forward.\nThank you!`
       })
     },
     {
@@ -167,10 +181,10 @@ async function main() {
     {
       sectionKey: 'seo',
       data: JSON.stringify({
-        siteTitle: "VENM CATALOG — Gujarati Ethos × Cyber Streetwear",
-        metaDescription: "Official VENM Fashion Catalog. Contemporary Gujarati heritage fused with Y2K kinetic streetwear, distressed selvedge denim, and Navratri campaign edits.",
+        siteTitle: "VENM REFERENCE CATALOG — Custom Fashion & Bespoke Requests",
+        metaDescription: "Explore the VENM Reference Catalog. Custom fashion, bespoke Gujarati heritage fused with Y2K kinetic streetwear. Request your custom look today.",
         defaultOgImage: "/assets/campaign/HOMEPAGE_2.webp",
-        keywords: "VENM, Gujarati Streetwear, Navratri Garba Fashion, Indo-Western, Raw Denim"
+        keywords: "VENM Reference Catalog, Custom Fashion Request, Gujarati Streetwear, Custom Garment Sourcing, Bespoke Denim"
       })
     }
   ];

@@ -95,6 +95,13 @@ export const createProduct = async (req, res) => {
       images,
       sizes,
       availability,
+      estimatedPrice,
+      minPrice,
+      maxPrice,
+      priceDisplayMode,
+      customizationInfo,
+      sizingInfo,
+      sourceAttribution,
       isFeatured,
       isNavratriEdit,
       tags,
@@ -102,7 +109,7 @@ export const createProduct = async (req, res) => {
     } = req.body;
 
     if (!name) {
-      return res.status(400).json({ message: 'PRODUCT NAME IS REQUIRED' });
+      return res.status(400).json({ message: 'REFERENCE NAME IS REQUIRED' });
     }
 
     const finalSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -117,8 +124,15 @@ export const createProduct = async (req, res) => {
         collectionName: collectionName || 'NAVRATRI EDIT',
         category: category || 'Outerwear',
         images: JSON.stringify(images || []),
-        sizes: JSON.stringify(sizes || ['S', 'M', 'L', 'XL']),
-        availability: availability || 'IN STOCK',
+        sizes: JSON.stringify(sizes || ['S', 'M', 'L', 'XL', 'Custom']),
+        availability: availability || 'REQUESTABLE',
+        estimatedPrice: estimatedPrice || 'Estimated from ₹1,800',
+        minPrice: minPrice || '',
+        maxPrice: maxPrice || '',
+        priceDisplayMode: priceDisplayMode || 'STARTING_FROM',
+        customizationInfo: customizationInfo || 'Custom embroidery, fit adjustments, and design alterations available.',
+        sizingInfo: sizingInfo || 'Custom sizing available according to your requirements.',
+        sourceAttribution: sourceAttribution || 'VENM Reference Design',
         isFeatured: Boolean(isFeatured),
         isNavratriEdit: Boolean(isNavratriEdit),
         tags: JSON.stringify(tags || []),
@@ -133,12 +147,12 @@ export const createProduct = async (req, res) => {
       entityType: 'PRODUCT',
       entityId: created.id,
       entityName: created.name,
-      description: `Created product "${created.name}" (${created.availability})`
+      description: `Created reference "${created.name}" (${created.availability})`
     });
 
     res.status(201).json(created);
   } catch (error) {
-    res.status(500).json({ message: 'FAILED TO CREATE PRODUCT', error: error.message });
+    res.status(500).json({ message: 'FAILED TO CREATE REFERENCE', error: error.message });
   }
 };
 
@@ -149,10 +163,10 @@ export const updateProduct = async (req, res) => {
 
     const dataToUpdate = { ...body };
 
-    if (body.details) dataToUpdate.details = JSON.stringify(body.details);
-    if (body.images) dataToUpdate.images = JSON.stringify(body.images);
-    if (body.sizes) dataToUpdate.sizes = JSON.stringify(body.sizes);
-    if (body.tags) dataToUpdate.tags = JSON.stringify(body.tags);
+    if (body.details && typeof body.details !== 'string') dataToUpdate.details = JSON.stringify(body.details);
+    if (body.images && typeof body.images !== 'string') dataToUpdate.images = JSON.stringify(body.images);
+    if (body.sizes && typeof body.sizes !== 'string') dataToUpdate.sizes = JSON.stringify(body.sizes);
+    if (body.tags && typeof body.tags !== 'string') dataToUpdate.tags = JSON.stringify(body.tags);
 
     const updated = await prisma.product.update({
       where: { id },
@@ -166,12 +180,12 @@ export const updateProduct = async (req, res) => {
       entityType: 'PRODUCT',
       entityId: updated.id,
       entityName: updated.name,
-      description: `Updated product "${updated.name}"`
+      description: `Updated reference "${updated.name}"`
     });
 
     res.json(updated);
   } catch (error) {
-    res.status(500).json({ message: 'FAILED TO UPDATE PRODUCT', error: error.message });
+    res.status(500).json({ message: 'FAILED TO UPDATE REFERENCE', error: error.message });
   }
 };
 

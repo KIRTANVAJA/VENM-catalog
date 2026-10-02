@@ -87,7 +87,7 @@ const CollectionDetail = () => {
           </p>
 
           <div className="pt-1 text-xs font-mono text-neutral-500">
-            TOTAL PIECES IN EDIT: <strong className="text-neutral-900">{allProducts.length}</strong>
+            TOTAL LOOKS IN EDIT: <strong className="text-neutral-900">{allProducts.length}</strong>
           </div>
         </div>
       </section>
@@ -131,7 +131,7 @@ const CollectionDetail = () => {
           </div>
         ) : (
           <div className="py-16 text-center space-y-3 bg-neutral-50 border border-neutral-200">
-            <p className="text-sm font-mono text-neutral-500">NO PIECES MATCH THE SELECTED CATEGORY FILTER.</p>
+            <p className="text-sm font-mono text-neutral-500">NO LOOKS MATCH THE SELECTED CATEGORY FILTER.</p>
             <button
               onClick={() => setActiveCategory('All')}
               className="btn-venm-secondary px-4 py-2 text-xs font-mono"

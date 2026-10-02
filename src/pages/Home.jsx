@@ -90,39 +90,39 @@ const Home = () => {
           {/* Hero Content */}
           <div className="relative z-10 max-w-4xl mx-auto text-center space-y-8 animate-fadeIn">
             {/* Campaign Tag */}
-            <div className="inline-block px-3.5 py-1.5 bg-white border border-neutral-300 text-neutral-800 text-xs font-mono tracking-widest uppercase">
-              {heroSec?.content?.campaignBadge || "VENM × NAVRATRI // THE FESTIVE EDIT"}
+            <div className="inline-block px-3.5 py-1.5 bg-white border border-neutral-300 text-neutral-800 text-xs font-mono tracking-widest uppercase font-bold">
+              {heroSec?.content?.campaignBadge || "VENM REFERENCE CATALOG // FASHION & CUSTOM REQUESTS"}
             </div>
 
             {/* Main Headline */}
             <div className="space-y-3">
-              <h1 className="text-4xl sm:text-7xl lg:text-8xl font-black tracking-[0.15em] text-neutral-900 uppercase leading-none">
-                {heroSec?.content?.title || "VENM CATALOG"}
+              <h1 className="text-4xl sm:text-7xl lg:text-8xl font-black tracking-[0.12em] text-neutral-900 uppercase leading-none">
+                {heroSec?.content?.title || "VENM REFERENCE CATALOG"}
               </h1>
-              <p className="text-base sm:text-xl text-neutral-700 tracking-[0.2em] font-medium max-w-2xl mx-auto uppercase">
-                {heroSec?.content?.subtitle || "TRADITION, REINTERPRETED."}
+              <p className="text-base sm:text-xl text-neutral-800 tracking-[0.18em] font-bold max-w-3xl mx-auto uppercase font-mono">
+                {heroSec?.content?.subtitle || "FIND A LOOK. TELL US WHAT YOU NEED. WE'LL WORK FROM THERE."}
               </p>
             </div>
 
-            <p className="text-xs sm:text-sm text-neutral-600 font-sans max-w-xl mx-auto leading-relaxed uppercase">
-              {heroSec?.content?.description || "GUJARATI ETHOS FUSED WITH METROPOLITAN STREETWEAR & INDO-WESTERN EXPERIMENTATION."}
+            <p className="text-xs sm:text-sm text-neutral-600 font-sans max-w-2xl mx-auto leading-relaxed uppercase">
+              {heroSec?.content?.description || "A FASHION REFERENCE CATALOG & BESPOKE CUSTOM REQUEST PLATFORM SHOWCASING WHAT VENM CAN CREATE, CUSTOMIZE, STYLE, SOURCE AND WORK ON."}
             </p>
 
             {/* Hero CTAs */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
               <Link
-                to={heroSec?.content?.primaryCtaLink || "/collection/navratri"}
+                to={heroSec?.content?.primaryCtaLink || "/collections"}
                 className="w-full sm:w-auto btn-venm-primary px-8 py-4 text-xs font-bold tracking-[0.18em] flex items-center justify-center gap-2.5 uppercase group"
               >
-                <span>{heroSec?.content?.primaryCtaText || "EXPLORE THE EDIT"}</span>
+                <span>{heroSec?.content?.primaryCtaText || "BROWSE REFERENCES"}</span>
                 <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </Link>
 
               <Link
-                to={heroSec?.content?.secondaryCtaLink || "/collections"}
+                to={heroSec?.content?.secondaryCtaLink || "/collection/navratri"}
                 className="w-full sm:w-auto btn-venm-secondary px-8 py-4 text-xs font-semibold tracking-[0.18em] flex items-center justify-center gap-2 uppercase"
               >
-                <span>{heroSec?.content?.secondaryCtaText || "ALL COLLECTIONS"}</span>
+                <span>{heroSec?.content?.secondaryCtaText || "NAVRATRI EDIT"}</span>
               </Link>
             </div>
           </div>
@@ -130,7 +130,92 @@ const Home = () => {
       )}
 
       {/* ---------------------------------------------------- */}
-      {/* 2. FEATURED COLLECTION SPOTLIGHT (CMS CONTROLLED) */}
+      {/* 2. YOU BRING THE IDEA // MADE AROUND YOUR NEED */}
+      {/* ---------------------------------------------------- */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-neutral-900 text-white p-8 sm:p-12 border border-neutral-800 space-y-8">
+          <div className="text-center space-y-3 max-w-3xl mx-auto">
+            <span className="text-[10px] font-mono tracking-[0.3em] text-lime-400 uppercase font-bold">
+              THE VENM CUSTOM MODEL
+            </span>
+            <h2 className="text-3xl sm:text-5xl font-black tracking-wider uppercase">
+              YOU BRING THE IDEA. WE BUILD THE LOOK.
+            </h2>
+            <p className="text-xs sm:text-sm text-neutral-300 font-sans leading-relaxed">
+              Whether you already have a piece or need us to source one, VENM works around your requirements.
+              Bring us a style reference, a Pinterest board, a garment you already own, or a rough concept.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+            {/* Option 1 */}
+            <div className="bg-neutral-800/80 p-6 sm:p-8 border border-neutral-700 space-y-4">
+              <div className="inline-block px-3 py-1 bg-lime-400 text-neutral-900 font-mono text-[10px] font-bold uppercase tracking-widest">
+                OPTION 01 — YOU PROVIDE THE GARMENT
+              </div>
+              <h3 className="text-xl font-bold uppercase tracking-wider">ALREADY HAVE THE PIECE?</h3>
+              <p className="text-xs text-neutral-300 leading-relaxed font-sans">
+                Send your existing denim jacket, kurta, shirt, pants, saree, or traditional garment to VENM.
+                We customize, distress, embroider, and tailor it according to your requested reference.
+              </p>
+              <div className="text-[11px] font-mono text-lime-400 font-semibold">
+                ✓ Send piece → Discuss design → Custom execution
+              </div>
+            </div>
+
+            {/* Option 2 */}
+            <div className="bg-neutral-800/80 p-6 sm:p-8 border border-neutral-700 space-y-4">
+              <div className="inline-block px-3 py-1 bg-white text-neutral-900 font-mono text-[10px] font-bold uppercase tracking-widest">
+                OPTION 02 — VENM SOURCES THE GARMENT
+              </div>
+              <h3 className="text-xl font-bold uppercase tracking-wider">NEED US TO SOURCE IT?</h3>
+              <p className="text-xs text-neutral-300 leading-relaxed font-sans">
+                Don't have the piece? Share the look you want, and VENM will discuss sourcing the right base garment, fabric, or silhouette for your custom piece.
+              </p>
+              <div className="text-[11px] font-mono text-white font-semibold">
+                ✓ Pick reference → We source base → Craft custom look
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ---------------------------------------------------- */}
+      {/* 3. FEATURED REFERENCES SECTION */}
+      {/* ---------------------------------------------------- */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-neutral-200 pb-4">
+          <div className="space-y-1">
+            <span className="text-[10px] font-mono tracking-[0.25em] text-neutral-500 uppercase font-bold">
+              CATALOG SELECTION // STYLE REFERENCES
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-extrabold tracking-wider text-neutral-900 uppercase">
+              HIGHLIGHTED STYLE REFERENCES
+            </h2>
+          </div>
+          <Link
+            to="/collections"
+            className="text-xs font-semibold tracking-widest text-neutral-900 hover:text-black flex items-center gap-1 transition-colors uppercase"
+          >
+            <span>VIEW ALL REFERENCES</span>
+            <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        {/* Product Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {featuredProducts.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              onQuickInquire={(p) => setActiveInquiryProduct(p)}
+            />
+          ))}
+        </div>
+      </section>
+
+      {/* ---------------------------------------------------- */}
+      {/* 4. FEATURED COLLECTION SPOTLIGHT (CMS CONTROLLED) */}
       {/* ---------------------------------------------------- */}
       {featuredColSec?.enabled !== false && navratriEdit && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -160,7 +245,7 @@ const Home = () => {
                     to={featuredColSec?.content?.ctaLink || "/collection/navratri"}
                     className="inline-flex btn-venm-primary px-6 py-3.5 text-xs font-bold tracking-widest items-center gap-2 uppercase"
                   >
-                    <span>{featuredColSec?.content?.ctaText || `VIEW COLLECTION (${navratriEdit.productCount || 8} PIECES)`}</span>
+                    <span>{featuredColSec?.content?.ctaText || `EXPLORE EDIT REFERENCES (${navratriEdit.productCount || 8} LOOKS)`}</span>
                     <ArrowUpRight className="w-4 h-4" />
                   </Link>
                 </div>
@@ -179,63 +264,29 @@ const Home = () => {
       )}
 
       {/* ---------------------------------------------------- */}
-      {/* 3. FEATURED PRODUCTS SECTION */}
-      {/* ---------------------------------------------------- */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-neutral-200 pb-4">
-          <div className="space-y-1">
-            <span className="text-[10px] font-mono tracking-[0.25em] text-neutral-500 uppercase">
-              SELECTION // FEATURED PIECES
-            </span>
-            <h2 className="text-2xl sm:text-4xl font-extrabold tracking-wider text-neutral-900 uppercase">
-              HIGHLIGHTED CATALOG PIECES
-            </h2>
-          </div>
-          <Link
-            to="/collections"
-            className="text-xs font-semibold tracking-widest text-neutral-900 hover:text-black flex items-center gap-1 transition-colors uppercase"
-          >
-            <span>VIEW ALL PIECES</span>
-            <ChevronRight className="w-4 h-4" />
-          </Link>
-        </div>
-
-        {/* Product Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {featuredProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              onQuickInquire={(p) => setActiveInquiryProduct(p)}
-            />
-          ))}
-        </div>
-      </section>
-
-      {/* ---------------------------------------------------- */}
-      {/* 4. BRAND STATEMENT (CMS CONTROLLED) */}
+      {/* 5. BRAND STATEMENT (CMS CONTROLLED) */}
       {/* ---------------------------------------------------- */}
       {brandSec?.enabled !== false && (
         <section className="py-20 bg-neutral-50 border-y border-neutral-200">
           <div className="max-w-4xl mx-auto px-4 text-center space-y-6">
-            <span className="text-[10px] font-mono tracking-[0.3em] text-neutral-500 uppercase">
+            <span className="text-[10px] font-mono tracking-[0.3em] text-neutral-500 uppercase font-bold">
               {brandSec?.content?.badge || "VENM BRAND PHILOSOPHY"}
             </span>
 
             <div className="space-y-2">
               <h2 className="text-3xl sm:text-5xl font-extrabold tracking-widest text-neutral-900 uppercase">
-                {brandSec?.content?.line1 || "NOT TRADITIONAL."}
+                {brandSec?.content?.line1 || "NOT TRADITIONAL STORE."}
               </h2>
               <h2 className="text-3xl sm:text-5xl font-extrabold tracking-widest text-neutral-500 uppercase">
-                {brandSec?.content?.line2 || "NOT STREETWEAR."}
+                {brandSec?.content?.line2 || "NOT FIXED INVENTORY."}
               </h2>
               <h2 className="text-3xl sm:text-5xl font-extrabold tracking-widest text-neutral-900 uppercase">
-                {brandSec?.content?.line3 || "SOMEWHERE IN BETWEEN."}
+                {brandSec?.content?.line3 || "YOUR IDEA, YOUR VENM."}
               </h2>
             </div>
 
             <p className="text-xs sm:text-sm text-neutral-600 font-sans max-w-xl mx-auto leading-relaxed">
-              {brandSec?.content?.description || "VENM STANDS AT THE INTERSECTION OF GUJARATI HERITAGE CRAFTSMANSHIP AND Y2K KINETIC STREETWEAR. WE DESIGN SILHOUETTES THAT REBEL AGAINST ORDINARY UNIFORMS WHILE HONORING TRADITIONAL ETHOS."}
+              {brandSec?.content?.description || "VENM CATALOG IS A CURATED REFERENCE BOARD OF WHAT WE CAN CRAFT, CUSTOMIZE, AND SOURCE. WE WORK WITH YOUR GARMENTS OR SOURCE BASE PIECES TO BUILD YOUR UNIQUE STYLE."}
             </p>
 
             <div className="pt-2">

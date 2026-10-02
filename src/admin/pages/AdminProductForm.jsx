@@ -407,32 +407,121 @@ const AdminProductForm = ({ mode = 'create' }) => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-neutral-200">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-mono text-neutral-500 tracking-widest uppercase">AVAILABILITY STATUS</label>
+              <label className="text-[10px] font-mono text-neutral-500 tracking-widest uppercase">REQUEST AVAILABILITY STATUS</label>
               <select
-                value={formData.availability}
+                value={formData.availability || 'REQUESTABLE'}
                 onChange={(e) => setFormData({ ...formData, availability: e.target.value })}
-                className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 px-4 py-2.5 text-xs text-neutral-900 outline-none font-mono"
+                className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 px-4 py-2.5 text-xs text-neutral-900 outline-none font-mono font-bold uppercase"
               >
-                <option value="IN STOCK">IN STOCK</option>
-                <option value="MADE TO ORDER">MADE TO ORDER</option>
-                <option value="LIMITED EDITION">LIMITED EDITION</option>
-                <option value="DRAFT">DRAFT</option>
-                <option value="SOLD OUT">SOLD OUT</option>
+                <option value="REQUESTABLE">REQUESTABLE (REQUEST THIS LOOK ACTIVE)</option>
+                <option value="PAUSED">PAUSED (REQUESTS TEMPORARILY PAUSED)</option>
+                <option value="COMING_SOON">COMING SOON</option>
+                <option value="DRAFT">DRAFT (HIDDEN FROM PUBLIC CATALOG)</option>
               </select>
             </div>
 
             <div className="flex items-center justify-between p-3 bg-neutral-50 border border-neutral-200 mt-6">
               <div className="space-y-0.5">
                 <span className="text-xs font-bold text-neutral-900 uppercase block">FEATURE ON HOMEPAGE</span>
-                <span className="text-[10px] font-mono text-neutral-500">Display in highlighted products section</span>
+                <span className="text-[10px] font-mono text-neutral-500">Display in highlighted style references section</span>
               </div>
               <input
                 type="checkbox"
-                checked={formData.isFeatured}
+                checked={Boolean(formData.isFeatured)}
                 onChange={(e) => setFormData({ ...formData, isFeatured: e.target.checked })}
                 className="accent-black w-5 h-5 cursor-pointer"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Section 4: Reference Pricing & Customization Controls */}
+        <div className="bg-white p-6 sm:p-8 border border-neutral-200 space-y-6">
+          <h3 className="text-xs font-mono text-neutral-500 tracking-[0.25em] uppercase border-b border-neutral-200 pb-3 font-semibold">
+            4. ADMIN REFERENCE PRICING & CUSTOMIZATION CONTROL
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-mono text-neutral-500 tracking-widest uppercase">PRICE DISPLAY MODE</label>
+              <select
+                value={formData.priceDisplayMode || 'STARTING_FROM'}
+                onChange={(e) => setFormData({ ...formData, priceDisplayMode: e.target.value })}
+                className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 px-4 py-2.5 text-xs text-neutral-900 outline-none font-mono uppercase font-bold"
+              >
+                <option value="STARTING_FROM">STARTING FROM (e.g. Estimated from ₹1,800)</option>
+                <option value="PRICE_RANGE">PRICE RANGE (e.g. ₹1,800 – ₹2,500)</option>
+                <option value="CUSTOM_QUOTE">CUSTOM QUOTE (Price on Request)</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-mono text-neutral-500 tracking-widest uppercase">ESTIMATED DISPLAY PRICE</label>
+              <input
+                type="text"
+                value={formData.estimatedPrice || ''}
+                onChange={(e) => setFormData({ ...formData, estimatedPrice: e.target.value })}
+                placeholder="e.g. Estimated from ₹1,800"
+                className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 px-4 py-2.5 text-xs text-neutral-900 outline-none font-mono font-bold"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-mono text-neutral-500 tracking-widest uppercase">MINIMUM ESTIMATED PRICE (INTEGER/FLOAT)</label>
+              <input
+                type="text"
+                value={formData.minPrice || ''}
+                onChange={(e) => setFormData({ ...formData, minPrice: e.target.value })}
+                placeholder="e.g. 1800"
+                className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 px-4 py-2.5 text-xs text-neutral-900 outline-none font-mono"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-mono text-neutral-500 tracking-widest uppercase">MAXIMUM ESTIMATED PRICE (INTEGER/FLOAT)</label>
+              <input
+                type="text"
+                value={formData.maxPrice || ''}
+                onChange={(e) => setFormData({ ...formData, maxPrice: e.target.value })}
+                placeholder="e.g. 2500"
+                className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 px-4 py-2.5 text-xs text-neutral-900 outline-none font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-mono text-neutral-500 tracking-widest uppercase">CUSTOMIZATION INFORMATION</label>
+            <textarea
+              rows="2"
+              value={formData.customizationInfo || ''}
+              onChange={(e) => setFormData({ ...formData, customizationInfo: e.target.value })}
+              placeholder="e.g. Custom embroidery, fabric selections, and wash alterations available..."
+              className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 px-4 py-2.5 text-xs text-neutral-900 outline-none font-sans"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-mono text-neutral-500 tracking-widest uppercase">SIZING APPROACH INFORMATION</label>
+            <input
+              type="text"
+              value={formData.sizingInfo || ''}
+              onChange={(e) => setFormData({ ...formData, sizingInfo: e.target.value })}
+              placeholder="e.g. Custom sizing available according to your measurements..."
+              className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 px-4 py-2.5 text-xs text-neutral-900 outline-none font-sans"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-mono text-neutral-500 tracking-widest uppercase">SOURCE / INSPIRATION ATTRIBUTION</label>
+            <input
+              type="text"
+              value={formData.sourceAttribution || ''}
+              onChange={(e) => setFormData({ ...formData, sourceAttribution: e.target.value })}
+              placeholder="e.g. VENM Studio Original Reference / Style Concept"
+              className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 px-4 py-2.5 text-xs text-neutral-900 outline-none font-sans"
+            />
           </div>
         </div>
 
@@ -445,7 +534,7 @@ const AdminProductForm = ({ mode = 'create' }) => {
               className="text-xs font-mono text-red-600 hover:text-red-700 flex items-center gap-1.5 uppercase border border-red-300 px-4 py-2.5 bg-red-50"
             >
               <Trash2 className="w-4 h-4" />
-              <span>DELETE PRODUCT</span>
+              <span>DELETE REFERENCE</span>
             </button>
           ) : <div />}
 

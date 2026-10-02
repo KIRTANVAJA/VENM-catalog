@@ -31,7 +31,7 @@ const AdminSidebar = ({ mobileOpen, setMobileOpen }) => {
     {
       title: 'CATALOG',
       items: [
-        { name: 'Products', path: '/admin/products', icon: Package },
+        { name: 'References (Looks)', path: '/admin/products', icon: Package },
         { name: 'Collections', path: '/admin/collections', icon: Layers },
         { name: 'Categories', path: '/admin/categories', icon: Tag }
       ]

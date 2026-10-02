@@ -10,7 +10,7 @@ export const DEFAULT_SETTINGS = {
     contactEmail: "venm1310@gmail.com",
     contactPhone: "+91 96649 84749",
     location: "Ahmedabad, Gujarat, India",
-    footerText: "CONTEMPORARY GUJARATI ETHOS FUSED WITH METROPOLITAN STREETWEAR & INDO-WESTERN SILHOUETTES.",
+    footerText: "FASHION REFERENCE CATALOG & BESPOKE CUSTOM REQUEST PLATFORM. GUJARATI ETHOS FUSED WITH METROPOLITAN STREETWEAR.",
     siteStatus: "LIVE",
     logoUrl: "/assets/brand/venm-logo.png"
   },
@@ -18,8 +18,8 @@ export const DEFAULT_SETTINGS = {
     number: "+91 96649 84749",
     rawNumber: "919664984749",
     enabled: true,
-    buttonText: "INQUIRE ON WHATSAPP",
-    defaultTemplate: `Hi VENM! 👋\n\nI'm interested in:\n\nProduct:\n{{product_name}}\n\nProduct ID:\n{{product_id}}\n\nCollection:\n{{collection}}\n\nCategory:\n{{category}}\n\nSize:\n{{size}}\n\nCould you please share:\n• Price\n• Available sizes\n• Availability\n• Delivery details\n\nThank you!`
+    buttonText: "REQUEST THIS LOOK",
+    defaultTemplate: `Hi VENM! 👋\n\nI'd like to request this look:\n\nReference:\n{{product_name}}\n\nReference ID:\n{{product_id}}\n\nEstimated Price:\n{{estimated_price}}\n\nRequest Option:\n{{request_type}}\n\nI'd like to discuss:\n• Customization\n• Sizing / measurements\n• Garment sourcing / My own garment\n\nReference:\n{{product_url}}\n\nPlease let me know how we can take this forward.\nThank you!`
   },
   social: {
     instagram: "https://instagram.com/venm.exe",
@@ -27,10 +27,10 @@ export const DEFAULT_SETTINGS = {
     youtube: "https://youtube.com/@venmofficial"
   },
   seo: {
-    siteTitle: "VENM CATALOG — Gujarati Ethos × Cyber Streetwear",
-    metaDescription: "Official VENM Fashion Catalog. Contemporary Gujarati heritage fused with Y2K kinetic streetwear.",
+    siteTitle: "VENM REFERENCE CATALOG — Custom Fashion & Bespoke Requests",
+    metaDescription: "Official VENM Reference Catalog. Contemporary Gujarati heritage fused with Y2K kinetic streetwear. Request your custom look today.",
     defaultOgImage: "/assets/campaign/HOMEPAGE_2.webp",
-    keywords: "VENM, Gujarati Streetwear, Navratri Garba Fashion, Indo-Western, Raw Denim"
+    keywords: "VENM, Reference Catalog, Custom Fashion, Bespoke Garment, Gujarati Streetwear, Indo-Western"
   }
 };
 
@@ -48,7 +48,7 @@ export async function fetchLiveSettings() {
       };
     }
   } catch (err) {
-    // Graceful fallback to default settings if server starting
+    // Graceful fallback to default settings
   }
   return cachedSettings;
 }
@@ -72,21 +72,34 @@ export async function saveSettingsSection(sectionKey, newValues) {
   return cachedSettings;
 }
 
-export function formatWhatsAppUrl(product, size = '') {
+export function formatWhatsAppUrl(product, size = '', requestType = '') {
   const settings = getSettings();
   const phone = settings.whatsapp?.number || settings.whatsapp?.rawNumber || '+91 96649 84749';
   const rawNum = phone.replace(/[^0-9]/g, '');
   
-  let msg = settings.whatsapp?.defaultTemplate || `Hi VENM! 👋\n\nI'm interested in:\n\nProduct:\n{{product_name}}\n\nProduct ID:\n{{product_id}}\n\nCollection:\n{{collection}}\n\nCategory:\n{{category}}\n\nSize:\n{{size}}\n\nCould you please share:\n• Price\n• Available sizes\n• Availability\n• Delivery details\n\nThank you!`;
+  let msg = settings.whatsapp?.defaultTemplate || `Hi VENM! 👋\n\nI'd like to request this look:\n\nReference:\n{{product_name}}\n\nReference ID:\n{{product_id}}\n\nEstimated Price:\n{{estimated_price}}\n\nRequest Option:\n{{request_type}}\n\nI'd like to discuss:\n• Customization\n• Sizing / measurements\n• Garment sourcing / My own garment\n\nReference:\n{{product_url}}\n\nPlease let me know how we can take this forward.\nThank you!`;
   
-  const effectiveSize = size && size.trim() !== '' ? size : 'Not selected';
+  const effectiveSize = size && size.trim() !== '' ? size : 'Custom sizing to be discussed';
+  const effectiveReqType = requestType && requestType.trim() !== '' 
+    ? requestType 
+    : 'To be discussed (I have garment or need sourcing)';
   const brandName = settings.general?.brandName || 'VENM';
   const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
-  const productId = product?.id || product?.slug || 'N/A';
+  const productId = product?.id || product?.slug || 'VENM-REF-001';
 
-  msg = msg.replace(/\{\{product_name\}\}/g, product?.name || 'Piece')
+  // Compute estimated price string
+  let priceStr = 'Price on Request';
+  if (product?.estimatedPrice) {
+    priceStr = product.estimatedPrice;
+  } else if (product?.minPrice && product?.maxPrice) {
+    priceStr = `₹${product.minPrice} – ₹${product.maxPrice}`;
+  }
+
+  msg = msg.replace(/\{\{product_name\}\}/g, product?.name || 'Reference Look')
            .replace(/\{\{product_id\}\}/g, productId)
-           .replace(/\{\{collection\}\}/g, product?.collectionName || 'Collection')
+           .replace(/\{\{estimated_price\}\}/g, priceStr)
+           .replace(/\{\{request_type\}\}/g, effectiveReqType)
+           .replace(/\{\{collection\}\}/g, product?.collectionName || 'Catalog Collection')
            .replace(/\{\{category\}\}/g, product?.category || 'Fashion')
            .replace(/\{\{size\}\}/g, effectiveSize)
            .replace(/\{\{product_url\}\}/g, pageUrl)

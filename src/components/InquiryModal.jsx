@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { X, MessageCircle, Send, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { X, MessageCircle, Send, CheckCircle2, ShieldCheck, Shirt, Sparkles } from 'lucide-react';
 import { formatWhatsAppUrl, getSettings } from '../data/settings';
+import { formatReferencePrice } from '../data/catalog';
 import { BRAND_ASSETS } from '../config/assets';
 
 const InquiryModal = ({ product, selectedSize, isOpen, onClose }) => {
+  const [requestType, setRequestType] = useState('I already have the garment');
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -13,9 +15,11 @@ const InquiryModal = ({ product, selectedSize, isOpen, onClose }) => {
 
   if (!isOpen || !product) return null;
 
-  const activeSize = selectedSize || product.sizes?.[0] || 'M';
+  const activeSize = selectedSize || product.sizes?.[0] || 'Custom';
   const settings = getSettings();
-  const whatsappUrl = formatWhatsAppUrl(product, activeSize);
+  const estimatedPriceText = formatReferencePrice(product);
+  const whatsappUrl = formatWhatsAppUrl(product, activeSize, requestType);
+  const referenceIdStr = product.id ? `REF ID: ${product.id}` : `REF ID: ${product.slug}`;
 
   const handleSubmitForm = (e) => {
     e.preventDefault();
@@ -40,29 +44,69 @@ const InquiryModal = ({ product, selectedSize, isOpen, onClose }) => {
         {/* Modal Header */}
         <div className="space-y-1 pr-8">
           <span className="text-[10px] font-mono tracking-[0.25em] text-neutral-500 uppercase block">
-            BESPOKE CATALOG INQUIRY
+            FASHION REFERENCE CUSTOM REQUEST
           </span>
           <h2 className="text-xl sm:text-2xl font-extrabold tracking-wider text-neutral-900 uppercase">
-            INQUIRE ABOUT THIS PIECE
+            REQUEST THIS LOOK
           </h2>
         </div>
 
-        {/* Product Snippet */}
-        <div className="flex items-center gap-4 p-3 bg-neutral-50 border border-neutral-200">
+        {/* Product / Reference Snippet */}
+        <div className="flex items-center gap-4 p-3.5 bg-neutral-50 border border-neutral-200">
           <img
             src={product.images?.[0] || BRAND_ASSETS.FALLBACK_PRODUCT}
             alt={product.name}
-            className="w-14 h-18 object-cover bg-neutral-100 border border-neutral-200"
+            className="w-14 h-18 object-cover bg-neutral-100 border border-neutral-200 flex-shrink-0"
             onError={(e) => { e.target.src = BRAND_ASSETS.FALLBACK_PRODUCT; }}
           />
-          <div className="space-y-1">
+          <div className="space-y-1 flex-1">
             <h4 className="text-sm font-bold text-neutral-900 tracking-wider uppercase">{product.name}</h4>
-            <p className="text-[10px] font-mono text-neutral-500">{product.collectionName}</p>
-            <div className="flex items-center gap-2 text-xs text-neutral-600">
-              <span>SELECTED SIZE: <strong className="text-neutral-900">{activeSize}</strong></span>
+            <p className="text-[10px] font-mono text-neutral-500">{product.collectionName || 'VENM REFERENCE'}</p>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-700 font-mono">
+              <span className="font-bold text-black">{estimatedPriceText}</span>
               <span>•</span>
-              <span className="text-neutral-700 text-[10px] font-mono">{product.availability}</span>
+              <span className="text-neutral-500 text-[10px]">{referenceIdStr}</span>
             </div>
+          </div>
+        </div>
+
+        {/* Garment Option Selection */}
+        <div className="space-y-2 border-t border-neutral-200 pt-4">
+          <label className="text-[10px] font-mono text-neutral-800 tracking-widest uppercase font-bold block">
+            GARMENT OPTION // HOW WOULD YOU LIKE TO WORK WITH US?
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setRequestType('I already have the garment')}
+              className={`p-3 text-left border transition-all text-xs font-mono flex items-start gap-2.5 ${
+                requestType === 'I already have the garment'
+                  ? 'bg-black text-white border-black shadow-xs font-bold'
+                  : 'bg-neutral-50 text-neutral-800 border-neutral-200 hover:border-black'
+              }`}
+            >
+              <Shirt className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="block font-bold uppercase text-[11px]">I HAVE MY GARMENT</span>
+                <span className="text-[9px] opacity-80 leading-tight block pt-0.5">Send your piece to VENM to customize</span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setRequestType('I need VENM to source the garment')}
+              className={`p-3 text-left border transition-all text-xs font-mono flex items-start gap-2.5 ${
+                requestType === 'I need VENM to source the garment'
+                  ? 'bg-black text-white border-black shadow-xs font-bold'
+                  : 'bg-neutral-50 text-neutral-800 border-neutral-200 hover:border-black'
+              }`}
+            >
+              <Sparkles className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="block font-bold uppercase text-[11px]">VENM SOURCES PIECE</span>
+                <span className="text-[9px] opacity-80 leading-tight block pt-0.5">We source base garment for you</span>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -70,9 +114,9 @@ const InquiryModal = ({ product, selectedSize, isOpen, onClose }) => {
           <div className="py-8 text-center space-y-4 animate-fadeIn">
             <CheckCircle2 className="w-12 h-12 text-black mx-auto" />
             <div className="space-y-1">
-              <h3 className="text-lg font-bold text-neutral-900 tracking-wider uppercase">INQUIRY RECEIVED</h3>
+              <h3 className="text-lg font-bold text-neutral-900 tracking-wider uppercase">REQUEST RECEIVED</h3>
               <p className="text-xs text-neutral-600 max-w-xs mx-auto leading-relaxed">
-                Thank you, {formData.name || 'Valued Client'}. Our styling team will review your inquiry and reach out via {formData.contact}.
+                Thank you, {formData.name || 'Valued Client'}. Our styling team will review your request ({requestType}) and contact you via {formData.contact}.
               </p>
             </div>
             <button
@@ -93,7 +137,7 @@ const InquiryModal = ({ product, selectedSize, isOpen, onClose }) => {
                 className="w-full btn-venm-primary py-3.5 px-4 flex items-center justify-center gap-2.5 text-xs font-bold tracking-widest uppercase"
               >
                 <MessageCircle className="w-5 h-5 text-white" />
-                <span>{settings.whatsapp.buttonText || 'INQUIRE VIA WHATSAPP (INSTANT)'}</span>
+                <span>REQUEST THIS LOOK ON WHATSAPP</span>
               </a>
               <p className="text-[10px] text-neutral-500 text-center font-mono tracking-wider">
                 Directly connects to VENM Studio ({settings.whatsapp.number})
@@ -102,7 +146,7 @@ const InquiryModal = ({ product, selectedSize, isOpen, onClose }) => {
 
             <div className="relative flex py-1 items-center">
               <div className="flex-grow border-t border-neutral-200"></div>
-              <span className="flex-shrink mx-4 text-[10px] font-mono tracking-widest text-neutral-400">OR EMAIL INQUIRY</span>
+              <span className="flex-shrink mx-4 text-[10px] font-mono tracking-widest text-neutral-400">OR DIRECT REQUEST FORM</span>
               <div className="flex-grow border-t border-neutral-200"></div>
             </div>
 
@@ -116,7 +160,7 @@ const InquiryModal = ({ product, selectedSize, isOpen, onClose }) => {
                   placeholder="e.g. Aarav Patel"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 px-3.5 py-2 text-xs text-neutral-900 placeholder-neutral-400 outline-none"
+                  className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 px-3.5 py-2 text-xs text-neutral-900 placeholder-neutral-400 outline-none font-sans"
                 />
               </div>
 
@@ -128,15 +172,15 @@ const InquiryModal = ({ product, selectedSize, isOpen, onClose }) => {
                   placeholder="e.g. +91 98765 43210 or name@domain.com"
                   value={formData.contact}
                   onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-                  className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 px-3.5 py-2 text-xs text-neutral-900 placeholder-neutral-400 outline-none"
+                  className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 px-3.5 py-2 text-xs text-neutral-900 placeholder-neutral-400 outline-none font-mono"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase">BESPOKE REQUESTS / SIZING</label>
+                <label className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase">CUSTOM REQUIREMENTS / SIZING NOTES</label>
                 <textarea
                   rows="3"
-                  placeholder="Mention custom sizing preferences or delivery date requirement..."
+                  placeholder="Tell us about your garment, custom embroidery ideas, or sizing details..."
                   value={formData.note}
                   onChange={(e) => setFormData({ ...formData, note: e.target.value })}
                   className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 px-3.5 py-2 text-xs text-neutral-900 placeholder-neutral-400 outline-none resize-none font-sans"
@@ -148,7 +192,7 @@ const InquiryModal = ({ product, selectedSize, isOpen, onClose }) => {
                 className="w-full btn-venm-secondary py-3 text-xs font-semibold tracking-widest flex items-center justify-center gap-2 uppercase"
               >
                 <Send className="w-4 h-4" />
-                <span>SUBMIT INQUIRY REQUEST</span>
+                <span>SUBMIT CUSTOM REQUEST</span>
               </button>
             </form>
 

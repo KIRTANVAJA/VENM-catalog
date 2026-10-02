@@ -100,10 +100,10 @@ const AdminProducts = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-200 pb-6">
         <div className="space-y-1">
           <span className="text-[10px] font-mono tracking-[0.25em] text-neutral-500 uppercase">
-            CATALOG MANAGEMENT // PRODUCTS
+            REFERENCE CATALOG MANAGEMENT // STYLE REFERENCES
           </span>
           <h2 className="text-2xl sm:text-4xl font-extrabold tracking-wider text-neutral-900 uppercase">
-            PRODUCT INVENTORY ({filteredProducts.length})
+            STYLE REFERENCES ({filteredProducts.length})
           </h2>
         </div>
         <Link
@@ -111,7 +111,7 @@ const AdminProducts = () => {
           className="btn-venm-primary px-6 py-3 text-xs font-bold tracking-widest flex items-center justify-center gap-2 uppercase self-start sm:self-auto"
         >
           <Plus className="w-4 h-4 text-white" />
-          <span>ADD NEW PRODUCT</span>
+          <span>ADD NEW REFERENCE</span>
         </Link>
       </div>
 
@@ -122,7 +122,7 @@ const AdminProducts = () => {
             <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search product name, slug, category..."
+              placeholder="Search reference name, ID, category..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-neutral-50 border border-neutral-300 focus:border-neutral-900 text-xs text-neutral-900 placeholder-neutral-500 outline-none font-mono"
@@ -136,12 +136,11 @@ const AdminProducts = () => {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 text-xs text-neutral-900 px-3 py-2 outline-none font-mono"
             >
-              <option value="ALL">STATUS: ALL</option>
-              <option value="IN STOCK">IN STOCK</option>
-              <option value="MADE TO ORDER">MADE TO ORDER</option>
-              <option value="LIMITED EDITION">LIMITED EDITION</option>
+              <option value="ALL">REQUEST STATUS: ALL</option>
+              <option value="REQUESTABLE">REQUESTABLE / PUBLISHED</option>
+              <option value="PAUSED">REQUESTS PAUSED</option>
+              <option value="COMING_SOON">COMING SOON</option>
               <option value="DRAFT">DRAFT</option>
-              <option value="SOLD OUT">SOLD OUT</option>
             </select>
           </div>
 
@@ -171,9 +170,9 @@ const AdminProducts = () => {
           <thead>
             <tr className="bg-neutral-100 border-b border-neutral-300 text-neutral-900 font-mono text-[11px] tracking-widest uppercase font-extrabold">
               <th className="py-3 px-4">IMAGE</th>
-              <th className="py-3 px-4">PRODUCT</th>
+              <th className="py-3 px-4">REFERENCE</th>
+              <th className="py-3 px-4">ESTIMATED PRICE</th>
               <th className="py-3 px-4">COLLECTION</th>
-              <th className="py-3 px-4">CATEGORY</th>
               <th className="py-3 px-4">STATUS</th>
               <th className="py-3 px-4 text-center">FEATURED</th>
               <th className="py-3 px-4 text-right">ACTIONS</th>
@@ -182,6 +181,7 @@ const AdminProducts = () => {
           <tbody className="divide-y divide-neutral-200">
             {filteredProducts.map((p) => {
               const imgUrl = Array.isArray(p.images) ? p.images[0] : (typeof p.images === 'string' && p.images.startsWith('[') ? JSON.parse(p.images)[0] : p.images) || BRAND_ASSETS.FALLBACK_PRODUCT;
+              const estPrice = p.estimatedPrice || (p.minPrice ? `₹${p.minPrice} – ₹${p.maxPrice}` : 'Price on Request');
               return (
                 <tr key={p.id} className="hover:bg-neutral-50 transition-colors">
                   <td className="py-3 px-4">
@@ -196,17 +196,17 @@ const AdminProducts = () => {
                     <span className="font-extrabold text-neutral-900 text-sm uppercase tracking-wider block">
                       {p.name}
                     </span>
-                    <span className="text-[10px] font-mono text-neutral-700 font-semibold">ID: {p.id} • {p.slug}</span>
+                    <span className="text-[10px] font-mono text-neutral-700 font-semibold">REFERENCE ID: {p.id}</span>
                   </td>
-                  <td className="py-3 px-4 font-mono text-neutral-900 font-bold text-xs uppercase">
+                  <td className="py-3 px-4 font-mono text-neutral-900 font-bold text-xs">
+                    {estPrice}
+                  </td>
+                  <td className="py-3 px-4 font-mono text-neutral-900 font-semibold text-xs uppercase">
                     {p.collectionName || p.collectionSlug}
                   </td>
-                  <td className="py-3 px-4 text-neutral-700 font-mono text-xs">
-                    {p.category}
-                  </td>
                   <td className="py-3 px-4">
-                    <span className="badge-status badge-status-active">
-                      {p.availability}
+                    <span className={`badge-status ${p.availability === 'PAUSED' ? 'badge-status-inactive' : 'badge-status-active'}`}>
+                      {p.availability || 'REQUESTABLE'}
                     </span>
                   </td>
                   <td className="py-3 px-4 text-center">
@@ -228,28 +228,28 @@ const AdminProducts = () => {
                         to={`/product/${p.slug}`}
                         target="_blank"
                         className="p-1.5 text-neutral-500 hover:text-black hover:bg-neutral-100 transition-colors"
-                        title="Preview Live Page"
+                        title="Preview Live Reference Page"
                       >
                         <Eye className="w-4 h-4" />
                       </Link>
                       <Link
                         to={`/admin/products/${p.id}/edit`}
                         className="p-1.5 text-neutral-900 hover:bg-neutral-200 transition-colors"
-                        title="Edit Product"
+                        title="Edit Reference"
                       >
                         <Edit className="w-4 h-4" />
                       </Link>
                       <button
                         onClick={() => handleDuplicate(p)}
                         className="p-1.5 text-neutral-700 hover:bg-neutral-200 transition-colors"
-                        title="Duplicate Product"
+                        title="Duplicate Reference"
                       >
                         <Copy className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setDeleteModalProduct(p)}
                         className="p-1.5 text-red-600 hover:bg-red-50 transition-colors"
-                        title="Delete Product"
+                        title="Delete Reference"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

@@ -84,12 +84,12 @@ const Navbar = () => {
           {/* Right Action */}
           <div className="hidden md:flex items-center space-x-4">
             <a
-              href="https://wa.me/919664984749?text=Hello%20VENM%20Catalog%20Inquiry"
+              href="https://wa.me/919664984749?text=Hello%20VENM!%20I'd%20like%20to%20request%20a%20look%20from%20your%20reference%20catalog."
               target="_blank"
               rel="noopener noreferrer"
-              className="btn-venm-primary text-xs px-5 py-2.5 flex items-center gap-1.5 font-semibold"
+              className="btn-venm-primary text-xs px-5 py-2.5 flex items-center gap-1.5 font-bold tracking-wider"
             >
-              <span>INQUIRE</span>
+              <span>REQUEST A LOOK</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
             </a>
           </div>

@@ -48,27 +48,35 @@ model Category {
 }
 
 model Product {
-  id             String      @id @default(uuid())
-  name           String
-  slug           String      @unique
-  description    String?
-  details        String      @default("[]") // JSON string of spec bullets
-  collectionId   String?
-  collection     Collection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
-  categoryId     String?
-  category       Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  collectionName String?
-  categoryName   String?
-  images         String      @default("[]") // JSON string array of image URLs
-  sizes          String      @default("[]") // JSON string array of size tags
-  availability   String      @default("IN STOCK") // IN STOCK | MADE TO ORDER | LIMITED EDITION | DRAFT | SOLD OUT
-  isFeatured     Boolean     @default(false)
-  isNavratriEdit Boolean     @default(false)
-  tags           String      @default("[]") // JSON string array
-  garmentCare    String?
-  displayOrder   Int         @default(0)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  id                String      @id @default(uuid())
+  name              String
+  slug              String      @unique
+  description       String?
+  details           String      @default("[]") // JSON string of spec bullets
+  collectionId      String?
+  collection        Collection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+  categoryId        String?
+  category          Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  collectionSlug    String?
+  collectionName    String?
+  categoryName      String?
+  images            String      @default("[]") // JSON string array of image URLs
+  sizes             String      @default("[]") // JSON string array of size tags
+  availability      String      @default("REQUESTABLE") // REQUESTABLE | PUBLISHED | PAUSED | COMING_SOON | DRAFT
+  estimatedPrice    String?     @default("Estimated from ₹1,800")
+  minPrice          String?
+  maxPrice          String?
+  priceDisplayMode  String?     @default("STARTING_FROM") // STARTING_FROM | PRICE_RANGE | CUSTOM_QUOTE
+  customizationInfo String?     @default("Custom embroidery, fit adjustments, and design alterations available.")
+  sizingInfo        String?     @default("Custom sizing available according to your requirements.")
+  sourceAttribution String?     @default("VENM Reference Design")
+  isFeatured        Boolean     @default(false)
+  isNavratriEdit    Boolean     @default(false)
+  tags              String      @default("[]") // JSON string array
+  garmentCare       String?
+  displayOrder      Int         @default(0)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 }
 
 model Campaign {
