@@ -1,10 +1,21 @@
 // CENTRAL VENM REST API SERVICE LAYER
 // Handles all HTTP communications between Frontend (React) and Backend (Node/Express/Prisma)
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const getBaseUrl = () => {
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  // Production fallback: If running in browser and hostname is not localhost, use relative '/api'
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return '/api';
+  }
+  return 'http://localhost:5000/api';
+};
+
+const API_BASE_URL = getBaseUrl();
 
 async function request(endpoint, options = {}) {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
   
   const headers = {
     'Content-Type': 'application/json',
@@ -19,7 +30,15 @@ async function request(endpoint, options = {}) {
 
   try {
     const res = await fetch(url, config);
-    const data = await res.json();
+    const contentType = res.headers.get('content-type');
+    
+    let data;
+    if (contentType && contentType.includes('application/json')) {
+      data = await res.json();
+    } else {
+      const text = await res.text();
+      data = { message: text || `HTTP ${res.status}` };
+    }
 
     if (!res.ok) {
       throw new Error(data.message || `API ERROR (${res.status})`);
@@ -163,7 +182,7 @@ export function apiCreateCategory(data) {
 }
 
 export function apiUpdateCategory(id, data) {
-  return request('/categories/${id}', {
+  return request(`/categories/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data)
   });
