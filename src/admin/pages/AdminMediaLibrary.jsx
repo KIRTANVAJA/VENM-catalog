@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getAdminMedia, addAdminMedia } from '../../data/adminMock';
+import { apiGetMedia, apiCreateMedia, apiDeleteMedia } from '../../services/api';
 import { Upload, Search, Trash2, Eye, CheckCircle2, X } from 'lucide-react';
 import { BRAND_ASSETS } from '../../config/assets';
 
@@ -14,35 +15,58 @@ const AdminMediaLibrary = () => {
 
   const [previewMedia, setPreviewMedia] = useState(null);
 
+  const loadMedia = async () => {
+    try {
+      const data = await apiGetMedia();
+      if (Array.isArray(data) && data.length > 0) {
+        setMediaItems(data);
+      }
+    } catch (err) {
+      console.warn('[MEDIA] Fetch failed, using local mock:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadMedia();
+  }, []);
+
   const filteredMedia = mediaItems.filter((m) => {
-    const matchesSearch = m.name.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = (m.name || '').toLowerCase().includes(search.toLowerCase());
     const matchesCategory = categoryFilter === 'ALL' || m.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
 
-  const handleSimulatedUpload = (filename = 'new_campaign_look.webp') => {
+  const handleSimulatedUpload = async (filename = 'new_campaign_look.webp') => {
     setUploadingState('uploading');
-    setTimeout(() => {
-      const newMediaObj = {
-        name: filename,
-        category: categoryFilter !== 'ALL' ? categoryFilter : 'Products',
-        type: 'image/webp',
-        size: '240 KB',
-        url: BRAND_ASSETS.FALLBACK_CAMPAIGN,
-        usedBy: 'Catalog Asset'
-      };
+    const newMediaObj = {
+      name: filename,
+      category: categoryFilter !== 'ALL' ? categoryFilter : 'Products',
+      type: 'image/webp',
+      size: '240 KB',
+      url: BRAND_ASSETS.FALLBACK_CAMPAIGN,
+      usedBy: 'Catalog Asset'
+    };
+
+    try {
+      const created = await apiCreateMedia(newMediaObj);
+      setMediaItems((prev) => [created, ...prev]);
+    } catch (err) {
       const updated = addAdminMedia(newMediaObj);
       setMediaItems([...updated]);
-      setUploadingState('success');
-      setTimeout(() => {
-        setUploadingState('idle');
-        setUploadModalOpen(false);
-      }, 1200);
-    }, 1000);
+    }
+
+    setUploadingState('success');
+    setTimeout(() => {
+      setUploadingState('idle');
+      setUploadModalOpen(false);
+    }, 1200);
   };
 
-  const handleDeleteMedia = (id) => {
+  const handleDeleteMedia = async (id) => {
     if (window.confirm('Remove media asset from registry?')) {
+      try {
+        await apiDeleteMedia(id);
+      } catch (err) {}
       setMediaItems(mediaItems.filter((m) => m.id !== id));
     }
   };

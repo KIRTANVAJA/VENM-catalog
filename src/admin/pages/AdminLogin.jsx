@@ -66,14 +66,14 @@ const AdminLogin = () => {
           <div className="space-y-1.5">
             <label className="text-[10px] font-mono tracking-widest text-neutral-600 uppercase flex items-center gap-1.5">
               <Mail className="w-3.5 h-3.5 text-neutral-500" />
-              <span>ADMIN EMAIL ADDRESS</span>
+              <span>ADMIN USERNAME (EMAIL ID OR PHONE NUMBER)</span>
             </label>
             <input
-              type="email"
+              type="text"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="venm1310@gmail.com"
+              placeholder="venm1310@gmail.com or 9664984749"
               className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 px-4 py-3 text-xs text-neutral-900 outline-none font-mono"
             />
           </div>

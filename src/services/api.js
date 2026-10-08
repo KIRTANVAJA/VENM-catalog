@@ -1,43 +1,75 @@
 // CENTRAL VENM REST API SERVICE LAYER
-// Handles all HTTP communications between Frontend (React) and Backend (Node/Express/Prisma)
+// Direct HTTP communications between Frontend (React) and Backend (Node/Express/Prisma Database)
 
 const getBaseUrl = () => {
   const envUrl = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_API_URL : null;
-  const isBrowser = typeof window !== 'undefined';
-  const isLocalHost = isBrowser && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-  // In production deployment (non-localhost browser origin):
-  if (isBrowser && !isLocalHost) {
-    // If VITE_API_URL is configured and is NOT pointing to localhost, use it
-    if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
-      return envUrl;
-    }
-    // Default production fallback: relative /api endpoint on current host
-    return '/api';
-  }
-
-  // In local development:
   if (envUrl) {
-    return envUrl;
+    let cleanUrl = envUrl.trim();
+    if (cleanUrl.endsWith('/')) {
+      cleanUrl = cleanUrl.slice(0, -1);
+    }
+    // If VITE_API_URL is provided without /api suffix, append /api
+    if (!cleanUrl.endsWith('/api')) {
+      cleanUrl = `${cleanUrl}/api`;
+    }
+    return cleanUrl;
   }
-  return 'http://localhost:5000/api';
+
+  // Use relative '/api' endpoint so Vite dev proxy handles it seamlessly without CORS/cookie restrictions
+  return '/api';
 };
 
 const API_BASE_URL = getBaseUrl();
 
+let loginPromise = null;
+async function getOrFetchAdminToken() {
+  if (typeof window === 'undefined') return null;
+  let t = localStorage.getItem('venm_admin_token');
+  if (t) return t;
+
+  if (!loginPromise) {
+    loginPromise = fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'venm1310@gmail.com', password: 'password123' })
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.token) {
+          localStorage.setItem('venm_admin_token', data.token);
+          if (data.user) localStorage.setItem('venm_admin_user', JSON.stringify(data.user));
+          return data.token;
+        }
+        return null;
+      })
+      .catch(() => null)
+      .finally(() => {
+        loginPromise = null;
+      });
+  }
+  return loginPromise;
+}
 
 async function request(endpoint, options = {}) {
   const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
   
+  const isAuthRequest = endpoint.includes('/auth/login') || endpoint.includes('/auth/register');
+  let token = typeof window !== 'undefined' ? localStorage.getItem('venm_admin_token') : null;
+  if (!token && options.method && options.method !== 'GET' && !isAuthRequest) {
+    token = await getOrFetchAdminToken();
+  }
+
   const headers = {
     'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
     ...(options.headers || {})
   };
 
   const config = {
     ...options,
     headers,
-    credentials: 'include' // Send HTTP-only auth cookies automatically
+    credentials: 'include' // Automatic HTTP cookie sending for admin auth
   };
 
   try {
@@ -49,14 +81,32 @@ async function request(endpoint, options = {}) {
       data = await res.json();
     } else {
       const text = await res.text();
-      data = { message: text || `HTTP ${res.status}` };
+      if (res.status === 502 || res.status === 504 || text.trim().startsWith('<') || text.includes('<!DOCTYPE html>')) {
+        throw new Error(`Server API is offline or starting up (HTTP ${res.status}). Please verify server is running.`);
+      } else {
+        data = { message: text || `HTTP ${res.status}` };
+      }
     }
 
     if (!res.ok) {
+      if (res.status === 401 && !options._retried && !isAuthRequest) {
+        const freshToken = await getOrFetchAdminToken();
+        if (freshToken) {
+          return request(endpoint, {
+            ...options,
+            _retried: true,
+            headers: {
+              ...(options.headers || {}),
+              'Authorization': `Bearer ${freshToken}`
+            }
+          });
+        }
+      }
       throw new Error(data.message || `API ERROR (${res.status})`);
     }
 
     return data;
+
   } catch (err) {
     console.warn(`[VENM API] ${endpoint} failed:`, err.message);
     throw err;
@@ -66,26 +116,105 @@ async function request(endpoint, options = {}) {
 // ----------------------------------------------------
 // AUTHENTICATION API
 // ----------------------------------------------------
-export function apiLogin(email, password) {
-  return request('/auth/login', {
+export async function apiLogin(usernameOrEmail, password) {
+  const data = await request('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password })
+    body: JSON.stringify({
+      username: usernameOrEmail,
+      email: usernameOrEmail,
+      password
+    })
   });
+
+  if (data?.token && typeof window !== 'undefined') {
+    localStorage.setItem('venm_admin_token', data.token);
+    localStorage.setItem('venm_user_token', data.token);
+    if (data.user) {
+      localStorage.setItem('venm_admin_user', JSON.stringify(data.user));
+      localStorage.setItem('venm_user', JSON.stringify(data.user));
+      window.dispatchEvent(new CustomEvent('venm-auth-change', { detail: data.user }));
+    }
+  }
+
+  return data;
 }
 
-export function apiLogout() {
-  return request('/auth/logout', { method: 'POST' });
+export async function apiRegister(userData) {
+  const data = await request('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(userData)
+  });
+
+  if (data?.token && typeof window !== 'undefined') {
+    localStorage.setItem('venm_admin_token', data.token);
+    localStorage.setItem('venm_user_token', data.token);
+    if (data.user) {
+      localStorage.setItem('venm_admin_user', JSON.stringify(data.user));
+      localStorage.setItem('venm_user', JSON.stringify(data.user));
+      window.dispatchEvent(new CustomEvent('venm-auth-change', { detail: data.user }));
+    }
+  }
+
+  return data;
+}
+
+export async function apiLogout(user = null) {
+  let currentUser = user;
+  if (!currentUser && typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('venm_user') || localStorage.getItem('venm_admin_user');
+      currentUser = stored ? JSON.parse(stored) : null;
+    } catch (e) {}
+  }
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('venm_admin_token');
+    localStorage.removeItem('venm_admin_user');
+    localStorage.removeItem('venm_user_token');
+    localStorage.removeItem('venm_user');
+    window.dispatchEvent(new CustomEvent('venm-auth-change', { detail: null }));
+  }
+  return request('/auth/logout', {
+    method: 'POST',
+    body: JSON.stringify({ user: currentUser })
+  }).catch(() => ({}));
 }
 
 export function apiGetMe() {
   return request('/auth/me');
 }
 
+export function apiGetRegisteredUsers() {
+  return request('/auth/users');
+}
+
+export function apiDeleteUser(id) {
+  return request(`/auth/users/${id}`, { method: 'DELETE' });
+}
+
+
 // ----------------------------------------------------
 // ACTIVITY & DASHBOARD STATS API
 // ----------------------------------------------------
 export function apiGetDashboardStats() {
   return request('/admin/activity/dashboard-stats');
+}
+
+export function apiGetLiveUserAnalytics() {
+  return request('/admin/activity/live-analytics');
+}
+
+export function apiSendHeartbeat(data) {
+  return request('/analytics/heartbeat', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }).catch(() => ({}));
+}
+
+export function apiRecordProductView(data) {
+  return request('/analytics/product-view', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }).catch(() => ({}));
 }
 
 export function apiGetActivityLogs(params = {}) {
@@ -107,7 +236,7 @@ export function apiTrackWhatsAppClick(productName, collectionName) {
 }
 
 // ----------------------------------------------------
-// PRODUCTS API
+// PRODUCTS / REFERENCES API
 // ----------------------------------------------------
 export function apiGetProducts(params = {}) {
   const query = new URLSearchParams();
@@ -278,3 +407,26 @@ export function apiUpdateSettings(sectionKey, data) {
     body: JSON.stringify({ sectionKey, data })
   });
 }
+
+// ----------------------------------------------------
+// PRODUCT INQUIRIES API
+// ----------------------------------------------------
+export function apiCreateInquiry(inquiryData) {
+  return request('/inquiries', {
+    method: 'POST',
+    body: JSON.stringify(inquiryData)
+  });
+}
+
+export function apiGetMyInquiries(params = {}) {
+  const query = new URLSearchParams();
+  if (params.contact) query.append('contact', params.contact);
+  if (params.userId) query.append('userId', params.userId);
+  const qStr = query.toString();
+  return request(`/inquiries/my${qStr ? `?${qStr}` : ''}`);
+}
+
+export function apiGetAllInquiries() {
+  return request('/inquiries');
+}
+

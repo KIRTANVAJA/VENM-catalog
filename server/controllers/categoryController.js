@@ -44,9 +44,15 @@ export const createCategory = async (req, res) => {
 export const updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
+    const dataToUpdate = { ...req.body };
+    delete dataToUpdate.id;
+    delete dataToUpdate.products;
+    delete dataToUpdate.createdAt;
+    delete dataToUpdate.updatedAt;
+
     const updated = await prisma.category.update({
       where: { id },
-      data: req.body
+      data: dataToUpdate
     });
 
     await logActivity({

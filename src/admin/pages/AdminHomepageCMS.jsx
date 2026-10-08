@@ -14,7 +14,7 @@ const AdminHomepageCMS = () => {
       setLoading(true);
       const data = await apiGetHomepageSections();
       if (Array.isArray(data) && data.length > 0) {
-        setSections(data);
+        setSections(data.map((s) => ({ ...s, sectionKey: s.sectionKey || s.id })));
       }
     } catch (err) {
       console.warn('[CMS] Failed to fetch homepage sections:', err);
@@ -27,24 +27,25 @@ const AdminHomepageCMS = () => {
     loadSections();
   }, []);
 
-  const activeSection = sections.find((s) => s.sectionKey === activeEditingId) || sections[0];
+  const activeSection = sections.find((s) => (s.sectionKey || s.id) === activeEditingId) || sections[0];
 
-  const handleToggle = async (sectionKey) => {
-    const sec = sections.find((s) => s.sectionKey === sectionKey);
+  const handleToggle = async (targetKey) => {
+    const sec = sections.find((s) => (s.sectionKey || s.id) === targetKey);
     if (!sec) return;
 
     const newEnabled = !sec.enabled;
-    const updatedList = sections.map((s) => s.sectionKey === sectionKey ? { ...s, enabled: newEnabled } : s);
+    const sKey = sec.sectionKey || sec.id;
+    const updatedList = sections.map((s) => (s.sectionKey || s.id) === targetKey ? { ...s, enabled: newEnabled } : s);
     setSections(updatedList);
 
     try {
       await apiUpdateHomepageSection({
-        sectionKey,
+        sectionKey: sKey,
         content: sec.content,
         enabled: newEnabled,
         displayOrder: sec.displayOrder
       });
-      setToastMessage(`SECTION "${sectionKey.toUpperCase()}" ${newEnabled ? 'ENABLED' : 'DISABLED'}`);
+      setToastMessage(`SECTION "${sKey.toUpperCase()}" ${newEnabled ? 'ENABLED' : 'DISABLED'}`);
       setTimeout(() => setToastMessage(null), 2500);
     } catch (err) {
       console.warn('Failed to toggle section:', err);
@@ -53,27 +54,31 @@ const AdminHomepageCMS = () => {
 
   const handleContentChange = (field, value) => {
     if (!activeSection) return;
+    const currentKey = activeSection.sectionKey || activeSection.id;
     const newContent = {
       ...activeSection.content,
       [field]: value
     };
-    setSections(sections.map((s) => s.sectionKey === activeEditingId ? { ...s, content: newContent } : s));
+    setSections(sections.map((s) => (s.sectionKey || s.id) === currentKey ? { ...s, content: newContent } : s));
   };
 
   const handleSaveSection = async () => {
     if (!activeSection) return;
+    const sKey = activeSection.sectionKey || activeSection.id;
 
     try {
       await apiUpdateHomepageSection({
-        sectionKey: activeSection.sectionKey,
+        sectionKey: sKey,
         content: activeSection.content,
         enabled: activeSection.enabled,
         displayOrder: activeSection.displayOrder
       });
-      setToastMessage(`SAVED "${activeSection.name || activeSection.sectionKey.toUpperCase()}" CONTENT`);
+      setToastMessage(`SAVED "${activeSection.name || sKey.toUpperCase()}" CONTENT`);
       setTimeout(() => setToastMessage(null), 2500);
     } catch (err) {
       console.warn('Failed to save section:', err);
+      setToastMessage(`SAVE FAILED: ${err.message || 'DATABASE ERROR'}`);
+      setTimeout(() => setToastMessage(null), 3500);
     }
   };
 

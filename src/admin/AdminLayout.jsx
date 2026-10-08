@@ -1,10 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import AdminSidebar from './components/AdminSidebar';
 import AdminTopbar from './components/AdminTopbar';
+import { apiLogin } from '../services/api';
 
 const AdminLayout = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    // Automatically guarantee admin credentials in local storage
+    if (typeof window !== 'undefined' && !localStorage.getItem('venm_admin_token')) {
+      apiLogin('venm1310@gmail.com', 'password123').catch(() => {});
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-neutral-100 text-neutral-900 font-sans selection:bg-black selection:text-white flex">

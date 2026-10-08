@@ -14,6 +14,7 @@ import homepageRoutes from './routes/homepageRoutes.js';
 import mediaRoutes from './routes/mediaRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import activityRoutes from './routes/activityRoutes.js';
+import inquiryRoutes from './routes/inquiryRoutes.js';
 import { logActivity } from './utils/activityLogger.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 
@@ -24,14 +25,28 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Middleware
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  process.env.CLIENT_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin) || (typeof origin === 'string' && (origin.endsWith('.netlify.app') || origin.endsWith('.vercel.app')))) {
+      callback(null, true);
+    } else {
+      callback(null, true);
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
 
 // Static uploads / public directory serving
@@ -56,6 +71,20 @@ app.post('/api/analytics/whatsapp-click', async (req, res) => {
   res.json({ success: true });
 });
 
+// Analytics: Web Inquiry Form Submission Event
+app.post('/api/analytics/inquiry-form', async (req, res) => {
+  const { productName, collectionName, clientName, clientContact, requestType, note } = req.body;
+  await logActivity({
+    adminUserId: 'system-public',
+    adminEmail: clientContact || 'public-visitor',
+    action: 'INQUIRY_FORM_SUBMITTED',
+    entityType: 'INQUIRY',
+    entityName: productName || 'Custom Look Request',
+    description: `Look inquiry from ${clientName || 'Client'} (${clientContact}): ${requestType}. Note: ${note || 'None'}`
+  });
+  res.json({ success: true });
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
@@ -66,6 +95,8 @@ app.use('/api/homepage', homepageRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/admin/activity', activityRoutes);
+app.use('/api/analytics', activityRoutes);
+app.use('/api/inquiries', inquiryRoutes);
 
 // Error Middleware
 app.use(notFound);

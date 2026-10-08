@@ -16,6 +16,7 @@ build/
 server/data/
 server/*.log
 *.log
+*.db
 
 # IDE / System
 .DS_Store

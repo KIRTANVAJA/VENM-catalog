@@ -23,12 +23,15 @@ export async function logActivity({
         entityId,
         entityName,
         description,
-        metadata
+        metadata: typeof metadata === 'string' ? metadata : JSON.stringify(metadata || {})
       }
     });
+    if (global.broadcastActivitySSE) {
+      global.broadcastActivitySSE(entry);
+    }
     return entry;
   } catch (err) {
-    console.warn('[ACTIVITY LOGGER] Failed to log activity:', err);
+    console.warn('[ACTIVITY LOGGER] Failed to log activity:', err.message);
     return null;
   }
 }

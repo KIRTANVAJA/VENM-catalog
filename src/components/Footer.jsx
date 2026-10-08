@@ -95,7 +95,7 @@ const Footer = () => {
             </p>
             <div className="flex flex-col gap-2.5">
               <a
-                href={`https://wa.me/${(settings?.whatsapp?.number || '919664984749').replace(/[^0-9]/g, '')}?text=Hello%20VENM%20Studio`}
+                href={`https://wa.me/${(settings?.whatsapp?.number || '917434096095').replace(/[^0-9]/g, '')}?text=Hello%20VENM%20Studio`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-xs font-semibold text-neutral-900 hover:text-black transition-colors group"

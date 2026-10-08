@@ -31,7 +31,7 @@ const AdminProducts = () => {
   const loadProducts = async () => {
     setLoading(true);
     try {
-      const data = await apiGetProducts();
+      const data = await apiGetProducts({ status: 'ALL' });
       if (Array.isArray(data)) {
         setProducts(data);
       }

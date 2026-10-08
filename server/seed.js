@@ -153,7 +153,7 @@ async function main() {
         brandName: "VENM",
         tagline: "GUJARATI ETHOS × CYBER STREETWEAR",
         contactEmail: "venm1310@gmail.com",
-        contactPhone: "+91 96649 84749",
+        contactPhone: "+91 74340 96095",
         location: "Ahmedabad, Gujarat, India",
         footerText: "FASHION REFERENCE CATALOG & BESPOKE CUSTOM REQUEST PLATFORM. GUJARATI ETHOS FUSED WITH METROPOLITAN STREETWEAR.",
         siteStatus: "LIVE",
@@ -163,8 +163,8 @@ async function main() {
     {
       sectionKey: 'whatsapp',
       data: JSON.stringify({
-        number: "+91 96649 84749",
-        rawNumber: "919664984749",
+        number: "+91 74340 96095",
+        rawNumber: "917434096095",
         enabled: true,
         buttonText: "REQUEST THIS LOOK",
         defaultTemplate: `Hi VENM! 👋\n\nI'd like to request this look:\n\nReference:\n{{product_name}}\n\nReference ID:\n{{product_id}}\n\nEstimated Price:\n{{estimated_price}}\n\nRequest Option:\n{{request_type}}\n\nI'd like to discuss:\n• Customization\n• Sizing / measurements\n• Garment sourcing / My own garment\n\nReference URL:\n{{product_url}}\n\nPlease let me know how we can take this forward.\nThank you!`

@@ -6,7 +6,7 @@ import { BRAND_ASSETS } from '../config/assets';
 const CollectionCard = ({ collection }) => {
   if (!collection) return null;
 
-  const isLocked = !collection.isActive;
+  const isLocked = collection.status === 'COMING_SOON' || collection.isActive === false;
 
   return (
     <div className="group relative bg-white border border-neutral-200 overflow-hidden h-96 flex flex-col justify-end transition-all duration-300 hover:border-neutral-900">

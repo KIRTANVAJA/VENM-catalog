@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
-import { X, MessageCircle, Send, CheckCircle2, ShieldCheck, Shirt, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, MessageCircle, Send, CheckCircle2, ShieldCheck, Shirt, Sparkles, Lock, User } from 'lucide-react';
 import { formatWhatsAppUrl, getSettings } from '../data/settings';
 import { formatReferencePrice } from '../data/catalog';
 import { BRAND_ASSETS } from '../config/assets';
+import { apiTrackWhatsAppClick, apiCreateInquiry } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const InquiryModal = ({ product, selectedSize, isOpen, onClose }) => {
+  const { currentUser, isAuthenticated, openLoginModal } = useAuth();
   const [requestType, setRequestType] = useState('I already have the garment');
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [formData, setFormData] = useState({
@@ -13,17 +16,103 @@ const InquiryModal = ({ product, selectedSize, isOpen, onClose }) => {
     note: ''
   });
 
+  useEffect(() => {
+    if (currentUser) {
+      setFormData((prev) => ({
+        ...prev,
+        name: prev.name || currentUser.name || '',
+        contact: prev.contact || currentUser.email || currentUser.phone || ''
+      }));
+    }
+  }, [currentUser, isOpen]);
+
   if (!isOpen || !product) return null;
 
   const activeSize = selectedSize || product.sizes?.[0] || 'Custom';
   const settings = getSettings();
   const estimatedPriceText = formatReferencePrice(product);
-  const whatsappUrl = formatWhatsAppUrl(product, activeSize, requestType);
+  const whatsappUrl = formatWhatsAppUrl(product, activeSize, requestType, currentUser);
   const referenceIdStr = product.id ? `REF ID: ${product.id}` : `REF ID: ${product.slug}`;
 
-  const handleSubmitForm = (e) => {
+  const handleSubmitForm = async (e) => {
     e.preventDefault();
     setFormSubmitted(true);
+
+    const clientEmail = currentUser?.email || (formData.contact?.includes('@') ? formData.contact : null);
+    const clientPhone = currentUser?.phone || (!formData.contact?.includes('@') ? formData.contact : null);
+
+    const payload = {
+      userId: currentUser?.id || null,
+      clientName: currentUser?.name || formData.name || 'Client',
+      clientEmail: clientEmail,
+      clientPhone: clientPhone,
+      clientContact: formData.contact || clientEmail || clientPhone || '',
+      userMeta: JSON.stringify(currentUser || {}),
+      productId: product?.id,
+      productSlug: product?.slug,
+      productName: product?.name,
+      productImage: product?.images?.[0] || product?.image,
+      productPrice: estimatedPriceText,
+      collectionName: product?.collectionName,
+      selectedSize: activeSize,
+      requestType,
+      note: formData.note
+    };
+
+    try {
+      await apiCreateInquiry(payload);
+    } catch (err) {
+      console.warn('API inquiry submit failed:', err);
+    }
+
+    // Save to local storage for instant reactivity
+    try {
+      const storageKey = currentUser?.id ? `venm_inquiries_${currentUser.id}` : 'venm_guest_inquiries';
+      const existing = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      existing.unshift({
+        ...payload,
+        id: 'inq-' + Date.now(),
+        createdAt: new Date().toISOString()
+      });
+      localStorage.setItem(storageKey, JSON.stringify(existing));
+      window.dispatchEvent(new Event('venm-inquiries-updated'));
+    } catch (e) {}
+  };
+
+  const handleWhatsAppClick = async () => {
+    apiTrackWhatsAppClick(product.name, product.collectionName);
+
+    // Record inquiry for user profile
+    const payload = {
+      userId: currentUser?.id || null,
+      clientName: currentUser?.name || formData.name || 'Client',
+      clientEmail: currentUser?.email || null,
+      clientPhone: currentUser?.phone || null,
+      clientContact: currentUser?.phone || currentUser?.email || formData.contact || 'WhatsApp Direct',
+      userMeta: JSON.stringify(currentUser || {}),
+      productId: product?.id,
+      productSlug: product?.slug,
+      productName: product?.name,
+      productImage: product?.images?.[0] || product?.image,
+      productPrice: estimatedPriceText,
+      collectionName: product?.collectionName,
+      selectedSize: activeSize,
+      requestType: 'WhatsApp Direct Request',
+      note: `Requested look on WhatsApp (${requestType})`
+    };
+
+    try {
+      await apiCreateInquiry(payload);
+      const storageKey = currentUser?.id ? `venm_inquiries_${currentUser.id}` : 'venm_guest_inquiries';
+      const existing = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      existing.unshift({
+        ...payload,
+        id: 'inq-' + Date.now(),
+        createdAt: new Date().toISOString()
+      });
+      localStorage.setItem(storageKey, JSON.stringify(existing));
+      window.dispatchEvent(new Event('venm-inquiries-updated'));
+    } catch (e) {}
   };
 
   return (
@@ -54,10 +143,10 @@ const InquiryModal = ({ product, selectedSize, isOpen, onClose }) => {
         {/* Product / Reference Snippet */}
         <div className="flex items-center gap-4 p-3.5 bg-neutral-50 border border-neutral-200">
           <img
-            src={product.images?.[0] || BRAND_ASSETS.FALLBACK_PRODUCT}
+            src={product.images?.[0] || product.image || BRAND_ASSETS.FALLBACK_PRODUCT}
             alt={product.name}
             className="w-14 h-18 object-cover bg-neutral-100 border border-neutral-200 flex-shrink-0"
-            onError={(e) => { e.target.src = BRAND_ASSETS.FALLBACK_PRODUCT; }}
+            onError={(e) => { e.currentTarget.src = BRAND_ASSETS.FALLBACK_PRODUCT; }}
           />
           <div className="space-y-1 flex-1">
             <h4 className="text-sm font-bold text-neutral-900 tracking-wider uppercase">{product.name}</h4>
@@ -110,13 +199,56 @@ const InquiryModal = ({ product, selectedSize, isOpen, onClose }) => {
           </div>
         </div>
 
-        {formSubmitted ? (
+        {!isAuthenticated ? (
+          <div className="py-8 px-4 text-center space-y-5 bg-neutral-50 border border-neutral-200 animate-fadeIn">
+            <div className="w-14 h-14 bg-neutral-900 text-white flex items-center justify-center mx-auto shadow-sm">
+              <Lock className="w-6 h-6 text-lime-400" />
+            </div>
+
+            <div className="space-y-1.5 max-w-sm mx-auto">
+              <span className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase font-bold">
+                CLIENT ACCESS REQUIRED
+              </span>
+              <h3 className="text-base sm:text-lg font-black uppercase tracking-wider text-neutral-900">
+                SIGN IN REQUIRED TO INQUIRE
+              </h3>
+              <p className="text-xs text-neutral-600 font-sans leading-relaxed">
+                You can freely browse our reference catalog as a guest, but submitting bespoke inquiries and receiving custom styling estimates requires signing in.
+              </p>
+            </div>
+
+            <div className="space-y-2 pt-2 max-w-sm mx-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  openLoginModal('login', 'inquiry_required');
+                }}
+                className="w-full btn-venm-primary py-3.5 text-xs font-black tracking-widest uppercase flex items-center justify-center gap-2 bg-lime-400 text-neutral-900 hover:bg-lime-300"
+              >
+                <User className="w-4 h-4" />
+                <span>SIGN IN TO INQUIRE</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  openLoginModal('register', 'inquiry_required');
+                }}
+                className="w-full btn-venm-secondary py-2.5 text-xs font-bold tracking-widest uppercase flex items-center justify-center gap-2"
+              >
+                <span>CREATE NEW CLIENT ACCOUNT</span>
+              </button>
+            </div>
+          </div>
+        ) : formSubmitted ? (
           <div className="py-8 text-center space-y-4 animate-fadeIn">
             <CheckCircle2 className="w-12 h-12 text-black mx-auto" />
             <div className="space-y-1">
               <h3 className="text-lg font-bold text-neutral-900 tracking-wider uppercase">REQUEST RECEIVED</h3>
               <p className="text-xs text-neutral-600 max-w-xs mx-auto leading-relaxed">
-                Thank you, {formData.name || 'Valued Client'}. Our styling team will review your request ({requestType}) and contact you via {formData.contact}.
+                Thank you, {formData.name || currentUser?.name || 'Valued Client'}. Your inquiry has been saved to your account! Our styling team will review your request ({requestType}) and contact you.
               </p>
             </div>
             <button
@@ -134,6 +266,7 @@ const InquiryModal = ({ product, selectedSize, isOpen, onClose }) => {
                 href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={handleWhatsAppClick}
                 className="w-full btn-venm-primary py-3.5 px-4 flex items-center justify-center gap-2.5 text-xs font-bold tracking-widest uppercase"
               >
                 <MessageCircle className="w-5 h-5 text-white" />
@@ -198,7 +331,7 @@ const InquiryModal = ({ product, selectedSize, isOpen, onClose }) => {
 
             <div className="flex items-center justify-center gap-2 text-[10px] font-mono text-neutral-500 pt-2 border-t border-neutral-200">
               <ShieldCheck className="w-3.5 h-3.5 text-neutral-700" />
-              <span>VENM GUARANTEES CONFIDENTIAL CLIENT PRIVACY</span>
+              <span>INQUIRY IS SAVED TO YOUR VENM CLIENT ACCOUNT</span>
             </div>
           </div>
         )}

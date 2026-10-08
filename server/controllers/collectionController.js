@@ -4,9 +4,17 @@ import { logActivity } from '../utils/activityLogger.js';
 export const getCollections = async (req, res) => {
   try {
     const collections = await prisma.collection.findMany({
+      include: {
+        products: true
+      },
       orderBy: { displayOrder: 'asc' }
     });
-    res.json(collections);
+    const formatted = collections.map((c) => ({
+      ...c,
+      isActive: c.status === 'ACTIVE',
+      productCount: c.products ? c.products.length : 0
+    }));
+    res.json(formatted);
   } catch (error) {
     res.status(500).json({ message: 'FAILED TO FETCH COLLECTIONS', error: error.message });
   }
@@ -39,6 +47,8 @@ export const getCollectionBySlug = async (req, res) => {
 
     res.json({
       ...collection,
+      isActive: collection.status === 'ACTIVE',
+      productCount: formattedProducts.length,
       products: formattedProducts
     });
   } catch (error) {
@@ -48,11 +58,13 @@ export const getCollectionBySlug = async (req, res) => {
 
 export const createCollection = async (req, res) => {
   try {
-    const { name, slug, tagline, description, coverImage, season, status, featured } = req.body;
+    const { name, slug, tagline, description, coverImage, season, status, featured, isActive } = req.body;
 
     if (!name) {
       return res.status(400).json({ message: 'COLLECTION NAME IS REQUIRED' });
     }
+
+    const resolvedStatus = status || (isActive === false ? 'COMING_SOON' : 'ACTIVE');
 
     const created = await prisma.collection.create({
       data: {
@@ -62,7 +74,7 @@ export const createCollection = async (req, res) => {
         description: description || '',
         coverImage: coverImage || '/assets/campaign/HOMEPAGE_2.webp',
         season: season || 'FESTIVE 2026',
-        status: status || 'ACTIVE',
+        status: resolvedStatus,
         featured: Boolean(featured)
       }
     });
@@ -77,7 +89,11 @@ export const createCollection = async (req, res) => {
       description: `Created collection "${created.name}"`
     });
 
-    res.status(201).json(created);
+    res.status(201).json({
+      ...created,
+      isActive: created.status === 'ACTIVE',
+      productCount: 0
+    });
   } catch (error) {
     res.status(500).json({ message: 'FAILED TO CREATE COLLECTION', error: error.message });
   }
@@ -86,9 +102,25 @@ export const createCollection = async (req, res) => {
 export const updateCollection = async (req, res) => {
   try {
     const { id } = req.params;
+    const dataToUpdate = { ...req.body };
+    delete dataToUpdate.id;
+    delete dataToUpdate.products;
+    delete dataToUpdate.productCount;
+    delete dataToUpdate.createdAt;
+    delete dataToUpdate.updatedAt;
+
+    if (dataToUpdate.isActive !== undefined && !dataToUpdate.status) {
+      dataToUpdate.status = dataToUpdate.isActive ? 'ACTIVE' : 'COMING_SOON';
+    }
+    delete dataToUpdate.isActive;
+
+    if (dataToUpdate.featured !== undefined) {
+      dataToUpdate.featured = Boolean(dataToUpdate.featured);
+    }
+
     const updated = await prisma.collection.update({
       where: { id },
-      data: req.body
+      data: dataToUpdate
     });
 
     await logActivity({
@@ -101,7 +133,15 @@ export const updateCollection = async (req, res) => {
       description: `Updated collection "${updated.name}"`
     });
 
-    res.json(updated);
+    const productCount = await prisma.product.count({
+      where: { collectionSlug: updated.slug }
+    });
+
+    res.json({
+      ...updated,
+      isActive: updated.status === 'ACTIVE',
+      productCount
+    });
   } catch (error) {
     res.status(500).json({ message: 'FAILED TO UPDATE COLLECTION', error: error.message });
   }

@@ -1,20 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getFeaturedProducts, getAllCollections, getCollectionBySlug } from '../data/catalog';
-import { apiGetProducts, apiGetCollections, apiGetCollectionBySlug, apiGetHomepageSections } from '../services/api';
+import { apiGetProducts, apiGetCollections, apiGetCollectionBySlug, apiGetHomepageSections, apiGetSettings } from '../services/api';
 import { fetchLiveSettings } from '../data/settings';
 import ProductCard from '../components/ProductCard';
 import CollectionCard from '../components/CollectionCard';
 import EditorialGrid from '../components/EditorialGrid';
 import InquiryModal from '../components/InquiryModal';
-import { ArrowUpRight, ChevronRight, Flame } from 'lucide-react';
+import { CoverflowCarousel } from '@/components/ui/coverflow-carousel';
+import { useAuth } from '../context/AuthContext';
+import { ArrowUpRight, ChevronRight, Flame, Layers, LayoutGrid } from 'lucide-react';
 
 const Home = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated, openLoginModal } = useAuth();
   const [featuredProducts, setFeaturedProducts] = useState(() => getFeaturedProducts().slice(0, 6));
   const [collections, setCollections] = useState(() => getAllCollections());
   const [navratriEdit, setNavratriEdit] = useState(() => getCollectionBySlug('navratri'));
+  const [activeFest, setActiveFest] = useState(null);
   const [cmsSections, setCmsSections] = useState({});
   const [activeInquiryProduct, setActiveInquiryProduct] = useState(null);
+  const [referenceViewMode, setReferenceViewMode] = useState('coverflow');
+
+  const handleInquire = (product) => {
+    if (!isAuthenticated) {
+      openLoginModal('login', 'inquiry_required');
+      return;
+    }
+    setActiveInquiryProduct(product);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -29,16 +43,31 @@ const Home = () => {
           if (isMounted && Array.isArray(liveCMS)) {
             const map = {};
             liveCMS.forEach((sec) => {
-              map[sec.sectionKey] = sec;
+              const key = sec.sectionKey || sec.id;
+              if (key) map[key] = sec;
             });
             setCmsSections(map);
           }
         } catch (e) {}
 
-        // 2. Fetch featured products
-        const liveProducts = await apiGetProducts({ featured: true });
-        if (isMounted && liveProducts && liveProducts.length > 0) {
-          setFeaturedProducts(liveProducts.slice(0, 6));
+        // 2. Fetch products for homepage showcase
+        const [liveFeatured, allLive] = await Promise.all([
+          apiGetProducts({ featured: true }).catch(() => []),
+          apiGetProducts().catch(() => [])
+        ]);
+
+        if (isMounted) {
+          const combined = Array.isArray(liveFeatured) ? [...liveFeatured] : [];
+          if (Array.isArray(allLive)) {
+            allLive.forEach((p) => {
+              if (!combined.some((item) => item.id === p.id || item.slug === p.slug)) {
+                combined.push(p);
+              }
+            });
+          }
+          if (combined.length > 0) {
+            setFeaturedProducts(combined.slice(0, 12));
+          }
         }
 
         // 3. Fetch collections
@@ -49,9 +78,15 @@ const Home = () => {
 
         // 4. Fetch navratri / active campaign collection
         try {
-          const liveNavratri = await apiGetCollectionBySlug('navratri');
+          const [liveNavratri, liveSettings] = await Promise.all([
+            apiGetCollectionBySlug('navratri').catch(() => null),
+            apiGetSettings().catch(() => ({}))
+          ]);
           if (isMounted && liveNavratri) {
             setNavratriEdit(liveNavratri);
+          }
+          if (isMounted && liveSettings?.active_fest) {
+            setActiveFest(liveSettings.active_fest);
           }
         } catch (e) {}
       } catch (err) {
@@ -181,7 +216,7 @@ const Home = () => {
       </section>
 
       {/* ---------------------------------------------------- */}
-      {/* 3. FEATURED REFERENCES SECTION */}
+      {/* 3. FEATURED REFERENCES SECTION (3D COVERFLOW & CATALOG) */}
       {/* ---------------------------------------------------- */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-neutral-200 pb-4">
@@ -193,25 +228,163 @@ const Home = () => {
               HIGHLIGHTED STYLE REFERENCES
             </h2>
           </div>
-          <Link
-            to="/collections"
-            className="text-xs font-semibold tracking-widest text-neutral-900 hover:text-black flex items-center gap-1 transition-colors uppercase"
-          >
-            <span>VIEW ALL REFERENCES</span>
-            <ChevronRight className="w-4 h-4" />
-          </Link>
+
+          <div className="flex items-center gap-3">
+            {/* View Mode Toggle */}
+            <div className="inline-flex items-center rounded-none border border-neutral-300 bg-neutral-100 p-0.5 text-xs font-mono">
+              <button
+                type="button"
+                onClick={() => setReferenceViewMode('coverflow')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 uppercase transition-colors ${
+                  referenceViewMode === 'coverflow'
+                    ? 'bg-neutral-900 text-white font-bold shadow-sm'
+                    : 'text-neutral-600 hover:text-neutral-900'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>3D Carousel</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setReferenceViewMode('grid')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 uppercase transition-colors ${
+                  referenceViewMode === 'grid'
+                    ? 'bg-neutral-900 text-white font-bold shadow-sm'
+                    : 'text-neutral-600 hover:text-neutral-900'
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>Grid View</span>
+              </button>
+            </div>
+
+            <Link
+              to="/collections"
+              className="text-xs font-semibold tracking-widest text-neutral-900 hover:text-black flex items-center gap-1 transition-colors uppercase ml-1"
+            >
+              <span>VIEW ALL</span>
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
 
-        {/* Product Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {featuredProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              onQuickInquire={(p) => setActiveInquiryProduct(p)}
+        {/* 3D Coverflow or Grid display */}
+        {referenceViewMode === 'coverflow' ? (
+          <div className="w-full bg-neutral-50/80 border border-neutral-200 py-8 px-2 sm:px-6 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between max-w-xl mx-auto px-4 mb-2 text-center">
+              <p className="w-full text-[11px] font-mono tracking-widest text-neutral-500 uppercase">
+                ✦ DRAG HORIZONTALLY OR USE ARROW KEYS TO BROWSE SILHOUETTES ✦
+              </p>
+            </div>
+            <CoverflowCarousel
+              slides={
+                featuredProducts && featuredProducts.length > 0
+                  ? featuredProducts.map((product) => ({
+                      src: product.images?.[0] || product.image || "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=640&h=640&fit=crop&q=80",
+                      alt: product.name || "Style Reference",
+                      title: product.name,
+                      subtitle: product.collectionName || product.category || "VENM REFERENCE",
+                      meta: [
+                        { label: "Category", value: product.category || "Outerwear" },
+                        { label: "Pricing", value: product.estimatedPrice || (product.minPrice ? `From ₹${product.minPrice}` : "On Request") },
+                        { label: "Availability", value: product.availability || "Requestable" },
+                      ],
+                      product,
+                      slug: product.slug || product.id,
+                      onViewDetails: () => navigate(`/product/${product.slug || product.id}`),
+                      onInquire: () => handleInquire(product),
+                    }))
+                  : [
+                      {
+                        src: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=640&h=640&fit=crop&q=80",
+                        alt: "Avant-garde streetwear silhouette",
+                        title: "GARBA CYBER VEST",
+                        subtitle: "NAVRATRI EDIT",
+                        meta: [
+                          { label: "Category", value: "Outerwear" },
+                          { label: "Pricing", value: "From ₹2,200" },
+                          { label: "Availability", value: "Requestable" },
+                        ],
+                        slug: "garba-cyber-vest-jac1",
+                        onViewDetails: () => navigate(`/collection/navratri`),
+                        onInquire: () => handleInquire({ name: "GARBA CYBER VEST", collectionName: "NAVRATRI EDIT", estimatedPrice: "From ₹2,200" }),
+                      },
+                      {
+                        src: "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=640&h=640&fit=crop&q=80",
+                        alt: "Wide-leg raw distressed denim",
+                        title: "DANDIYA WIDE-LEG RAW DENIM",
+                        subtitle: "RAW DENIM",
+                        meta: [
+                          { label: "Category", value: "Denim" },
+                          { label: "Pricing", value: "From ₹2,800" },
+                          { label: "Availability", value: "Requestable" },
+                        ],
+                        slug: "dandiya-wide-leg-raw-denim",
+                        onViewDetails: () => navigate(`/collections`),
+                        onInquire: () => handleInquire({ name: "DANDIYA WIDE-LEG RAW DENIM", collectionName: "RAW DENIM", estimatedPrice: "From ₹2,800" }),
+                      },
+                      {
+                        src: "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=640&h=640&fit=crop&q=80",
+                        alt: "Editorial mirrorwork overdyed piece",
+                        title: "MIRRORWORK OVERDYED KURTA",
+                        subtitle: "CONTEMPORARY ETHNIC",
+                        meta: [
+                          { label: "Category", value: "Ethnic" },
+                          { label: "Pricing", value: "From ₹3,100" },
+                          { label: "Availability", value: "Requestable" },
+                        ],
+                        slug: "mirrorwork-overdyed-kurta",
+                        onViewDetails: () => navigate(`/collections`),
+                        onInquire: () => handleInquire({ name: "MIRRORWORK OVERDYED KURTA", collectionName: "CONTEMPORARY ETHNIC", estimatedPrice: "From ₹3,100" }),
+                      },
+                      {
+                        src: "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=640&h=640&fit=crop&q=80",
+                        alt: "Indo-Western bespoke tailoring",
+                        title: "OBSIDIAN INDO-WESTERN BLAZER",
+                        subtitle: "INDO-WESTERN",
+                        meta: [
+                          { label: "Category", value: "Tailoring" },
+                          { label: "Pricing", value: "From ₹4,500" },
+                          { label: "Availability", value: "Requestable" },
+                        ],
+                        slug: "obsidian-indo-western-blazer",
+                        onViewDetails: () => navigate(`/collections`),
+                        onInquire: () => handleInquire({ name: "OBSIDIAN INDO-WESTERN BLAZER", collectionName: "INDO-WESTERN", estimatedPrice: "From ₹4,500" }),
+                      },
+                      {
+                        src: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=640&h=640&fit=crop&q=80",
+                        alt: "Modular handloom drape",
+                        title: "HANDLOOM MODULAR KIMONO",
+                        subtitle: "EXPERIMENTAL",
+                        meta: [
+                          { label: "Category", value: "Hybrid" },
+                          { label: "Pricing", value: "From ₹3,600" },
+                          { label: "Availability", value: "Requestable" },
+                        ],
+                        slug: "handloom-modular-kimono",
+                        onViewDetails: () => navigate(`/collections`),
+                        onInquire: () => handleInquire({ name: "HANDLOOM MODULAR KIMONO", collectionName: "EXPERIMENTAL", estimatedPrice: "From ₹3,600" }),
+                      },
+                    ]
+              }
+              cardWidth="clamp(200px, 26vw, 320px)"
+              showCaption={true}
+              showNavigation={true}
+              showPagination={true}
             />
-          ))}
-        </div>
+          </div>
+        ) : (
+          /* Product Grid */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {featuredProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onQuickInquire={(p) => handleInquire(p)}
+              />
+            ))}
+          </div>
+        )}
       </section>
 
       {/* ---------------------------------------------------- */}
@@ -229,15 +402,15 @@ const Home = () => {
 
                 <div className="space-y-1">
                   <h2 className="text-3xl sm:text-5xl font-extrabold tracking-wider text-neutral-900 uppercase">
-                    {featuredColSec?.content?.title || navratriEdit.name}
+                    {activeFest?.name || featuredColSec?.content?.title || navratriEdit.name}
                   </h2>
                   <p className="text-xs font-mono text-neutral-500 tracking-[0.18em] uppercase">
-                    {featuredColSec?.content?.tagline || navratriEdit.tagline}
+                    {activeFest?.tagline || featuredColSec?.content?.tagline || navratriEdit.tagline}
                   </p>
                 </div>
 
                 <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed font-sans">
-                  {featuredColSec?.content?.description || navratriEdit.description}
+                  {activeFest?.description || featuredColSec?.content?.description || navratriEdit.description}
                 </p>
 
                 <div className="pt-2">
@@ -251,11 +424,12 @@ const Home = () => {
                 </div>
               </div>
 
-              <div className="lg:col-span-6 relative aspect-[4/3] overflow-hidden border border-neutral-200 bg-neutral-100 group">
+              <div className="lg:col-span-6 relative aspect-[4/3] overflow-hidden border border-neutral-200 bg-neutral-100 group shadow-sm">
                 <img
-                  src={featuredColSec?.content?.coverImage || navratriEdit.coverImage}
+                  src={activeFest?.coverImage || featuredColSec?.content?.coverImage || navratriEdit.coverImage}
                   alt="Featured Collection Cover"
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  onError={(e) => { e.currentTarget.src = "/assets/campaign/HOMEPAGE_2.webp"; }}
                 />
               </div>
             </div>

@@ -1,15 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getProductBySlug, getProductsByCollection, formatReferencePrice, getReferenceStatusCTA } from '../data/catalog';
-import { apiGetProductBySlug, apiGetProducts } from '../services/api';
+import { apiGetProductBySlug, apiGetProducts, apiTrackWhatsAppClick, apiRecordProductView } from '../services/api';
 import { formatWhatsAppUrl } from '../data/settings';
 import { BRAND_ASSETS } from '../config/assets';
 import ProductCard from '../components/ProductCard';
 import InquiryModal from '../components/InquiryModal';
-import { ChevronRight, MessageCircle, Tag, Info, Check, Shirt, Sparkles, HelpCircle, Layers } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import {
+  ChevronRight,
+  ChevronLeft,
+  MessageCircle,
+  Tag,
+  Info,
+  Check,
+  Shirt,
+  Sparkles,
+  HelpCircle,
+  Layers,
+  Maximize2,
+  X
+} from 'lucide-react';
 
 const ProductDetail = () => {
   const { slug } = useParams();
+  const { currentUser, isAuthenticated, openLoginModal } = useAuth();
   const [product, setProduct] = useState(() => getProductBySlug(slug) || getProductBySlug('garba-cyber-vest-jac1'));
   const [relatedProducts, setRelatedProducts] = useState(() => {
     const initProd = getProductBySlug(slug) || getProductBySlug('garba-cyber-vest-jac1');
@@ -23,6 +38,9 @@ const ProductDetail = () => {
   const [requestOption, setRequestOption] = useState('I already have the garment');
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
   const [quickInquireProduct, setQuickInquireProduct] = useState(null);
+  const [lightboxIndex, setLightboxIndex] = useState(null);
+
+  const galleryScrollRef = useRef(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -37,6 +55,14 @@ const ProductDetail = () => {
           if (liveProduct.sizes?.length) {
             setSelectedSize(liveProduct.sizes[0]);
           }
+
+          // Record live product view for admin analytics
+          apiRecordProductView({
+            productId: liveProduct.id,
+            productSlug: liveProduct.slug,
+            productName: liveProduct.name,
+            user: currentUser
+          });
 
           // Fetch related products
           const rels = await apiGetProducts({ collection: liveProduct.collectionSlug });
@@ -73,6 +99,38 @@ const ProductDetail = () => {
   const statusCTA = getReferenceStatusCTA(product);
   const referenceIdText = product.id ? `Reference ID: ${product.id}` : `Reference ID: ${product.slug}`;
 
+  const handleScrollToImage = (index) => {
+    setActiveImageIndex(index);
+    if (galleryScrollRef.current) {
+      const container = galleryScrollRef.current;
+      const child = container.children[index];
+      if (child) {
+        child.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+      }
+    }
+  };
+
+  const handlePrevImage = () => {
+    const prev = (activeImageIndex - 1 + images.length) % images.length;
+    handleScrollToImage(prev);
+  };
+
+  const handleNextImage = () => {
+    const next = (activeImageIndex + 1) % images.length;
+    handleScrollToImage(next);
+  };
+
+  const handleGalleryScroll = (e) => {
+    const container = e.target;
+    const width = container.clientWidth;
+    if (width > 0) {
+      const idx = Math.round(container.scrollLeft / width);
+      if (idx !== activeImageIndex && idx >= 0 && idx < images.length) {
+        setActiveImageIndex(idx);
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white text-neutral-900 space-y-16 pb-24 font-sans">
       {/* Top Breadcrumb Navigation */}
@@ -93,41 +151,117 @@ const ProductDetail = () => {
       {/* Main Reference Showcase */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-          {/* Left: Reference Gallery */}
+          {/* Left: Interactive Reference Gallery with Horizontal Scroll & Swipe */}
           <div className="lg:col-span-7 space-y-4">
-            <div className="relative aspect-[3/4] bg-neutral-100 border border-neutral-200 overflow-hidden group">
-              <img
-                src={images[activeImageIndex]}
-                alt={product.name}
-                className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
-              />
-              <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+            <div className="relative aspect-[3/4] bg-neutral-100 border border-neutral-200 overflow-hidden group select-none">
+              {/* Horizontal Scroll Container */}
+              <div
+                ref={galleryScrollRef}
+                onScroll={handleGalleryScroll}
+                className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scroll-smooth custom-scrollbar"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {images.map((img, idx) => (
+                  <div
+                    key={idx}
+                    className="w-full h-full flex-shrink-0 snap-start relative bg-neutral-100 cursor-zoom-in"
+                    onClick={() => setLightboxIndex(idx)}
+                  >
+                    <img
+                      src={img}
+                      alt={`${product.name} - View ${idx + 1}`}
+                      className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.02]"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Badges Overlay */}
+              <div className="absolute top-4 left-4 flex flex-wrap gap-2 pointer-events-none z-10">
                 {product.isNavratriEdit && (
-                  <span className="bg-black text-white text-[10px] font-mono tracking-widest px-3 py-1 uppercase">
-                    NAVRATRI EDIT
+                  <span className="bg-black text-white text-[10px] font-mono tracking-widest px-3 py-1 uppercase shadow-sm">
+                    ACTIVE FEST EDIT
                   </span>
                 )}
-                <span className="bg-white/90 text-neutral-900 border border-neutral-300 text-[10px] font-mono tracking-widest px-3 py-1 uppercase font-bold">
+                <span className="bg-white/90 text-neutral-900 border border-neutral-300 text-[10px] font-mono tracking-widest px-3 py-1 uppercase font-bold shadow-sm">
                   STYLE REFERENCE
                 </span>
               </div>
+
+              {/* Image Counter Badge Overlay */}
+              {images.length > 1 && (
+                <div className="absolute top-4 right-4 bg-neutral-900/80 backdrop-blur-xs text-white text-[10px] font-mono font-bold tracking-widest px-2.5 py-1 z-10">
+                  {activeImageIndex + 1} / {images.length}
+                </div>
+              )}
+
+              {/* Fullscreen Zoom Trigger */}
+              <button
+                type="button"
+                onClick={() => setLightboxIndex(activeImageIndex)}
+                className="absolute bottom-4 right-4 p-2.5 bg-white/90 hover:bg-white text-neutral-900 border border-neutral-300 shadow-md transition-all opacity-80 group-hover:opacity-100 z-10"
+                title="View Fullscreen High-Res Image"
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
+
+              {/* Left & Right Arrow Navigation Controls */}
+              {images.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePrevImage();
+                    }}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 hover:bg-black hover:text-white border border-neutral-300 text-neutral-900 flex items-center justify-center shadow-lg transition-all opacity-90 hover:opacity-100 hover:scale-110 z-20 cursor-pointer"
+                    aria-label="Previous Image"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleNextImage();
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 hover:bg-black hover:text-white border border-neutral-300 text-neutral-900 flex items-center justify-center shadow-lg transition-all opacity-90 hover:opacity-100 hover:scale-110 z-20 cursor-pointer"
+                    aria-label="Next Image"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </>
+              )}
             </div>
 
+            {/* Scrollable Thumbnails Strip with Active Indicator */}
             {images.length > 1 && (
-              <div className="flex items-center gap-3 overflow-x-auto pb-2 custom-scrollbar">
-                {images.map((img, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setActiveImageIndex(idx)}
-                    className={`relative w-20 h-24 flex-shrink-0 bg-neutral-100 border transition-all overflow-hidden ${
-                      activeImageIndex === idx
-                        ? 'border-black opacity-100'
-                        : 'border-neutral-200 opacity-60 hover:opacity-100'
-                    }`}
-                  >
-                    <img src={img} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
-                  </button>
-                ))}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[10px] font-mono text-neutral-500 uppercase tracking-widest font-bold px-1">
+                  <span>SWIPE OR CLICK THUMBNAILS TO VIEW ({images.length} IMAGES)</span>
+                  <span>IMAGE {activeImageIndex + 1} OF {images.length}</span>
+                </div>
+
+                <div className="flex items-center gap-3 overflow-x-auto pb-2 custom-scrollbar">
+                  {images.map((img, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleScrollToImage(idx)}
+                      className={`relative w-20 h-24 flex-shrink-0 bg-neutral-100 border transition-all overflow-hidden ${
+                        activeImageIndex === idx
+                          ? 'border-neutral-900 ring-2 ring-neutral-900 opacity-100 scale-[1.02]'
+                          : 'border-neutral-200 opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      <img src={img} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
+                      {activeImageIndex === idx && (
+                        <div className="absolute inset-0 border-2 border-lime-400 pointer-events-none" />
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -261,9 +395,17 @@ const ProductDetail = () => {
             <div className="space-y-3 border-t border-neutral-200 pt-6">
               {statusCTA.isRequestable ? (
                 <a
-                  href={formatWhatsAppUrl(product, selectedSize, requestOption)}
-                  target="_blank"
+                  href={isAuthenticated ? formatWhatsAppUrl(product, selectedSize, requestOption, currentUser) : '#'}
+                  target={isAuthenticated ? "_blank" : "_self"}
                   rel="noopener noreferrer"
+                  onClick={(e) => {
+                    if (!isAuthenticated) {
+                      e.preventDefault();
+                      openLoginModal('login', 'inquiry_required');
+                      return;
+                    }
+                    apiTrackWhatsAppClick(product.name, product.collectionName);
+                  }}
                   className="w-full btn-venm-primary py-4 px-6 text-xs sm:text-sm font-bold tracking-[0.18em] flex items-center justify-center gap-3 uppercase group"
                 >
                   <MessageCircle className="w-5 h-5 text-white" />
@@ -276,7 +418,13 @@ const ProductDetail = () => {
               )}
 
               <button
-                onClick={() => setIsInquiryModalOpen(true)}
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    openLoginModal('login', 'inquiry_required');
+                    return;
+                  }
+                  setIsInquiryModalOpen(true);
+                }}
                 className="w-full btn-venm-secondary py-3 px-6 text-xs font-semibold tracking-widest flex items-center justify-center gap-2 uppercase"
               >
                 <span>OPEN DETAILED REQUEST MODAL</span>
@@ -396,7 +544,13 @@ const ProductDetail = () => {
               <ProductCard
                 key={rel.id}
                 product={rel}
-                onQuickInquire={(p) => setQuickInquireProduct(p)}
+                onQuickInquire={(p) => {
+                  if (!isAuthenticated) {
+                    openLoginModal('login', 'inquiry_required');
+                    return;
+                  }
+                  setQuickInquireProduct(p);
+                }}
               />
             ))}
           </div>
@@ -417,6 +571,51 @@ const ProductDetail = () => {
         isOpen={!!quickInquireProduct}
         onClose={() => setQuickInquireProduct(null)}
       />
+
+      {/* Fullscreen Lightbox Modal */}
+      {lightboxIndex !== null && (
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn select-none">
+          <button
+            onClick={() => setLightboxIndex(null)}
+            className="absolute top-6 right-6 p-3 text-white/80 hover:text-white bg-neutral-900/80 hover:bg-neutral-800 border border-neutral-700 transition-colors z-50 cursor-pointer"
+            aria-label="Close Lightbox"
+          >
+            <X className="w-6 h-6" />
+          </button>
+
+          <div className="relative max-w-5xl max-h-[90vh] flex items-center justify-center">
+            <img
+              src={images[lightboxIndex]}
+              alt={`${product.name} Fullscreen`}
+              className="max-w-full max-h-[85vh] object-contain shadow-2xl"
+            />
+
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={() => setLightboxIndex((lightboxIndex - 1 + images.length) % images.length)}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-neutral-900/80 hover:bg-white hover:text-black text-white border border-neutral-700 transition-all rounded-full cursor-pointer"
+                  aria-label="Previous"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+
+                <button
+                  onClick={() => setLightboxIndex((lightboxIndex + 1) % images.length)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-neutral-900/80 hover:bg-white hover:text-black text-white border border-neutral-700 transition-all rounded-full cursor-pointer"
+                  aria-label="Next"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+
+                <div className="absolute bottom-4 bg-neutral-900/90 text-white font-mono text-xs px-4 py-1.5 border border-neutral-700">
+                  {lightboxIndex + 1} / {images.length} — {product.name}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

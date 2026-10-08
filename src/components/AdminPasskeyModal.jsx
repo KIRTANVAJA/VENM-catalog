@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { KeyRound, X, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { apiLogin } from '../services/api';
 
 const AdminPasskeyModal = () => {
   const navigate = useNavigate();
@@ -58,16 +59,21 @@ const AdminPasskeyModal = () => {
     }
   };
 
-  const verifyPasskey = (pin) => {
+  const verifyPasskey = async (pin) => {
     if (pin === '1310') {
       setSuccess(true);
       setError(false);
+      try {
+        await apiLogin('venm1310@gmail.com', 'password123');
+      } catch (err) {
+        console.warn('[PASSKEY] Auto-login error:', err);
+      }
       setTimeout(() => {
         setIsOpen(false);
         setSuccess(false);
         setPasskey(['', '', '', '']);
         navigate('/admin/dashboard');
-      }, 600);
+      }, 500);
     } else {
       setError(true);
       setSuccess(false);

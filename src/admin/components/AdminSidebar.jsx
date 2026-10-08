@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { BRAND_ASSETS } from '../../config/assets';
+import { apiLogout } from '../../services/api';
 import {
   LayoutDashboard,
   Package,
@@ -8,6 +9,7 @@ import {
   Tag,
   Home,
   Sparkles,
+  Flame,
   Image,
   Settings,
   MessageCircle,
@@ -15,7 +17,8 @@ import {
   Search,
   ExternalLink,
   LogOut,
-  X
+  X,
+  Users
 } from 'lucide-react';
 
 const AdminSidebar = ({ mobileOpen, setMobileOpen }) => {
@@ -29,6 +32,12 @@ const AdminSidebar = ({ mobileOpen, setMobileOpen }) => {
       ]
     },
     {
+      title: 'CLIENT MANAGEMENT',
+      items: [
+        { name: 'Registered Users', path: '/admin/users', icon: Users, badge: 'NEW' }
+      ]
+    },
+    {
       title: 'CATALOG',
       items: [
         { name: 'References (Looks)', path: '/admin/products', icon: Package },
@@ -39,6 +48,7 @@ const AdminSidebar = ({ mobileOpen, setMobileOpen }) => {
     {
       title: 'CONTENT & CMS',
       items: [
+        { name: 'Active Fest (Activist)', path: '/admin/active-fest', icon: Flame, badge: 'LIVE' },
         { name: 'Homepage CMS', path: '/admin/homepage', icon: Home },
         { name: 'Campaigns', path: '/admin/campaigns', icon: Sparkles }
       ]
@@ -107,7 +117,12 @@ const AdminSidebar = ({ mobileOpen, setMobileOpen }) => {
                       }`}
                     >
                       <Icon className={`w-4 h-4 ${isActive ? 'text-lime-400' : 'text-neutral-600'}`} />
-                      <span>{item.name}</span>
+                      <span className="truncate">{item.name}</span>
+                      {item.badge && (
+                        <span className="ml-auto text-[8px] font-mono px-1.5 py-0.5 rounded-xs bg-lime-400 text-neutral-900 font-extrabold tracking-wider">
+                          {item.badge}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}
@@ -134,6 +149,7 @@ const AdminSidebar = ({ mobileOpen, setMobileOpen }) => {
 
         <Link
           to="/admin/login"
+          onClick={() => apiLogout()}
           className="flex items-center gap-2 px-3 py-2 text-xs font-mono text-red-600 hover:bg-red-50 transition-colors"
         >
           <LogOut className="w-3.5 h-3.5" />

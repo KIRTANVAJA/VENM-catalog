@@ -5,38 +5,54 @@ export const getProducts = async (req, res) => {
   try {
     const { collection, category, status, featured, search } = req.query;
 
-    let whereClause = {};
+    const conditions = [];
 
     if (collection && collection !== 'ALL') {
-      whereClause.collectionSlug = collection;
+      if (collection === 'navratri') {
+        conditions.push({
+          OR: [
+            { collectionSlug: 'navratri' },
+            { isNavratriEdit: true }
+          ]
+        });
+      } else {
+        conditions.push({ collectionSlug: collection });
+      }
     }
 
     if (category && category !== 'ALL') {
-      whereClause.category = category;
+      conditions.push({ category });
     }
 
     if (status && status !== 'ALL') {
-      whereClause.availability = status;
+      conditions.push({ availability: status });
     } else if (!status) {
       // Public catalog: Exclude DRAFT items by default
-      whereClause.availability = { not: 'DRAFT' };
+      conditions.push({ availability: { not: 'DRAFT' } });
     }
 
     if (featured === 'true') {
-      whereClause.isFeatured = true;
+      conditions.push({ isFeatured: true });
     }
 
     if (search) {
-      whereClause.OR = [
-        { name: { contains: search } },
-        { slug: { contains: search } },
-        { category: { contains: search } }
-      ];
+      conditions.push({
+        OR: [
+          { name: { contains: search } },
+          { slug: { contains: search } },
+          { category: { contains: search } }
+        ]
+      });
     }
+
+    const whereClause = conditions.length > 0 ? { AND: conditions } : {};
 
     const products = await prisma.product.findMany({
       where: whereClause,
-      orderBy: { displayOrder: 'asc' }
+      orderBy: [
+        { isFeatured: 'desc' },
+        { createdAt: 'desc' }
+      ]
     });
 
     // Parse JSON strings back to JavaScript arrays/objects
@@ -112,7 +128,11 @@ export const createProduct = async (req, res) => {
       return res.status(400).json({ message: 'REFERENCE NAME IS REQUIRED' });
     }
 
-    const finalSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    let finalSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const existing = await prisma.product.findUnique({ where: { slug: finalSlug } });
+    if (existing) {
+      finalSlug = `${finalSlug}-${Date.now().toString().slice(-4)}`;
+    }
 
     const created = await prisma.product.create({
       data: {
@@ -150,7 +170,15 @@ export const createProduct = async (req, res) => {
       description: `Created reference "${created.name}" (${created.availability})`
     });
 
-    res.status(201).json(created);
+    const formattedCreated = {
+      ...created,
+      details: typeof created.details === 'string' ? JSON.parse(created.details || '[]') : created.details,
+      images: typeof created.images === 'string' ? JSON.parse(created.images || '[]') : created.images,
+      sizes: typeof created.sizes === 'string' ? JSON.parse(created.sizes || '[]') : created.sizes,
+      tags: typeof created.tags === 'string' ? JSON.parse(created.tags || '[]') : created.tags
+    };
+
+    res.status(201).json(formattedCreated);
   } catch (error) {
     res.status(500).json({ message: 'FAILED TO CREATE REFERENCE', error: error.message });
   }
@@ -162,11 +190,21 @@ export const updateProduct = async (req, res) => {
     const body = req.body;
 
     const dataToUpdate = { ...body };
+    delete dataToUpdate.id;
+    delete dataToUpdate.collection;
+    delete dataToUpdate.categoryObj;
+    delete dataToUpdate.createdAt;
+    delete dataToUpdate.updatedAt;
+
+    if (!dataToUpdate.collectionId) delete dataToUpdate.collectionId;
+    if (!dataToUpdate.categoryId) delete dataToUpdate.categoryId;
 
     if (body.details && typeof body.details !== 'string') dataToUpdate.details = JSON.stringify(body.details);
     if (body.images && typeof body.images !== 'string') dataToUpdate.images = JSON.stringify(body.images);
     if (body.sizes && typeof body.sizes !== 'string') dataToUpdate.sizes = JSON.stringify(body.sizes);
     if (body.tags && typeof body.tags !== 'string') dataToUpdate.tags = JSON.stringify(body.tags);
+    if (body.isFeatured !== undefined) dataToUpdate.isFeatured = Boolean(body.isFeatured);
+    if (body.isNavratriEdit !== undefined) dataToUpdate.isNavratriEdit = Boolean(body.isNavratriEdit);
 
     const updated = await prisma.product.update({
       where: { id },
@@ -183,7 +221,15 @@ export const updateProduct = async (req, res) => {
       description: `Updated reference "${updated.name}"`
     });
 
-    res.json(updated);
+    const formattedUpdated = {
+      ...updated,
+      details: typeof updated.details === 'string' ? JSON.parse(updated.details || '[]') : updated.details,
+      images: typeof updated.images === 'string' ? JSON.parse(updated.images || '[]') : updated.images,
+      sizes: typeof updated.sizes === 'string' ? JSON.parse(updated.sizes || '[]') : updated.sizes,
+      tags: typeof updated.tags === 'string' ? JSON.parse(updated.tags || '[]') : updated.tags
+    };
+
+    res.json(formattedUpdated);
   } catch (error) {
     res.status(500).json({ message: 'FAILED TO UPDATE REFERENCE', error: error.message });
   }

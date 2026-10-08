@@ -15,8 +15,10 @@ import {
   Plus,
   X,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  Crop
 } from 'lucide-react';
+import ImageAdjusterModal from '../components/ImageAdjusterModal';
 
 const AdminProductForm = ({ mode = 'create' }) => {
   const { id } = useParams();
@@ -31,11 +33,11 @@ const AdminProductForm = ({ mode = 'create' }) => {
     category: 'Outerwear',
     description: '',
     details: ['100% Cotton Loopback Fleece', 'Custom VENM Anodized Hardware'],
-    images: ['/assets/products/jac3.jpg', '/assets/products/jac2.jpg'],
+    images: [],
     isFeatured: true,
     isNavratriEdit: true,
-    sizes: ['S', 'M', 'L', 'XL'],
-    availability: 'IN STOCK',
+    sizes: ['S', 'M', 'L', 'XL', 'Custom'],
+    availability: 'REQUESTABLE',
     tags: ['NavratriEdit', 'Outerwear'],
     garmentCare: 'Dry clean only.'
   });
@@ -45,6 +47,19 @@ const AdminProductForm = ({ mode = 'create' }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [newDetailText, setNewDetailText] = useState('');
+
+  const [adjusterImage, setAdjusterImage] = useState(null);
+  const [adjusterIndex, setAdjusterIndex] = useState(null);
+
+  const handleAdjusterSave = (adjustedUrl) => {
+    if (adjusterIndex !== null && adjusterIndex >= 0) {
+      const updated = [...formData.images];
+      updated[adjusterIndex] = adjustedUrl;
+      setFormData({ ...formData, images: updated });
+    } else {
+      setFormData({ ...formData, images: [...formData.images, adjustedUrl] });
+    }
+  };
 
   useEffect(() => {
     if (mode === 'edit' && id) {
@@ -299,48 +314,173 @@ const AdminProductForm = ({ mode = 'create' }) => {
           </h3>
 
           <div className="space-y-4">
-            <label className="text-[10px] font-mono text-neutral-500 tracking-widest uppercase">IMAGE ASSET PATHS</label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {formData.images?.map((img, idx) => (
-                <div key={idx} className="relative group bg-neutral-50 p-2 border border-neutral-200">
-                  <img src={img} alt={`Asset ${idx}`} className="w-full h-40 object-cover bg-neutral-100" />
-                  <div className="pt-2 flex items-center justify-between text-[10px] font-mono text-neutral-500">
-                    <span>{idx === 0 ? 'MAIN COVER' : `GALLERY ${idx}`}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const updatedImgs = formData.images.filter((_, i) => i !== idx);
-                        setFormData({ ...formData, images: updatedImgs });
-                      }}
-                      className="text-red-600 hover:underline"
-                    >
-                      REMOVE
-                    </button>
-                  </div>
-                </div>
-              ))}
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-mono text-neutral-500 tracking-widest uppercase">
+                PRODUCT IMAGES ({formData.images?.length || 0} ATTACHED)
+              </label>
+              <span className="text-[10px] font-mono text-neutral-500">
+                FIRST IMAGE WILL BE USED AS MAIN COVER ON CATALOG CARDS & HOMEPAGE
+              </span>
             </div>
 
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="/assets/products/filename.jpg"
-                className="flex-1 bg-neutral-50 border border-neutral-300 px-4 py-2 text-xs text-neutral-900 font-mono"
-                id="new-img-input"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  const input = document.getElementById('new-img-input');
-                  if (input && input.value.trim()) {
-                    setFormData({ ...formData, images: [...(formData.images || []), input.value.trim()] });
-                    input.value = '';
-                  }
-                }}
-                className="btn-venm-secondary px-4 py-2 text-xs font-mono"
-              >
-                ADD IMAGE PATH
-              </button>
+            {(!formData.images || formData.images.length === 0) ? (
+              <div className="p-8 text-center bg-neutral-50 border-2 border-dashed border-neutral-300 space-y-2">
+                <p className="text-xs font-mono font-bold text-neutral-700 uppercase">
+                  NO IMAGES ATTACHED YET
+                </p>
+                <p className="text-[11px] text-neutral-500 font-sans">
+                  Upload an image from your device, pick a studio sample below, or enter an image URL to showcase this piece on the site.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {formData.images.map((img, idx) => (
+                  <div key={idx} className={`relative group p-2 border ${idx === 0 ? 'bg-neutral-900/5 border-neutral-900 shadow-sm' : 'bg-neutral-50 border-neutral-200'}`}>
+                    <img
+                      src={img}
+                      alt={`Asset ${idx}`}
+                      className="w-full h-44 object-cover bg-neutral-100 border border-neutral-200"
+                      onError={(e) => {
+                        e.target.src = '/assets/products/Denim Jacket.jpg';
+                      }}
+                    />
+                    <div className="pt-2 flex items-center justify-between text-[10px] font-mono">
+                      <span className={`px-1.5 py-0.5 font-bold uppercase ${idx === 0 ? 'bg-neutral-900 text-lime-400' : 'bg-neutral-200 text-neutral-700'}`}>
+                        {idx === 0 ? '★ MAIN COVER' : `IMAGE #${idx + 1}`}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAdjusterIndex(idx);
+                            setAdjusterImage(img);
+                          }}
+                          className="px-2 py-0.5 bg-lime-400 text-neutral-900 hover:bg-lime-300 font-mono font-extrabold uppercase flex items-center gap-1 border border-neutral-900 shadow-xs"
+                          title="Adjust Image Ratio, Crop & Fit"
+                        >
+                          <Crop className="w-3 h-3" />
+                          <span>CROP & FIT</span>
+                        </button>
+
+                        {idx > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = [...formData.images];
+                              const [selected] = updated.splice(idx, 1);
+                              updated.unshift(selected);
+                              setFormData({ ...formData, images: updated });
+                            }}
+                            className="text-neutral-900 hover:underline font-bold"
+                          >
+                            SET COVER
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updatedImgs = formData.images.filter((_, i) => i !== idx);
+                            setFormData({ ...formData, images: updatedImgs });
+                          }}
+                          className="text-red-600 hover:underline font-bold"
+                        >
+                          REMOVE
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Quick-Pick Studio Samples */}
+            <div className="p-3 bg-neutral-50 border border-neutral-200 space-y-2">
+              <span className="text-[10px] font-mono text-neutral-600 font-bold uppercase tracking-wider block">
+                ⚡ QUICK-SELECT FROM STUDIO CATALOG PHOTOS:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { name: 'Raw Denim Jacket', path: '/assets/products/Denim Jacket.jpg' },
+                  { name: 'Cyber Jean Jacket', path: '/assets/products/Jean Jacket.jpg' },
+                  { name: 'Kathiawadi Tee', path: '/assets/products/download (1).jpg' },
+                  { name: 'Navratri Campaign Look', path: '/assets/campaign/HOMEPAGE_2.webp' },
+                  { name: 'Chunri Kimono Look', path: '/assets/campaign/nas1.webp' },
+                  { name: 'Kinetic Kurta Look', path: '/assets/campaign/nas5.webp' },
+                  { name: 'Patchwork Bomber', path: '/assets/products/Manfinity Hypemode Men\'s Autumn Patchwork Geometric Pattern Long Sleeve Single-Breasted Casual Denim Jacket.jpg' },
+                ].map((sample, sIdx) => {
+                  const isAlreadyAdded = formData.images?.includes(sample.path);
+                  return (
+                    <button
+                      key={sIdx}
+                      type="button"
+                      onClick={() => {
+                        if (!isAlreadyAdded) {
+                          setFormData({ ...formData, images: [...(formData.images || []), sample.path] });
+                        }
+                      }}
+                      className={`text-[11px] font-mono px-2.5 py-1 border transition-all ${
+                        isAlreadyAdded
+                          ? 'bg-neutral-200 text-neutral-500 border-neutral-300 cursor-default'
+                          : 'bg-white hover:bg-neutral-900 hover:text-white text-neutral-800 border-neutral-300 font-semibold'
+                      }`}
+                    >
+                      + {sample.name} {isAlreadyAdded ? '✓' : ''}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 pt-1">
+              <div className="flex-1 flex gap-2">
+                <input
+                  type="text"
+                  placeholder="/assets/products/filename.jpg or https://image-url..."
+                  className="flex-1 bg-neutral-50 border border-neutral-300 px-4 py-2 text-xs text-neutral-900 font-mono"
+                  id="new-img-input"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const input = document.getElementById('new-img-input');
+                    if (input && input.value.trim()) {
+                      let val = input.value.trim();
+                      if (!val.startsWith('http') && !val.startsWith('data:') && !val.startsWith('/')) {
+                        val = '/' + val;
+                      }
+                      setFormData({ ...formData, images: [...(formData.images || []), val] });
+                      input.value = '';
+                    }
+                  }}
+                  className="btn-venm-secondary px-4 py-2 text-xs font-mono font-bold whitespace-nowrap"
+                >
+                  ADD IMAGE PATH
+                </button>
+              </div>
+
+              {/* Native File Uploader */}
+              <label className="btn-venm-primary px-4 py-2 text-xs font-mono font-bold flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap">
+                <span>📁 UPLOAD IMAGE FROM DEVICE</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (evt) => {
+                        const dataUrl = evt.target.result;
+                        setFormData((prev) => ({
+                          ...prev,
+                          images: [...(prev.images || []), dataUrl]
+                        }));
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+              </label>
             </div>
           </div>
         </div>
@@ -586,6 +726,18 @@ const AdminProductForm = ({ mode = 'create' }) => {
           </div>
         </div>
       )}
+
+      {/* Image Ratio Adjuster Modal */}
+      <ImageAdjusterModal
+        isOpen={!!adjusterImage}
+        imageUrl={adjusterImage}
+        onSave={handleAdjusterSave}
+        onClose={() => {
+          setAdjusterImage(null);
+          setAdjusterIndex(null);
+        }}
+        defaultAspect="3:4"
+      />
     </div>
   );
 };
