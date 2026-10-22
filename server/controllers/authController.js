@@ -12,6 +12,13 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: 'USERNAME AND PASSWORD ARE REQUIRED' });
     }
 
+    if (!process.env.DATABASE_URL) {
+      return res.status(500).json({
+        message: 'DATABASE CONFIGURATION MISSING',
+        error: 'DATABASE_URL is not set in Vercel Environment Variables. Please add it in Vercel Project Settings.'
+      });
+    }
+
     // Build conditions to match Email, Phone number, or Name
     const cleanPhone = identifier.replace(/[^0-9]/g, '');
     const orConditions = [
@@ -103,6 +110,13 @@ export const register = async (req, res) => {
 
     if (!cleanEmail && !cleanPhone) {
       return res.status(400).json({ message: 'PLEASE ENTER A VALID EMAIL OR 10-DIGIT PHONE NUMBER' });
+    }
+
+    if (!process.env.DATABASE_URL) {
+      return res.status(500).json({
+        message: 'DATABASE CONFIGURATION MISSING',
+        error: 'DATABASE_URL is not set in Vercel Environment Variables. Please add it in Vercel Project Settings.'
+      });
     }
 
     // Check if user already exists

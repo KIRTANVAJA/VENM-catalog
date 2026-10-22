@@ -18,6 +18,8 @@ import inquiryRoutes from './routes/inquiryRoutes.js';
 import { logActivity } from './utils/activityLogger.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 
+import prisma from './config/db.js';
+
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -53,8 +55,23 @@ app.use(cookieParser());
 app.use('/assets', express.static(path.join(__dirname, '../public/assets')));
 
 // Health Check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'VENM API ONLINE', timestamp: new Date() });
+app.get('/api/health', async (req, res) => {
+  const dbConfigured = Boolean(process.env.DATABASE_URL);
+  let dbStatus = 'NOT_CONFIGURED';
+  if (dbConfigured) {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      dbStatus = 'CONNECTED';
+    } catch (e) {
+      dbStatus = `ERROR: ${e.message}`;
+    }
+  }
+  res.json({
+    status: dbStatus === 'CONNECTED' ? 'OK' : 'DEGRADED',
+    message: 'VENM API ONLINE',
+    database: dbStatus,
+    timestamp: new Date()
+  });
 });
 
 // Analytics: WhatsApp Inquiry Button Click Event

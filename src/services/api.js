@@ -138,7 +138,8 @@ async function request(endpoint, options = {}) {
           });
         }
       }
-      throw new Error(data.message || `API ERROR (${res.status})`);
+      const errorDetail = data?.error ? `${data?.message || 'ERROR'}: ${data.error}` : (data?.message || `API ERROR (${res.status})`);
+      throw new Error(errorDetail);
     }
 
     return data;
