@@ -11,9 +11,17 @@ const Footer = () => {
     fetchLiveSettings().then((live) => {
       if (live) setSettings({ ...live });
     });
+
+    const handleSettingsUpdated = (e) => {
+      if (e.detail) setSettings({ ...e.detail });
+    };
+
+    window.addEventListener('venm_settings_updated', handleSettingsUpdated);
+    return () => window.removeEventListener('venm_settings_updated', handleSettingsUpdated);
   }, []);
 
   const instagramUrl = settings?.social?.instagram || 'https://instagram.com/venm.exe';
+  const activeCampName = settings?.active_fest?.name || 'NAVRATRI EDIT';
 
   return (
     <footer className="bg-neutral-50 text-neutral-600 border-t border-neutral-200 pt-16 pb-12 font-sans">
@@ -33,7 +41,7 @@ const Footer = () => {
             </p>
             <div className="pt-1">
               <span className="inline-block px-2.5 py-1 bg-neutral-200/70 border border-neutral-300 text-neutral-800 text-[10px] tracking-widest font-mono uppercase">
-                CAMPAIGN: NAVRATRI EDIT
+                CAMPAIGN: {activeCampName}
               </span>
             </div>
           </div>

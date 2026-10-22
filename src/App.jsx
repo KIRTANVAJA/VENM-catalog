@@ -53,10 +53,15 @@ const VisitorPresenceTracker = () => {
   const { currentUser } = useAuth();
 
   useEffect(() => {
-    let sessionId = sessionStorage.getItem('venm_session_id');
-    if (!sessionId) {
+    let sessionId = null;
+    try {
+      sessionId = sessionStorage.getItem('venm_session_id');
+      if (!sessionId) {
+        sessionId = 'sess_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+        sessionStorage.setItem('venm_session_id', sessionId);
+      }
+    } catch (e) {
       sessionId = 'sess_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
-      sessionStorage.setItem('venm_session_id', sessionId);
     }
 
     const sendBeat = () => {
@@ -180,7 +185,16 @@ const App = () => {
           {/* Products */}
           <Route path="products" element={<AdminProducts />} />
           <Route path="products/new" element={<AdminProductForm mode="create" />} />
+          <Route path="products/create" element={<AdminProductForm mode="create" />} />
+          <Route path="products/add" element={<AdminProductForm mode="create" />} />
+          <Route path="product/new" element={<AdminProductForm mode="create" />} />
+          <Route path="product/create" element={<AdminProductForm mode="create" />} />
+          <Route path="product/add" element={<AdminProductForm mode="create" />} />
+          <Route path="add-product" element={<AdminProductForm mode="create" />} />
           <Route path="products/:id/edit" element={<AdminProductForm mode="edit" />} />
+          <Route path="products/edit/:id" element={<AdminProductForm mode="edit" />} />
+          <Route path="product/:id/edit" element={<AdminProductForm mode="edit" />} />
+          <Route path="product/edit/:id" element={<AdminProductForm mode="edit" />} />
 
           {/* Collections */}
           <Route path="collections" element={<AdminCollections />} />

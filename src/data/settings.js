@@ -34,21 +34,71 @@ export const DEFAULT_SETTINGS = {
   }
 };
 
-let cachedSettings = { ...DEFAULT_SETTINGS };
+function loadStoredSettings() {
+  if (typeof window === 'undefined') return { ...DEFAULT_SETTINGS };
+  try {
+    const raw = localStorage.getItem('venm_settings');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        general: { ...DEFAULT_SETTINGS.general, ...(parsed.general || {}) },
+        whatsapp: { ...DEFAULT_SETTINGS.whatsapp, ...(parsed.whatsapp || {}) },
+        social: { ...DEFAULT_SETTINGS.social, ...(parsed.social || {}) },
+        seo: { ...DEFAULT_SETTINGS.seo, ...(parsed.seo || {}) },
+        active_fest: parsed.active_fest || null
+      };
+    }
+  } catch (e) {}
+  return { ...DEFAULT_SETTINGS };
+}
+
+let cachedSettings = loadStoredSettings();
+
+export function applySeoMetadata(settings) {
+  if (typeof document === 'undefined') return;
+  const s = settings || cachedSettings;
+  const title = s?.seo?.siteTitle || (s?.general?.brandName && s?.general?.tagline ? `${s.general.brandName} CATALOG — ${s.general.tagline}` : null);
+  if (title) {
+    document.title = title;
+  }
+  const desc = s?.seo?.metaDescription || s?.general?.footerText;
+  if (desc) {
+    let meta = document.querySelector('meta[name="description"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.name = 'description';
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute('content', desc);
+  }
+}
+
+if (typeof window !== 'undefined') {
+  applySeoMetadata(cachedSettings);
+}
 
 export async function fetchLiveSettings() {
   try {
     const live = await apiGetSettings();
     if (live && Object.keys(live).length > 0) {
       cachedSettings = {
-        general: live.general || DEFAULT_SETTINGS.general,
-        whatsapp: live.whatsapp || DEFAULT_SETTINGS.whatsapp,
-        social: live.social || DEFAULT_SETTINGS.social,
-        seo: live.seo || DEFAULT_SETTINGS.seo
+        general: { ...DEFAULT_SETTINGS.general, ...(live.general || {}) },
+        whatsapp: { ...DEFAULT_SETTINGS.whatsapp, ...(live.whatsapp || {}) },
+        social: { ...DEFAULT_SETTINGS.social, ...(live.social || {}) },
+        seo: { ...DEFAULT_SETTINGS.seo, ...(live.seo || {}) },
+        active_fest: live.active_fest || cachedSettings.active_fest || null
       };
+
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('venm_settings', JSON.stringify(cachedSettings));
+          applySeoMetadata(cachedSettings);
+          window.dispatchEvent(new CustomEvent('venm_settings_updated', { detail: cachedSettings }));
+        } catch (e) {}
+      }
     }
   } catch (err) {
-    // Graceful fallback to default settings
+    // Graceful fallback to default/cached settings
   }
   return cachedSettings;
 }
@@ -58,10 +108,19 @@ export function getSettings() {
 }
 
 export async function saveSettingsSection(sectionKey, newValues) {
+  const currentSection = cachedSettings[sectionKey] || DEFAULT_SETTINGS[sectionKey] || {};
   cachedSettings[sectionKey] = {
-    ...cachedSettings[sectionKey],
+    ...currentSection,
     ...newValues
   };
+
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('venm_settings', JSON.stringify(cachedSettings));
+      applySeoMetadata(cachedSettings);
+      window.dispatchEvent(new CustomEvent('venm_settings_updated', { detail: cachedSettings }));
+    } catch (e) {}
+  }
 
   try {
     await apiUpdateSettings(sectionKey, cachedSettings[sectionKey]);

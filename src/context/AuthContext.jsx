@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { apiLogin, apiRegister, apiLogout } from '../services/api';
+import { apiLogin, apiRegister, apiGoogleLogin, apiLogout } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -18,10 +18,25 @@ export const AuthProvider = ({ children }) => {
   const [authModalTab, setAuthModalTab] = useState('login'); // 'login' | 'register'
   const [authModalReason, setAuthModalReason] = useState('manual'); // 'manual' | 'initial_visit' | 'inquiry_required'
 
+const safeSessionStorage = {
+  getItem: (key) => {
+    try {
+      return typeof window !== 'undefined' ? sessionStorage.getItem(key) : null;
+    } catch (e) {
+      return null;
+    }
+  },
+  setItem: (key, val) => {
+    try {
+      if (typeof window !== 'undefined') sessionStorage.setItem(key, val);
+    } catch (e) {}
+  }
+};
+
   // Pop up login once when visiting website if not logged in
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const alreadyDismissed = sessionStorage.getItem('venm_login_popup_dismissed');
+      const alreadyDismissed = safeSessionStorage.getItem('venm_login_popup_dismissed');
       const isUser = localStorage.getItem('venm_user') || localStorage.getItem('venm_admin_user');
 
       if (!isUser && !alreadyDismissed) {
@@ -64,9 +79,7 @@ export const AuthProvider = ({ children }) => {
     const res = await apiLogin(username, password);
     if (res?.user) {
       setCurrentUser(res.user);
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('venm_login_popup_dismissed', 'true');
-      }
+      safeSessionStorage.setItem('venm_login_popup_dismissed', 'true');
     }
     return res;
   };
@@ -75,9 +88,16 @@ export const AuthProvider = ({ children }) => {
     const res = await apiRegister(userData);
     if (res?.user) {
       setCurrentUser(res.user);
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('venm_login_popup_dismissed', 'true');
-      }
+      safeSessionStorage.setItem('venm_login_popup_dismissed', 'true');
+    }
+    return res;
+  };
+
+  const loginWithGoogle = async (googleData) => {
+    const res = await apiGoogleLogin(googleData);
+    if (res?.user) {
+      setCurrentUser(res.user);
+      safeSessionStorage.setItem('venm_login_popup_dismissed', 'true');
     }
     return res;
   };
@@ -94,10 +114,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const closeLoginModal = () => {
-    if (typeof window !== 'undefined') {
-      // Mark as dismissed for this session so it doesn't pop up again while browsing
-      sessionStorage.setItem('venm_login_popup_dismissed', 'true');
-    }
+    // Mark as dismissed for this session so it doesn't pop up again while browsing
+    safeSessionStorage.setItem('venm_login_popup_dismissed', 'true');
     setIsAuthModalOpen(false);
     setAuthModalReason('manual');
   };
@@ -108,6 +126,7 @@ export const AuthProvider = ({ children }) => {
     isAdmin: currentUser?.role === 'ADMIN',
     login,
     register,
+    loginWithGoogle,
     logout,
     isAuthModalOpen,
     authModalTab,

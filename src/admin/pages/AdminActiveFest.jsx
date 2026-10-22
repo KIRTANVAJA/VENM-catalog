@@ -677,7 +677,7 @@ const AdminActiveFest = () => {
           </div>
           <div className="flex items-center gap-2">
             <Link
-              to="/admin/products/create"
+              to="/admin/products/new"
               className="px-3 py-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 border border-neutral-300 text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1"
             >
               <Plus className="w-3 h-3" />
@@ -846,7 +846,7 @@ const AdminActiveFest = () => {
                         </Link>
                         <span className="text-neutral-300 text-xs">|</span>
                         <Link
-                          to={`/admin/products/edit/${product.id}`}
+                          to={`/admin/products/${product.id}/edit`}
                           title="Edit in admin"
                           className="text-[9px] font-mono text-neutral-500 hover:text-neutral-900 uppercase"
                         >

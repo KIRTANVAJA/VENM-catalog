@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getFeaturedProducts, getAllCollections, getCollectionBySlug } from '../data/catalog';
 import { apiGetProducts, apiGetCollections, apiGetCollectionBySlug, apiGetHomepageSections, apiGetSettings } from '../services/api';
-import { fetchLiveSettings } from '../data/settings';
+import { getSettings, fetchLiveSettings } from '../data/settings';
 import ProductCard from '../components/ProductCard';
 import CollectionCard from '../components/CollectionCard';
 import EditorialGrid from '../components/EditorialGrid';
@@ -11,14 +11,24 @@ import { CoverflowCarousel } from '@/components/ui/coverflow-carousel';
 import { useAuth } from '../context/AuthContext';
 import { ArrowUpRight, ChevronRight, Flame, Layers, LayoutGrid } from 'lucide-react';
 
+function loadStoredData(key, fallback) {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return fallback;
+}
+
 const Home = () => {
   const navigate = useNavigate();
   const { isAuthenticated, openLoginModal } = useAuth();
-  const [featuredProducts, setFeaturedProducts] = useState(() => getFeaturedProducts().slice(0, 6));
-  const [collections, setCollections] = useState(() => getAllCollections());
+  const [settings, setSettings] = useState(() => getSettings());
+  const [featuredProducts, setFeaturedProducts] = useState(() => loadStoredData('venm_cached_featured_prods', getFeaturedProducts().slice(0, 6)));
+  const [collections, setCollections] = useState(() => loadStoredData('venm_cached_collections', getAllCollections()));
   const [navratriEdit, setNavratriEdit] = useState(() => getCollectionBySlug('navratri'));
-  const [activeFest, setActiveFest] = useState(null);
-  const [cmsSections, setCmsSections] = useState({});
+  const [activeFest, setActiveFest] = useState(() => getSettings()?.active_fest || null);
+  const [cmsSections, setCmsSections] = useState(() => loadStoredData('venm_homepage_cms', {}));
   const [activeInquiryProduct, setActiveInquiryProduct] = useState(null);
   const [referenceViewMode, setReferenceViewMode] = useState('coverflow');
 
@@ -33,9 +43,21 @@ const Home = () => {
   useEffect(() => {
     let isMounted = true;
 
+    const handleSettingsUpdated = (e) => {
+      if (e.detail && isMounted) {
+        setSettings(e.detail);
+        if (e.detail.active_fest) setActiveFest(e.detail.active_fest);
+      }
+    };
+    window.addEventListener('venm_settings_updated', handleSettingsUpdated);
+
     async function loadData() {
       try {
-        await fetchLiveSettings();
+        const liveSett = await fetchLiveSettings();
+        if (isMounted && liveSett) {
+          setSettings(liveSett);
+          if (liveSett.active_fest) setActiveFest(liveSett.active_fest);
+        }
 
         // 1. Fetch live CMS sections from database
         try {
@@ -47,6 +69,9 @@ const Home = () => {
               if (key) map[key] = sec;
             });
             setCmsSections(map);
+            try {
+              localStorage.setItem('venm_homepage_cms', JSON.stringify(map));
+            } catch (e) {}
           }
         } catch (e) {}
 
@@ -66,7 +91,11 @@ const Home = () => {
             });
           }
           if (combined.length > 0) {
-            setFeaturedProducts(combined.slice(0, 12));
+            const sliced = combined.slice(0, 12);
+            setFeaturedProducts(sliced);
+            try {
+              localStorage.setItem('venm_cached_featured_prods', JSON.stringify(sliced));
+            } catch (e) {}
           }
         }
 
@@ -74,6 +103,9 @@ const Home = () => {
         const liveCols = await apiGetCollections();
         if (isMounted && liveCols && liveCols.length > 0) {
           setCollections(liveCols);
+          try {
+            localStorage.setItem('venm_cached_collections', JSON.stringify(liveCols));
+          } catch (e) {}
         }
 
         // 4. Fetch navratri / active campaign collection
@@ -98,6 +130,7 @@ const Home = () => {
 
     return () => {
       isMounted = false;
+      window.removeEventListener('venm_settings_updated', handleSettingsUpdated);
     };
   }, []);
 
@@ -105,6 +138,12 @@ const Home = () => {
   const featuredColSec = cmsSections['featured_collection'];
   const brandSec = cmsSections['brand_statement'];
   const lookbookSec = cmsSections['lookbook'];
+
+  const heroBadge = heroSec?.content?.campaignBadge || `${settings?.general?.brandName || 'VENM'} REFERENCE CATALOG // FASHION & CUSTOM REQUESTS`;
+  const heroTitle = heroSec?.content?.title || heroSec?.content?.heading || `${settings?.general?.brandName || 'VENM'} REFERENCE CATALOG`;
+  const heroSubtitle = heroSec?.content?.subtitle || heroSec?.content?.subheading || settings?.general?.tagline || "FIND A LOOK. TELL US WHAT YOU NEED. WE'LL WORK FROM THERE.";
+  const heroDesc = heroSec?.content?.description || "A FASHION REFERENCE CATALOG & BESPOKE CUSTOM REQUEST PLATFORM SHOWCASING WHAT VENM CAN CREATE, CUSTOMIZE, STYLE, SOURCE AND WORK ON.";
+  const heroImg = heroSec?.content?.heroImage || "/assets/campaign/HOMEPAGE_2.webp";
 
   return (
     <div className="min-h-screen bg-white text-neutral-900 space-y-20 pb-20 font-sans">
@@ -116,7 +155,7 @@ const Home = () => {
           {/* Hero Background Image */}
           <div className="absolute inset-0 z-0 opacity-20">
             <img
-              src={heroSec?.content?.heroImage || "/assets/campaign/HOMEPAGE_2.webp"}
+              src={heroImg}
               alt="VENM Hero Banner"
               className="w-full h-full object-cover object-center"
             />
@@ -126,21 +165,21 @@ const Home = () => {
           <div className="relative z-10 max-w-4xl mx-auto text-center space-y-8 animate-fadeIn">
             {/* Campaign Tag */}
             <div className="inline-block px-3.5 py-1.5 bg-white border border-neutral-300 text-neutral-800 text-xs font-mono tracking-widest uppercase font-bold">
-              {heroSec?.content?.campaignBadge || "VENM REFERENCE CATALOG // FASHION & CUSTOM REQUESTS"}
+              {heroBadge}
             </div>
 
             {/* Main Headline */}
             <div className="space-y-3">
               <h1 className="text-4xl sm:text-7xl lg:text-8xl font-black tracking-[0.12em] text-neutral-900 uppercase leading-none">
-                {heroSec?.content?.title || "VENM REFERENCE CATALOG"}
+                {heroTitle}
               </h1>
               <p className="text-base sm:text-xl text-neutral-800 tracking-[0.18em] font-bold max-w-3xl mx-auto uppercase font-mono">
-                {heroSec?.content?.subtitle || "FIND A LOOK. TELL US WHAT YOU NEED. WE'LL WORK FROM THERE."}
+                {heroSubtitle}
               </p>
             </div>
 
             <p className="text-xs sm:text-sm text-neutral-600 font-sans max-w-2xl mx-auto leading-relaxed uppercase">
-              {heroSec?.content?.description || "A FASHION REFERENCE CATALOG & BESPOKE CUSTOM REQUEST PLATFORM SHOWCASING WHAT VENM CAN CREATE, CUSTOMIZE, STYLE, SOURCE AND WORK ON."}
+              {heroDesc}
             </p>
 
             {/* Hero CTAs */}
@@ -402,23 +441,23 @@ const Home = () => {
 
                 <div className="space-y-1">
                   <h2 className="text-3xl sm:text-5xl font-extrabold tracking-wider text-neutral-900 uppercase">
-                    {activeFest?.name || featuredColSec?.content?.title || navratriEdit.name}
+                    {featuredColSec?.content?.title || activeFest?.name || navratriEdit?.name || 'NAVRATRI EDIT'}
                   </h2>
                   <p className="text-xs font-mono text-neutral-500 tracking-[0.18em] uppercase">
-                    {activeFest?.tagline || featuredColSec?.content?.tagline || navratriEdit.tagline}
+                    {featuredColSec?.content?.tagline || activeFest?.tagline || navratriEdit?.tagline || 'GUJARATI ETHOS × CYBER STREETWEAR'}
                   </p>
                 </div>
 
                 <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed font-sans">
-                  {activeFest?.description || featuredColSec?.content?.description || navratriEdit.description}
+                  {featuredColSec?.content?.description || activeFest?.description || navratriEdit?.description || 'Traditional Garba silhouettes reengineered through raw distressed denim and mirror-work streetwear.'}
                 </p>
 
                 <div className="pt-2">
                   <Link
-                    to={featuredColSec?.content?.ctaLink || "/collection/navratri"}
+                    to={featuredColSec?.content?.ctaLink || (activeFest?.slug ? `/collection/${activeFest.slug}` : "/collection/navratri")}
                     className="inline-flex btn-venm-primary px-6 py-3.5 text-xs font-bold tracking-widest items-center gap-2 uppercase"
                   >
-                    <span>{featuredColSec?.content?.ctaText || `EXPLORE EDIT REFERENCES (${navratriEdit.productCount || 8} LOOKS)`}</span>
+                    <span>{featuredColSec?.content?.ctaText || `EXPLORE ${featuredColSec?.content?.title || activeFest?.name || 'EDIT'} REFERENCES`}</span>
                     <ArrowUpRight className="w-4 h-4" />
                   </Link>
                 </div>
@@ -426,7 +465,7 @@ const Home = () => {
 
               <div className="lg:col-span-6 relative aspect-[4/3] overflow-hidden border border-neutral-200 bg-neutral-100 group shadow-sm">
                 <img
-                  src={activeFest?.coverImage || featuredColSec?.content?.coverImage || navratriEdit.coverImage}
+                  src={featuredColSec?.content?.coverImage || activeFest?.coverImage || navratriEdit?.coverImage || "/assets/campaign/HOMEPAGE_2.webp"}
                   alt="Featured Collection Cover"
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   onError={(e) => { e.currentTarget.src = "/assets/campaign/HOMEPAGE_2.webp"; }}

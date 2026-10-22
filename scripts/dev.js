@@ -18,7 +18,7 @@ const serverProc = spawn('node', ['server/server.js'], {
 });
 
 // 2. Spawn Frontend Vite Dev Server on Port 5173
-const viteProc = spawn('npx', ['vite'], {
+const viteProc = spawn('npx', ['vite', '--host', '0.0.0.0'], {
   cwd: projectRoot,
   stdio: 'inherit',
   shell: true

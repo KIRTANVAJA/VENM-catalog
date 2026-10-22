@@ -7,7 +7,7 @@
     "dev": "node scripts/dev.js",
     "server": "node server/server.js",
     "vite": "vite",
-    "build": "vite build",
+    "build": "prisma generate && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },

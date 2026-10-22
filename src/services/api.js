@@ -1,7 +1,7 @@
 // CENTRAL VENM REST API SERVICE LAYER
 // Direct HTTP communications between Frontend (React) and Backend (Node/Express/Prisma Database)
 
-const getBaseUrl = () => {
+export const getBaseUrl = () => {
   const envUrl = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_API_URL : null;
 
   if (envUrl) {
@@ -16,11 +16,20 @@ const getBaseUrl = () => {
     return cleanUrl;
   }
 
-  // Use relative '/api' endpoint so Vite dev proxy handles it seamlessly without CORS/cookie restrictions
+  const isBrowser = typeof window !== 'undefined';
+  const isLocalHost = isBrowser && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+  // In local browser development:
+  // Connect directly to local Express API backend on port 5000 to eliminate any Vite static server proxy drops (405 Method Not Allowed / index.html rewrites)
+  if (isLocalHost) {
+    return `http://${window.location.hostname}:5000/api`;
+  }
+
+  // In production (Vercel, Netlify): relative '/api' endpoint
   return '/api';
 };
 
-const API_BASE_URL = getBaseUrl();
+export const API_BASE_URL = getBaseUrl();
 
 let loginPromise = null;
 async function getOrFetchAdminToken() {
@@ -52,10 +61,13 @@ async function getOrFetchAdminToken() {
 }
 
 async function request(endpoint, options = {}) {
-  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+  let url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
   
-  const isAuthRequest = endpoint.includes('/auth/login') || endpoint.includes('/auth/register');
-  let token = typeof window !== 'undefined' ? localStorage.getItem('venm_admin_token') : null;
+  const isAuthRequest = endpoint.includes('/auth/login') || endpoint.includes('/auth/register') || endpoint.includes('/auth/google');
+  let token = typeof window !== 'undefined'
+    ? (localStorage.getItem('venm_user_token') || localStorage.getItem('venm_admin_token'))
+    : null;
+
   if (!token && options.method && options.method !== 'GET' && !isAuthRequest) {
     token = await getOrFetchAdminToken();
   }
@@ -73,7 +85,20 @@ async function request(endpoint, options = {}) {
   };
 
   try {
-    const res = await fetch(url, config);
+    let res;
+    try {
+      res = await fetch(url, config);
+    } catch (fetchErr) {
+      // If fetching failed and url was relative or proxy dropped, retry direct to port 5000 on localhost
+      const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      if (isLocal && !url.includes(':5000')) {
+        const directUrl = `http://${window.location.hostname}:5000${endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`}`;
+        res = await fetch(directUrl, config);
+      } else {
+        throw fetchErr;
+      }
+    }
+
     const contentType = res.headers.get('content-type');
     
     let data;
@@ -81,8 +106,19 @@ async function request(endpoint, options = {}) {
       data = await res.json();
     } else {
       const text = await res.text();
-      if (res.status === 502 || res.status === 504 || text.trim().startsWith('<') || text.includes('<!DOCTYPE html>')) {
-        throw new Error(`Server API is offline or starting up (HTTP ${res.status}). Please verify server is running.`);
+      const isHtml = text.trim().startsWith('<') || text.includes('<!DOCTYPE html>');
+      const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+      // CRITICAL FIX: If static server (Vite/Netlify) caught the request and returned 405 Method Not Allowed or index.html (status 200),
+      // automatically bypass and retry direct to the Express backend on port 5000
+      if ((isHtml || res.status === 405) && isLocal && !url.includes(':5000') && !options._retriedDirect) {
+        console.warn(`[VENM API] Static server intercepted ${url} (status ${res.status}). Retrying directly to backend port 5000...`);
+        const directUrl = `http://${window.location.hostname}:5000${endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`}`;
+        return request(directUrl, { ...options, _retriedDirect: true });
+      }
+
+      if (res.status === 502 || res.status === 504 || isHtml) {
+        throw new Error(`Server API is offline or starting up (HTTP ${res.status}). Please verify server is running on port 5000.`);
       } else {
         data = { message: text || `HTTP ${res.status}` };
       }
@@ -117,20 +153,23 @@ async function request(endpoint, options = {}) {
 // AUTHENTICATION API
 // ----------------------------------------------------
 export async function apiLogin(usernameOrEmail, password) {
+  const cleanIdentifier = (usernameOrEmail || '').trim();
   const data = await request('/auth/login', {
     method: 'POST',
     body: JSON.stringify({
-      username: usernameOrEmail,
-      email: usernameOrEmail,
+      username: cleanIdentifier,
+      email: cleanIdentifier,
       password
     })
   });
 
   if (data?.token && typeof window !== 'undefined') {
-    localStorage.setItem('venm_admin_token', data.token);
+    if (data.user?.role === 'ADMIN') {
+      localStorage.setItem('venm_admin_token', data.token);
+      localStorage.setItem('venm_admin_user', JSON.stringify(data.user));
+    }
     localStorage.setItem('venm_user_token', data.token);
     if (data.user) {
-      localStorage.setItem('venm_admin_user', JSON.stringify(data.user));
       localStorage.setItem('venm_user', JSON.stringify(data.user));
       window.dispatchEvent(new CustomEvent('venm-auth-change', { detail: data.user }));
     }
@@ -146,10 +185,33 @@ export async function apiRegister(userData) {
   });
 
   if (data?.token && typeof window !== 'undefined') {
-    localStorage.setItem('venm_admin_token', data.token);
+    if (data.user?.role === 'ADMIN') {
+      localStorage.setItem('venm_admin_token', data.token);
+      localStorage.setItem('venm_admin_user', JSON.stringify(data.user));
+    }
     localStorage.setItem('venm_user_token', data.token);
     if (data.user) {
+      localStorage.setItem('venm_user', JSON.stringify(data.user));
+      window.dispatchEvent(new CustomEvent('venm-auth-change', { detail: data.user }));
+    }
+  }
+
+  return data;
+}
+
+export async function apiGoogleLogin(googleData) {
+  const data = await request('/auth/google', {
+    method: 'POST',
+    body: JSON.stringify(googleData)
+  });
+
+  if (data?.token && typeof window !== 'undefined') {
+    if (data.user?.role === 'ADMIN') {
+      localStorage.setItem('venm_admin_token', data.token);
       localStorage.setItem('venm_admin_user', JSON.stringify(data.user));
+    }
+    localStorage.setItem('venm_user_token', data.token);
+    if (data.user) {
       localStorage.setItem('venm_user', JSON.stringify(data.user));
       window.dispatchEvent(new CustomEvent('venm-auth-change', { detail: data.user }));
     }

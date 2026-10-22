@@ -116,10 +116,29 @@ export const getHomepageSections = async (req, res) => {
       });
     }
 
-    const formatted = sections.map((s) => ({
-      ...s,
-      content: typeof s.content === 'string' ? JSON.parse(s.content || '{}') : s.content
-    }));
+    const defaultMap = {};
+    DEFAULT_SECTIONS.forEach((s) => { defaultMap[s.sectionKey] = s; });
+
+    const formatted = sections.map((s) => {
+      const parsedContent = typeof s.content === 'string' ? JSON.parse(s.content || '{}') : (s.content || {});
+      const defContent = defaultMap[s.sectionKey]?.content || {};
+      const merged = {
+        ...defContent,
+        ...parsedContent
+      };
+
+      if (s.sectionKey === 'hero') {
+        if (!merged.title && merged.heading) merged.title = merged.heading;
+        if (!merged.heading && merged.title) merged.heading = merged.title;
+        if (!merged.subtitle && merged.subheading) merged.subtitle = merged.subheading;
+        if (!merged.subheading && merged.subtitle) merged.subheading = merged.subtitle;
+      }
+
+      return {
+        ...s,
+        content: merged
+      };
+    });
 
     res.json(formatted);
   } catch (error) {
@@ -135,17 +154,43 @@ export const updateHomepageSections = async (req, res) => {
       return res.status(400).json({ message: 'SECTION KEY IS REQUIRED' });
     }
 
+    const defaultSec = DEFAULT_SECTIONS.find((s) => s.sectionKey === sectionKey);
+    const existing = await prisma.homepageSection.findUnique({
+      where: { sectionKey }
+    });
+
+    let existingContent = {};
+    if (existing && existing.content) {
+      existingContent = typeof existing.content === 'string' ? JSON.parse(existing.content || '{}') : existing.content;
+    } else if (defaultSec) {
+      existingContent = { ...defaultSec.content };
+    }
+
+    const incomingContent = typeof content === 'object' ? content : JSON.parse(content || '{}');
+    const mergedContent = {
+      ...(defaultSec?.content || {}),
+      ...existingContent,
+      ...incomingContent
+    };
+
+    if (sectionKey === 'hero') {
+      if (!mergedContent.title && mergedContent.heading) mergedContent.title = mergedContent.heading;
+      if (!mergedContent.heading && mergedContent.title) mergedContent.heading = mergedContent.title;
+      if (!mergedContent.subtitle && mergedContent.subheading) mergedContent.subtitle = mergedContent.subheading;
+      if (!mergedContent.subheading && mergedContent.subtitle) mergedContent.subheading = mergedContent.subtitle;
+    }
+
     const updated = await prisma.homepageSection.upsert({
       where: { sectionKey },
       update: {
-        content: typeof content === 'object' ? JSON.stringify(content) : content,
-        enabled: enabled !== undefined ? Boolean(enabled) : true,
-        displayOrder: displayOrder !== undefined ? Number(displayOrder) : 0
+        content: JSON.stringify(mergedContent),
+        enabled: enabled !== undefined ? Boolean(enabled) : (existing ? existing.enabled : true),
+        displayOrder: displayOrder !== undefined ? Number(displayOrder) : (existing ? existing.displayOrder : 0)
       },
       create: {
         sectionKey,
-        name: sectionKey.toUpperCase().replace('_', ' '),
-        content: typeof content === 'object' ? JSON.stringify(content) : content,
+        name: defaultSec?.name || sectionKey.toUpperCase().replace('_', ' '),
+        content: JSON.stringify(mergedContent),
         enabled: enabled !== undefined ? Boolean(enabled) : true,
         displayOrder: displayOrder !== undefined ? Number(displayOrder) : 0
       }
@@ -162,7 +207,7 @@ export const updateHomepageSections = async (req, res) => {
 
     const formattedUpdated = {
       ...updated,
-      content: typeof updated.content === 'string' ? JSON.parse(updated.content || '{}') : updated.content
+      content: mergedContent
     };
 
     res.json(formattedUpdated);
@@ -170,3 +215,4 @@ export const updateHomepageSections = async (req, res) => {
     res.status(500).json({ message: 'FAILED TO UPDATE HOMEPAGE SECTION', error: error.message });
   }
 };
+

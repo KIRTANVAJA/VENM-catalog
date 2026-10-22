@@ -22,12 +22,21 @@ import {
   X
 } from 'lucide-react';
 
+function loadStoredProduct(slug) {
+  if (typeof window === 'undefined') return getProductBySlug(slug) || getProductBySlug('garba-cyber-vest-jac1');
+  try {
+    const raw = localStorage.getItem('venm_cached_product_' + slug);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return getProductBySlug(slug) || getProductBySlug('garba-cyber-vest-jac1');
+}
+
 const ProductDetail = () => {
   const { slug } = useParams();
   const { currentUser, isAuthenticated, openLoginModal } = useAuth();
-  const [product, setProduct] = useState(() => getProductBySlug(slug) || getProductBySlug('garba-cyber-vest-jac1'));
+  const [product, setProduct] = useState(() => loadStoredProduct(slug));
   const [relatedProducts, setRelatedProducts] = useState(() => {
-    const initProd = getProductBySlug(slug) || getProductBySlug('garba-cyber-vest-jac1');
+    const initProd = loadStoredProduct(slug);
     return getProductsByCollection(initProd?.collectionSlug)
       .filter((p) => p.id !== initProd?.id)
       .slice(0, 3);
@@ -52,6 +61,9 @@ const ProductDetail = () => {
         const liveProduct = await apiGetProductBySlug(slug);
         if (isMounted && liveProduct) {
           setProduct(liveProduct);
+          try {
+            localStorage.setItem('venm_cached_product_' + slug, JSON.stringify(liveProduct));
+          } catch (e) {}
           if (liveProduct.sizes?.length) {
             setSelectedSize(liveProduct.sizes[0]);
           }

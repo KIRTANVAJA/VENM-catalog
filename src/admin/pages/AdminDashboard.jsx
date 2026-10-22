@@ -4,7 +4,8 @@ import {
   apiGetDashboardStats,
   apiGetLiveUserAnalytics,
   apiGetAllInquiries,
-  apiGetProducts
+  apiGetProducts,
+  API_BASE_URL
 } from '../../services/api';
 import { BRAND_ASSETS } from '../../config/assets';
 import {
@@ -455,9 +456,7 @@ const AdminDashboard = () => {
     // Real-time SSE Connection
     let eventSource = null;
     try {
-      const sseUrl = window.location.origin.includes(':5173')
-        ? '/api/admin/activity/stream'
-        : 'http://localhost:5000/api/admin/activity/stream';
+      const sseUrl = `${API_BASE_URL}/admin/activity/stream`;
 
       eventSource = new EventSource(sseUrl, { withCredentials: true });
 

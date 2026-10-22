@@ -4,9 +4,18 @@ import { apiGetCollections } from '../services/api';
 import CollectionCard from '../components/CollectionCard';
 import { Layers } from 'lucide-react';
 
+function loadStoredCollections() {
+  if (typeof window === 'undefined') return getAllCollections();
+  try {
+    const raw = localStorage.getItem('venm_cached_collections');
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return getAllCollections();
+}
+
 const Collections = () => {
   const [filter, setFilter] = useState('all');
-  const [collections, setCollections] = useState(() => getAllCollections());
+  const [collections, setCollections] = useState(loadStoredCollections);
 
   useEffect(() => {
     let isMounted = true;
@@ -15,6 +24,9 @@ const Collections = () => {
         const live = await apiGetCollections();
         if (isMounted && live && live.length > 0) {
           setCollections(live);
+          try {
+            localStorage.setItem('venm_cached_collections', JSON.stringify(live));
+          } catch (e) {}
         }
       } catch (err) {
         console.warn('[COLLECTIONS] Failed to fetch live collections:', err.message);

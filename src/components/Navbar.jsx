@@ -3,12 +3,27 @@ import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, ArrowUpRight, User, LogOut, ShieldCheck } from 'lucide-react';
 import { BRAND_ASSETS } from '../config/assets';
 import { useAuth } from '../context/AuthContext';
+import { getSettings, fetchLiveSettings } from '../data/settings';
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [settings, setSettings] = useState(() => getSettings());
   const location = useLocation();
   const { currentUser, isAuthenticated, isAdmin, openLoginModal, logout } = useAuth();
+
+  useEffect(() => {
+    fetchLiveSettings().then((live) => {
+      if (live) setSettings(live);
+    });
+
+    const handleSettingsUpdated = (e) => {
+      if (e.detail) setSettings(e.detail);
+    };
+
+    window.addEventListener('venm_settings_updated', handleSettingsUpdated);
+    return () => window.removeEventListener('venm_settings_updated', handleSettingsUpdated);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -22,10 +37,18 @@ const Navbar = () => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
+  const activeFest = settings?.active_fest;
+  const festName = activeFest?.navLabel || activeFest?.name || 'ACTIVE FEST';
+  const festSlug = activeFest?.slug || 'active-fest';
+  const announcementText = activeFest?.announcement || 
+    (settings?.general?.brandName && settings?.general?.tagline 
+      ? `${settings.general.brandName} // ${settings.general.tagline}` 
+      : 'VENM × ACTIVE FEST: THE FESTIVE EDIT IS NOW LIVE');
+
   const navLinks = [
     { name: 'HOME', path: '/' },
     { name: 'COLLECTIONS', path: '/collections' },
-    { name: 'ACTIVE FEST', path: '/collection/active-fest', highlight: true },
+    { name: festName, path: `/collection/${festSlug}`, highlight: true },
     { name: 'ABOUT', path: '/about' }
   ];
 
@@ -34,8 +57,8 @@ const Navbar = () => {
       {/* Top Campaign Bar - Quiet Light Neutral with Neon Green Accent */}
       <div className="bg-neutral-900 border-b border-neutral-800 text-xs py-2 px-4 text-center tracking-widest text-neutral-200 font-medium flex items-center justify-center gap-2">
         <span className="inline-block w-2 h-2 rounded-full bg-lime-400 animate-pulse"></span>
-        <span className="text-white font-semibold">VENM × ACTIVE FEST: THE FESTIVE EDIT IS NOW LIVE</span>
-        <Link to="/collection/active-fest" className="text-lime-400 hover:text-white font-mono font-bold ml-1 flex items-center gap-0.5">
+        <span className="text-white font-semibold uppercase">{announcementText}</span>
+        <Link to={`/collection/${festSlug}`} className="text-lime-400 hover:text-white font-mono font-bold ml-1 flex items-center gap-0.5">
           <span>EXPLORE</span>
           <ArrowUpRight className="w-3 h-3" />
         </Link>

@@ -39,12 +39,17 @@ const AdminHomepageCMS = () => {
     setSections(updatedList);
 
     try {
-      await apiUpdateHomepageSection({
+      const updated = await apiUpdateHomepageSection({
         sectionKey: sKey,
         content: sec.content,
         enabled: newEnabled,
         displayOrder: sec.displayOrder
       });
+      try {
+        const stored = JSON.parse(localStorage.getItem('venm_homepage_cms') || '{}');
+        stored[sKey] = updated || { ...sec, enabled: newEnabled };
+        localStorage.setItem('venm_homepage_cms', JSON.stringify(stored));
+      } catch (e) {}
       setToastMessage(`SECTION "${sKey.toUpperCase()}" ${newEnabled ? 'ENABLED' : 'DISABLED'}`);
       setTimeout(() => setToastMessage(null), 2500);
     } catch (err) {
@@ -67,12 +72,17 @@ const AdminHomepageCMS = () => {
     const sKey = activeSection.sectionKey || activeSection.id;
 
     try {
-      await apiUpdateHomepageSection({
+      const updated = await apiUpdateHomepageSection({
         sectionKey: sKey,
         content: activeSection.content,
         enabled: activeSection.enabled,
         displayOrder: activeSection.displayOrder
       });
+      try {
+        const stored = JSON.parse(localStorage.getItem('venm_homepage_cms') || '{}');
+        stored[sKey] = updated || { ...activeSection };
+        localStorage.setItem('venm_homepage_cms', JSON.stringify(stored));
+      } catch (e) {}
       setToastMessage(`SAVED "${activeSection.name || sKey.toUpperCase()}" CONTENT`);
       setTimeout(() => setToastMessage(null), 2500);
     } catch (err) {

@@ -189,6 +189,16 @@ export const updateProduct = async (req, res) => {
     const { id } = req.params;
     const body = req.body;
 
+    const existing = await prisma.product.findFirst({
+      where: {
+        OR: [{ id: id }, { slug: id }]
+      }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ message: 'PRODUCT NOT FOUND' });
+    }
+
     const dataToUpdate = { ...body };
     delete dataToUpdate.id;
     delete dataToUpdate.collection;
@@ -207,7 +217,7 @@ export const updateProduct = async (req, res) => {
     if (body.isNavratriEdit !== undefined) dataToUpdate.isNavratriEdit = Boolean(body.isNavratriEdit);
 
     const updated = await prisma.product.update({
-      where: { id },
+      where: { id: existing.id },
       data: dataToUpdate
     });
 
@@ -239,8 +249,18 @@ export const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
 
+    const existing = await prisma.product.findFirst({
+      where: {
+        OR: [{ id: id }, { slug: id }]
+      }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ message: 'PRODUCT NOT FOUND' });
+    }
+
     await prisma.product.delete({
-      where: { id }
+      where: { id: existing.id }
     });
 
     await logActivity({
@@ -248,8 +268,9 @@ export const deleteProduct = async (req, res) => {
       adminEmail: req.user?.email || 'venm1310@gmail.com',
       action: 'PRODUCT_DELETED',
       entityType: 'PRODUCT',
-      entityId: id,
-      description: `Deleted product ID "${id}"`
+      entityId: existing.id,
+      entityName: existing.name,
+      description: `Deleted product "${existing.name}" (${existing.id})`
     });
 
     res.json({ message: 'PRODUCT DELETED SUCCESSFULLY' });
@@ -263,8 +284,18 @@ export const updateProductStatus = async (req, res) => {
     const { id } = req.params;
     const { availability } = req.body;
 
+    const existing = await prisma.product.findFirst({
+      where: {
+        OR: [{ id: id }, { slug: id }]
+      }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ message: 'PRODUCT NOT FOUND' });
+    }
+
     const updated = await prisma.product.update({
-      where: { id },
+      where: { id: existing.id },
       data: { availability }
     });
 
