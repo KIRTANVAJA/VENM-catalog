@@ -1,0 +1,197 @@
+%% ====================================================================================================
+%% VENM CLOTHING BRAND — COMBINED MASTER ENTITY RELATIONSHIP DIAGRAM (ERD)
+%% Architecture: PostgreSQL 16 Relational Schema & Prisma ORM 6.4.0
+%% Scope: All 10 Actual Database Entities, Every Verified Field, Primary & Foreign Keys,
+%%        Unique Constraints, Enforced Relations, Application-Level References, and Actor Workflows
+%% ====================================================================================================
+
+erDiagram
+
+    %% ================================================================================================
+    %% 1. ENTITY DEFINITIONS (ALL 10 MODELS WITH EVERY ACTUAL FIELD)
+    %% ================================================================================================
+
+    User {
+        String id PK "UUID v4 surrogate key"
+        String name "Full client / admin name"
+        String email UK "Unique email identifier"
+        String phone UK "Unique 10-digit phone (Nullable)"
+        String passwordHash "Bcrypt hashed password (10 rounds)"
+        String role "Security role: CUSTOMER | ADMIN"
+        DateTime createdAt "Timestamp of registration"
+        DateTime updatedAt "Auto-updating mutation timestamp"
+    }
+
+    Collection {
+        String id PK "UUID v4 surrogate key"
+        String name "Collection title (e.g. NAVRATRI EDIT)"
+        String slug UK "Unique URL slug identifier"
+        String tagline "Marketing concept subtitle (Nullable)"
+        String description "Narrative curatorial description (Nullable)"
+        String coverImage "Banner image asset path/URL"
+        String season "Season tag: FESTIVE 2026 | PERMANENT (Nullable)"
+        String status "Status: ACTIVE | COMING_SOON"
+        Boolean featured "Spotlighted on storefront homepage"
+        Int displayOrder "Sorting sequence integer"
+        DateTime createdAt "Creation timestamp"
+        DateTime updatedAt "Auto-updating mutation timestamp"
+    }
+
+    Category {
+        String id PK "UUID v4 surrogate key"
+        String name "Taxonomy label (Outerwear, Ethnic, etc.)"
+        String slug UK "Unique URL taxonomy slug"
+        String description "Scope description (Nullable)"
+        String status "Operational status: Active | Archived"
+        Int displayOrder "Filter pill display rank"
+        DateTime createdAt "Creation timestamp"
+        DateTime updatedAt "Auto-updating mutation timestamp"
+    }
+
+    Product {
+        String id PK "UUID v4 surrogate key"
+        String name "Garment reference title"
+        String slug UK "Unique URL slug identifier"
+        String description "Garment cut and craftsmanship summary (Nullable)"
+        String details "JSON string array: craft specs and bullets"
+        String collectionId FK "Enforced FK referencing Collection.id (Nullable)"
+        String categoryId FK "Enforced FK referencing Category.id (Nullable)"
+        String collectionSlug "App-level soft reference Collection.slug"
+        String collectionName "Denormalized collection name"
+        String category "App-level soft reference Category.name"
+        String images "JSON string array: asset image URLs"
+        String sizes "JSON string array: [S, M, L, XL, Custom]"
+        String availability "REQUESTABLE | PUBLISHED | PAUSED | COMING_SOON | DRAFT"
+        String estimatedPrice "Formatted reference pricing text"
+        String minPrice "Numeric lower bound price (Nullable)"
+        String maxPrice "Numeric upper bound price (Nullable)"
+        String priceDisplayMode "STARTING_FROM | PRICE_RANGE | CUSTOM_QUOTE"
+        String customizationInfo "Studio guidance for bespoke embroidery"
+        String sizingInfo "Customer measurement and tailoring advice"
+        String sourceAttribution "Creative source attribution (Nullable)"
+        Boolean isFeatured "Pinned to homepage reference showcase"
+        Boolean isNavratriEdit "Active festival campaign filter flag"
+        String tags "JSON string array: editorial style tags"
+        String garmentCare "Garment washing instructions (Nullable)"
+        Int viewCount "Real-time incremented detail view count"
+        Int displayOrder "Manual catalog ordering index"
+        DateTime createdAt "Creation timestamp"
+        DateTime updatedAt "Auto-updating mutation timestamp"
+    }
+
+    Campaign {
+        String id PK "UUID v4 surrogate key"
+        String name "Seasonal campaign title"
+        String slug UK "Unique URL slug identifier"
+        String description "Campaign narrative theme (Nullable)"
+        String image "Hero campaign backdrop URL (Nullable)"
+        String announcement "Top marquee banner message (Nullable)"
+        String startDate "Campaign schedule start date (Nullable)"
+        String endDate "Campaign schedule end date (Nullable)"
+        String status "Workflow status: ACTIVE | SCHEDULED | ENDED"
+        String theme "Atmospheric theme preset (Nullable)"
+        Boolean festivalLights "Frontend FX toggle: Twinkle lights"
+        Boolean dandiya "Frontend FX toggle: Dandiya sticks decoration"
+        Boolean chunri "Frontend FX toggle: Floating chunri effect"
+        Boolean bangles "Frontend FX toggle: Bangles visual accent"
+        Boolean festivalGlow "Frontend FX toggle: Neon atmospheric glow"
+        DateTime createdAt "Creation timestamp"
+        DateTime updatedAt "Auto-updating mutation timestamp"
+    }
+
+    HomepageSection {
+        String id PK "UUID v4 surrogate key"
+        String sectionKey UK "hero | featured_collection | brand_statement | lookbook | etc"
+        String name "Human-readable section name in CMS"
+        Boolean enabled "Visibility toggle on storefront"
+        Int displayOrder "Section order of appearance on homepage"
+        String content "JSON string object: copy, buttons, links, banners"
+        DateTime createdAt "Creation timestamp"
+        DateTime updatedAt "Auto-updating mutation timestamp"
+    }
+
+    Media {
+        String id PK "UUID v4 surrogate key"
+        String name "Asset file name or label"
+        String url "Static asset path or hosted URL"
+        String type "MIME type (e.g. image/webp) (Nullable)"
+        String size "Human-readable asset size (Nullable)"
+        String category "Asset category: Products | Campaigns | Editorial (Nullable)"
+        String usedBy "Usage context: Catalog | Lookbook (Nullable)"
+        String altText "Accessibility alternative text (Nullable)"
+        DateTime createdAt "Registration timestamp"
+        DateTime updatedAt "Auto-updating mutation timestamp"
+    }
+
+    Setting {
+        String id PK "UUID v4 surrogate key"
+        String sectionKey UK "Partition key: general | whatsapp | social | seo"
+        String data "JSON string object: key-value configuration values"
+        DateTime createdAt "Creation timestamp"
+        DateTime updatedAt "Auto-updating mutation timestamp"
+    }
+
+    ActivityLog {
+        String id PK "UUID v4 surrogate key"
+        String adminUserId "App-level actor link User.id (Nullable)"
+        String adminEmail "Actor email or visitor ID (Nullable)"
+        String action "Audit action: LOGIN | CREATE | VIEW | INQUIRY"
+        String entityType "Domain: AUTH | PRODUCT | INQUIRY | CMS | ANALYTICS"
+        String entityId "Polymorphic soft FK to target entity PK (Nullable)"
+        String entityName "Human-readable name of target entity (Nullable)"
+        String description "Audit trail narrative overview (Nullable)"
+        String metadata "JSON string object: extra event payload (Nullable)"
+        DateTime createdAt "Event logging timestamp"
+    }
+
+    Inquiry {
+        String id PK "UUID v4 surrogate key"
+        String userId "App-level link to User.id (Nullable for guests)"
+        String clientName "Client contact name (Nullable)"
+        String clientContact "Primary phone number or email (Nullable)"
+        String clientEmail "Client email address (Nullable)"
+        String clientPhone "Client phone number (Nullable)"
+        String userMeta "JSON string object: snapshot of client profile"
+        String productId "App-level link to Product.id (Nullable)"
+        String productSlug "App-level link to Product.slug (Nullable)"
+        String productName "Denormalized snapshot of requested look"
+        String productImage "Snapshot of product cover image URL (Nullable)"
+        String productPrice "Snapshot of estimated price (Nullable)"
+        String collectionName "Denormalized parent collection name (Nullable)"
+        String selectedSize "Selected size tag or Custom (Nullable)"
+        String requestType "I have my garment | Source base garment | WhatsApp"
+        String note "Client custom embroidery or fit notes (Nullable)"
+        String status "Lead status: SUBMITTED | IN_REVIEW | COMPLETED"
+        DateTime createdAt "Submission timestamp"
+        DateTime updatedAt "Auto-updating mutation timestamp"
+    }
+
+    %% ================================================================================================
+    %% 2. DATABASE-ENFORCED RELATIONSHIPS (SOLID ARROWS WITH CROW'S FOOT NOTATION)
+    %% ================================================================================================
+
+    Collection ||--o{ Product : "enforces FK [collectionId -> id] (1:N, onDelete SetNull)"
+    Category ||--o{ Product : "enforces FK [categoryId -> id] (1:N, onDelete SetNull)"
+
+    %% ================================================================================================
+    %% 3. APPLICATION-LEVEL SOFT RELATIONSHIPS (CODE-ENFORCED LINKS)
+    %% ================================================================================================
+
+    User ||..o{ Inquiry : "soft links [userId -> id, clientEmail -> email] (1:N)"
+    User ||..o{ ActivityLog : "soft links actor [adminUserId -> id, adminEmail -> email] (1:N)"
+    Product ||..o{ Inquiry : "soft links requested look [productId -> id, productSlug -> slug] (1:N)"
+    Collection ||..o{ Product : "app logic matches [collectionSlug -> slug] (1:N)"
+    Category ||..o{ Product : "app logic matches [category -> name] (1:N)"
+
+    %% ================================================================================================
+    %% 4. POLYMORPHIC & JSON-EMBEDDED RELATIONSHIPS
+    %% ================================================================================================
+
+    ActivityLog }o..o{ Product : "polymorphic audit [entityId -> Product.id where entityType=PRODUCT]"
+    ActivityLog }o..o{ Collection : "polymorphic audit [entityId -> Collection.id where entityType=COLLECTION]"
+    ActivityLog }o..o{ Inquiry : "polymorphic audit [entityId -> Inquiry.id where entityType=INQUIRY]"
+    HomepageSection }o..|| Collection : "JSON reference [content.collectionSlug -> Collection.slug]"
+    HomepageSection }o..o{ Media : "JSON reference [content.heroImage -> Media.url]"
+    Setting ||..o| Campaign : "JSON coordination [data.active_fest.slug -> Campaign.slug]"
+    Setting ||..o| Collection : "JSON coordination [data.active_fest.slug -> Collection.slug]"
+    Campaign }o..o{ Product : "campaign assignment [isNavratriEdit flag toggle]"

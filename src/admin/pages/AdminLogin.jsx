@@ -73,7 +73,7 @@ const AdminLogin = () => {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="venm1310@gmail.com or 9664984749"
+              placeholder="venm1310@gmail.com or 7434096095"
               className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 px-4 py-3 text-xs text-neutral-900 outline-none font-mono"
             />
           </div>

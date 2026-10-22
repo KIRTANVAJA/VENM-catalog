@@ -1,0 +1,185 @@
+erDiagram
+    %% =========================================================================
+    %% VENM REFERENCE CATALOG — COMPLETE DATABASE ENTITY-RELATIONSHIP DIAGRAM
+    %% Database Technology: PostgreSQL (Remote) via Prisma ORM 6.4.x
+    %% =========================================================================
+
+    %% -------------------------------------------------------------------------
+    %% 1. IDENTITY & ACCESS MANAGEMENT DOMAIN
+    %% -------------------------------------------------------------------------
+    User {
+        String id PK "UUID v4"
+        String name "Full Client / Admin Name"
+        String email UK "Unique Email Address"
+        String phone UK "Unique 10-digit Phone (Optional)"
+        String passwordHash "Bcrypt Hash (Salt 10)"
+        String role "CUSTOMER | ADMIN (Default: CUSTOMER)"
+        DateTime createdAt "Auto timestamp (now)"
+        DateTime updatedAt "Auto timestamp on update"
+    }
+
+    ActivityLog {
+        String id PK "UUID v4"
+        String adminUserId FK "Soft reference to User.id"
+        String adminEmail "Actor email snapshot"
+        String action "USER_LOGIN | ADMIN_LOGIN | PRODUCT_CREATED | etc."
+        String entityType "PRODUCT | COLLECTION | INQUIRY | AUTH | SETTINGS"
+        String entityId "Polymorphic Target Record ID"
+        String entityName "Human-readable target name"
+        String description "Detailed audit log narrative"
+        String metadata "JSON serialized event payload"
+        DateTime createdAt "Auto timestamp (now)"
+    }
+
+    %% -------------------------------------------------------------------------
+    %% 2. CATALOG & MERCHANDISE DOMAIN
+    %% -------------------------------------------------------------------------
+    Collection {
+        String id PK "UUID v4"
+        String name "Collection Name (e.g., NAVRATRI EDIT)"
+        String slug UK "Unique URL slug (e.g., active-fest)"
+        String tagline "Marketing tagline / concept"
+        String description "Curatorial / editorial notes"
+        String coverImage "Cover asset URL / path"
+        String season "Season code (e.g., FESTIVE 2026)"
+        String status "ACTIVE | COMING_SOON (Default: ACTIVE)"
+        Boolean featured "Spotlighted on homepage (Default: false)"
+        Int displayOrder "Sorting order (Default: 0)"
+        DateTime createdAt "Auto timestamp (now)"
+        DateTime updatedAt "Auto timestamp on update"
+    }
+
+    Category {
+        String id PK "UUID v4"
+        String name "Category name (Outerwear, Tops, Bottoms, etc.)"
+        String slug UK "Unique URL slug (e.g., outerwear)"
+        String description "Category scope description"
+        String status "Active | Inactive (Default: Active)"
+        Int displayOrder "Sorting index (Default: 0)"
+        DateTime createdAt "Auto timestamp (now)"
+        DateTime updatedAt "Auto timestamp on update"
+    }
+
+    Product {
+        String id PK "UUID v4 / Custom ID (e.g. vnm-001)"
+        String name "Reference garment title"
+        String slug UK "Unique URL slug"
+        String description "Garment craft and styling narrative"
+        String details "JSON array of spec bullet points"
+        String collectionId FK "Foreign Key -> Collection.id (onDelete: SetNull)"
+        String categoryId FK "Foreign Key -> Category.id (onDelete: SetNull)"
+        String collectionSlug "Denormalized slug for fast querying"
+        String collectionName "Denormalized collection title"
+        String category "Denormalized category name string"
+        String images "JSON array of image asset URLs / paths"
+        String sizes "JSON array of available sizes (XS, S, M, L, etc.)"
+        String availability "REQUESTABLE | PUBLISHED | PAUSED | COMING_SOON | DRAFT"
+        String estimatedPrice "Formatted starting price (e.g., Estimated from Rs 1800)"
+        String minPrice "Minimum price boundary (numeric string)"
+        String maxPrice "Maximum price boundary (numeric string)"
+        String priceDisplayMode "STARTING_FROM | PRICE_RANGE | CUSTOM_QUOTE"
+        String customizationInfo "Notes on embroidery, wash, & fabric customization"
+        String sizingInfo "Custom measurements & fitting protocol"
+        String sourceAttribution "Studio design / client base garment source"
+        Boolean isFeatured "Featured flag for homepage showcase"
+        Boolean isNavratriEdit "Active festival edit assignment flag"
+        String tags "JSON array of searchable style tags"
+        String garmentCare "Washing and fabric maintenance advice"
+        Int viewCount "Real-time look popularity counter"
+        Int displayOrder "Catalog ordering index"
+        DateTime createdAt "Auto timestamp (now)"
+        DateTime updatedAt "Auto timestamp on update"
+    }
+
+    %% -------------------------------------------------------------------------
+    %% 3. CUSTOMER INQUIRIES & LEAD CAPTURE DOMAIN
+    %% -------------------------------------------------------------------------
+    Inquiry {
+        String id PK "UUID v4"
+        String userId FK "Soft reference -> User.id (Nullable for guests)"
+        String clientName "Client full name"
+        String clientContact "Primary contact channel (Phone or Email)"
+        String clientEmail "Client email address"
+        String clientPhone "Client telephone / WhatsApp number"
+        String userMeta "JSON snapshot of user session & profile"
+        String productId FK "Soft reference -> Product.id"
+        String productSlug "Soft reference -> Product.slug"
+        String productName "Requested reference title"
+        String productImage "Primary look cover image URL snapshot"
+        String productPrice "Price quotation at time of inquiry"
+        String collectionName "Associated collection at time of inquiry"
+        String selectedSize "Requested size / bespoke measurement tag"
+        String requestType "I have my garment | Source base garment | WhatsApp"
+        String note "Bespoke customization details & notes"
+        String status "SUBMITTED | CONTACTED | IN_PROGRESS | COMPLETED"
+        DateTime createdAt "Auto timestamp (now)"
+        DateTime updatedAt "Auto timestamp on update"
+    }
+
+    %% -------------------------------------------------------------------------
+    %% 4. WEBSITE CONTENT & BRAND CMS DOMAIN
+    %% -------------------------------------------------------------------------
+    Campaign {
+        String id PK "UUID v4"
+        String name "Campaign title (e.g., NAVRATRI EDIT 2026)"
+        String slug UK "Unique campaign slug"
+        String description "Campaign theme and vision"
+        String image "Spotlight banner asset URL"
+        String announcement "Top banner announcement text"
+        String startDate "Optional campaign launch date string"
+        String endDate "Optional campaign expiration date string"
+        String status "ACTIVE | SCHEDULED | ENDED"
+        String theme "Festive | Minimal | Street"
+        Boolean festivalLights "Interactive festive lighting animation flag"
+        Boolean dandiya "Interactive dandiya visual element flag"
+        Boolean chunri "Interactive chunri visual element flag"
+        Boolean bangles "Interactive bangles element flag"
+        Boolean festivalGlow "Interactive neon glow filter flag"
+        DateTime createdAt "Auto timestamp (now)"
+        DateTime updatedAt "Auto timestamp on update"
+    }
+
+    HomepageSection {
+        String id PK "UUID v4"
+        String sectionKey UK "hero | featured_collection | brand_statement | etc."
+        String name "Display title of CMS section"
+        Boolean enabled "Visibility toggle on live homepage"
+        Int displayOrder "Vertical positioning sequence"
+        String content "JSON string storing modular section content fields"
+        DateTime createdAt "Auto timestamp (now)"
+        DateTime updatedAt "Auto timestamp on update"
+    }
+
+    Media {
+        String id PK "UUID v4"
+        String name "Asset file name / display label"
+        String url "Asset file path or remote CDN URL"
+        String type "MIME type (e.g., image/webp, image/jpeg)"
+        String size "Human-readable file size (e.g., 2.4 MB)"
+        String category "Asset group (Products, Campaigns, Lookbook)"
+        String usedBy "Usage context tag (Catalog, Homepage, Admin)"
+        String altText "Accessibility / SEO descriptive text"
+        DateTime createdAt "Auto timestamp (now)"
+        DateTime updatedAt "Auto timestamp on update"
+    }
+
+    Setting {
+        String id PK "UUID v4"
+        String sectionKey UK "general | whatsapp | social | seo | active_fest"
+        String data "JSON string storing section settings payload"
+        DateTime createdAt "Auto timestamp (now)"
+        DateTime updatedAt "Auto timestamp on update"
+    }
+
+    %% =========================================================================
+    %% VERIFIED DATABASE RELATIONSHIPS (PostgreSQL Foreign Keys via Prisma)
+    %% =========================================================================
+    Collection ||--o{ Product : "1:N via Product.collectionId (FK)"
+    Category ||--o{ Product : "1:N via Product.categoryId (FK)"
+
+    %% =========================================================================
+    %% APPLICATION-LEVEL RELATIONSHIPS (Enforced in Code & Controllers, No DB FK)
+    %% =========================================================================
+    User ||--o{ Inquiry : "1:N soft link via Inquiry.userId"
+    Product ||--o{ Inquiry : "1:N soft link via Inquiry.productId"
+    User ||--o{ ActivityLog : "1:N soft audit link via ActivityLog.adminUserId"

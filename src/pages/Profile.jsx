@@ -254,7 +254,8 @@ const Profile = () => {
                 const whatsappMsg = encodeURIComponent(
                   `Hello VENM! I previously inquired about "${inq.productName}". I'd like to check the styling update.`
                 );
-                const whatsappUrl = `https://wa.me/${settings.whatsapp.number.replace(/[^0-9]/g, '')}?text=${whatsappMsg}`;
+                const whatsappRaw = ((settings?.whatsapp?.number || settings?.whatsapp?.rawNumber || '917434096095').replace(/[^0-9]/g, '')).replace(/^919664984749$|^9664984749$/, '917434096095') || '917434096095';
+                const whatsappUrl = `https://wa.me/${whatsappRaw}?text=${whatsappMsg}`;
 
                 return (
                   <div

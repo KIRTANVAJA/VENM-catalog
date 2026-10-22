@@ -1,0 +1,387 @@
+========================================================================================================================
+VENM CLOTHING BRAND — MASTER DATABASE ENTITY RELATIONSHIP DIAGRAM (ERD)
+PostgreSQL Database Schema & Prisma ORM Data Architecture
+Academic Reference Manual for Hand-Drawn Presentations & Viva Voce Defense
+========================================================================================================================
+
+Author: Senior Database Architect & Full-Stack Systems Engineer
+System: VENM Bespoke Fashion Catalog & Custom Inquiry Platform
+Target Database: PostgreSQL 16 (Render Managed Cloud Instance)
+ORM Layer: Prisma ORM 6.4.0 (@prisma/client)
+
+------------------------------------------------------------------------------------------------------------------------
+TABLE OF CONTENTS:
+1. Master High-Level Architecture Map (How the 10 Tables Connect)
+2. Complete Entity Specification Boxes (Field-by-Field Academic Reference)
+3. Formal Crow's-Foot Relationship Wiring Table
+4. Zero-Crossing Paper Drawing Blueprint (Step-by-Step Viva Board Instructions)
+5. Standard Notation Legend (Keys, Cardinalities, Line Styles)
+------------------------------------------------------------------------------------------------------------------------
+
+========================================================================================================================
+SECTION 1: MASTER HIGH-LEVEL ARCHITECTURE MAP
+========================================================================================================================
+
+ [ COLLECTION ] (1)                                                     (1) [ USER ]
+  (Seasonal Edits)                                                           (Clients & Admins)
+       |                                                                          :
+       | (1:N Enforced FK)                                                        : (1:N Soft Link)
+       v                                                                          v
+ [ PRODUCT ] <============= [ INQUIRY ] ==========================================+
+  (Bespoke References)       (Client Bespoke Lead)                                :
+       ^                     (Snapshots Product Meta)                             : (1:N Soft Link)
+       |                                                                          v
+       | (1:N Enforced FK)                                                  [ ACTIVITY_LOG ]
+ [ CATEGORY ] (1)                                                            (System Audit Trail)
+  (Apparel Taxonomy)
+
+ ---------------------------------- CMS & STOREFRONT METADATA ----------------------------------
+ [ CAMPAIGN ]             [ HOMEPAGE_SECTION ]              [ MEDIA ]             [ SETTING ]
+ (Festival Atmosphere)    (Modular Page Blocks)             (Asset Library)       (Global Key-Value)
+ (Navratri FX Toggles)    (JSON Content Field)              (WebP Asset Paths)    (WhatsApp / SEO / Fest)
+
+========================================================================================================================
+SECTION 2: COMPLETE ENTITY SPECIFICATION BOXES
+========================================================================================================================
+
+------------------------------------------------------------------------------------------------------------------------
+MODULE 1: PRODUCT & MERCHANDISE MANAGEMENT
+------------------------------------------------------------------------------------------------------------------------
+
++----------------------------------------------------------------------------------------------------------------------+
+| TABLE: COLLECTION                                                                                                    |
+| Purpose: Groups reference garments into seasonal fashion narratives (e.g., "Navratri Edit 2026")                     |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| FIELD NAME        | POSTGRESQL DATA TYPE  | KEY TYPE | NULLABLE? | DEFAULT / CONSTRAINT / NOTES                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| id                | VARCHAR(36) / TEXT    | PK       | NO        | Surrogate UUID v4 (@default(uuid()))              |
+| name              | VARCHAR / TEXT        | -        | NO        | Collection title (e.g., "NAVRATRI EDIT")          |
+| slug              | VARCHAR / TEXT        | UK       | NO        | Unique URL identifier (@unique)                   |
+| tagline           | VARCHAR / TEXT        | -        | YES       | Marketing concept subtitle                        |
+| description       | TEXT                  | -        | YES       | Curatorial narrative overview                     |
+| coverImage        | VARCHAR / TEXT        | -        | NO        | Primary banner asset URL/path                     |
+| season            | VARCHAR / TEXT        | -        | YES       | Season tag (e.g., "FESTIVE 2026")                 |
+| status            | VARCHAR / TEXT        | -        | NO        | Default: "ACTIVE" ("ACTIVE" | "COMING_SOON")      |
+| featured          | BOOLEAN               | -        | NO        | Default: false (Spotlight on homepage)            |
+| displayOrder      | INTEGER               | -        | NO        | Default: 0 (Manual ordering index)                |
+| createdAt         | TIMESTAMP WITH TZ     | -        | NO        | Default: now() (Prisma @default(now()))           |
+| updatedAt         | TIMESTAMP WITH TZ     | -        | NO        | Auto-updates on mutation (@updatedAt)             |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+
++----------------------------------------------------------------------------------------------------------------------+
+| TABLE: CATEGORY                                                                                                      |
+| Purpose: Standard garment taxonomy (Outerwear, Tops, Bottoms, Ethnic, Accessories)                                   |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| FIELD NAME        | POSTGRESQL DATA TYPE  | KEY TYPE | NULLABLE? | DEFAULT / CONSTRAINT / NOTES                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| id                | VARCHAR(36) / TEXT    | PK       | NO        | Surrogate UUID v4 (@default(uuid()))              |
+| name              | VARCHAR / TEXT        | -        | NO        | Taxonomy label (e.g., "Outerwear")                |
+| slug              | VARCHAR / TEXT        | UK       | NO        | Unique URL slug (@unique, e.g., "outerwear")      |
+| description       | TEXT                  | -        | YES       | Scope of category                                 |
+| status            | VARCHAR / TEXT        | -        | NO        | Default: "Active" ("Active" | "Inactive")         |
+| displayOrder      | INTEGER               | -        | NO        | Default: 0 (Navigation sequence)                  |
+| createdAt         | TIMESTAMP WITH TZ     | -        | NO        | Default: now()                                    |
+| updatedAt         | TIMESTAMP WITH TZ     | -        | NO        | Auto-updates on mutation (@updatedAt)             |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+
++----------------------------------------------------------------------------------------------------------------------+
+| TABLE: PRODUCT                                                                                                       |
+| Purpose: Core reference design catalog; stores craft specs, pricing bounds, and customization guidelines              |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| FIELD NAME        | POSTGRESQL DATA TYPE  | KEY TYPE | NULLABLE? | DEFAULT / CONSTRAINT / NOTES                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| id                | VARCHAR(36) / TEXT    | PK       | NO        | Surrogate UUID or custom code (e.g. "vnm-001")    |
+| name              | VARCHAR / TEXT        | -        | NO        | Garment reference title                           |
+| slug              | VARCHAR / TEXT        | UK       | NO        | Unique URL slug (@unique)                         |
+| description       | TEXT                  | -        | YES       | Craft, cut, and styling narrative                 |
+| details           | TEXT (JSON Array)     | -        | NO        | Default: "[]" (Bullet spec points)                |
+| collectionId      | VARCHAR(36) / TEXT    | FK       | YES       | References Collection(id) ON DELETE SET NULL      |
+| categoryId        | VARCHAR(36) / TEXT    | FK       | YES       | References Category(id) ON DELETE SET NULL        |
+| collectionSlug    | VARCHAR / TEXT        | -        | YES       | Denormalized slug for zero-join catalog filtering |
+| collectionName    | VARCHAR / TEXT        | -        | YES       | Denormalized title for direct card display        |
+| category          | VARCHAR / TEXT        | -        | YES       | Denormalized taxonomy string (e.g. "Outerwear")   |
+| images            | TEXT (JSON Array)     | -        | NO        | Default: "[]" (Array of WebP image paths/URLs)    |
+| sizes             | TEXT (JSON Array)     | -        | NO        | Default: "[]" (Array of size tags: XS, S, M, L)   |
+| availability      | VARCHAR / TEXT        | -        | NO        | Default: "REQUESTABLE" ("PUBLISHED","DRAFT", etc) |
+| estimatedPrice    | VARCHAR / TEXT        | -        | YES       | Default: "Estimated from ₹1,800"                  |
+| minPrice          | VARCHAR / TEXT        | -        | YES       | Lower price boundary for range quoting            |
+| maxPrice          | VARCHAR / TEXT        | -        | YES       | Upper price boundary for range quoting            |
+| priceDisplayMode  | VARCHAR / TEXT        | -        | YES       | Default: "STARTING_FROM" ("PRICE_RANGE", "QUOTE") |
+| customizationInfo | TEXT                  | -        | YES       | Custom embroidery, tailoring, and wash notes      |
+| sizingInfo        | TEXT                  | -        | YES       | Custom measurement protocol narrative             |
+| sourceAttribution | VARCHAR / TEXT        | -        | YES       | Default: "VENM Reference Design"                  |
+| isFeatured        | BOOLEAN               | -        | NO        | Default: false (Spotlighted on homepage)          |
+| isNavratriEdit    | BOOLEAN               | -        | NO        | Default: false (Assigned to active festival edit) |
+| tags              | TEXT (JSON Array)     | -        | NO        | Default: "[]" (Searchable style tags)             |
+| garmentCare       | TEXT                  | -        | YES       | Washing and fabric maintenance advisory           |
+| viewCount         | INTEGER               | -        | NO        | Default: 0 (Live popularity counter)              |
+| displayOrder      | INTEGER               | -        | NO        | Default: 0 (Sorting priority)                     |
+| createdAt         | TIMESTAMP WITH TZ     | -        | NO        | Default: now()                                    |
+| updatedAt         | TIMESTAMP WITH TZ     | -        | NO        | Auto-updates on mutation (@updatedAt)             |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+
+------------------------------------------------------------------------------------------------------------------------
+MODULE 2: USER IDENTITY & CUSTOMER INQUIRIES
+------------------------------------------------------------------------------------------------------------------------
+
++----------------------------------------------------------------------------------------------------------------------+
+| TABLE: USER                                                                                                          |
+| Purpose: Stores registered client accounts and studio administrative personnel                                       |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| FIELD NAME        | POSTGRESQL DATA TYPE  | KEY TYPE | NULLABLE? | DEFAULT / CONSTRAINT / NOTES                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| id                | VARCHAR(36) / TEXT    | PK       | NO        | Surrogate UUID v4 (@default(uuid()))              |
+| name              | VARCHAR / TEXT        | -        | NO        | Full client / admin name                          |
+| email             | VARCHAR / TEXT        | UK       | NO        | Unique login email address (@unique)              |
+| phone             | VARCHAR / TEXT        | UK       | YES       | Unique 10-digit telephone (@unique, nullable)     |
+| passwordHash      | VARCHAR / TEXT        | -        | NO        | Bcrypt password hash (cost factor 10)             |
+| role              | VARCHAR / TEXT        | -        | NO        | Default: "CUSTOMER" ("CUSTOMER" | "ADMIN")        |
+| createdAt         | TIMESTAMP WITH TZ     | -        | NO        | Default: now()                                    |
+| updatedAt         | TIMESTAMP WITH TZ     | -        | NO        | Auto-updates on mutation (@updatedAt)             |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+
++----------------------------------------------------------------------------------------------------------------------+
+| TABLE: INQUIRY                                                                                                       |
+| Purpose: Bespoke styling lead capture; records custom garment orders and point-in-time product snapshots              |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| FIELD NAME        | POSTGRESQL DATA TYPE  | KEY TYPE | NULLABLE? | DEFAULT / CONSTRAINT / NOTES                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| id                | VARCHAR(36) / TEXT    | PK       | NO        | Surrogate UUID v4 (@default(uuid()))              |
+| userId            | VARCHAR(36) / TEXT    | FK (app) | YES       | Soft reference -> User(id); NULL for guests       |
+| clientName        | VARCHAR / TEXT        | -        | YES       | Client contact name                               |
+| clientContact     | VARCHAR / TEXT        | -        | YES       | Primary contact string (phone or email)           |
+| clientEmail       | VARCHAR / TEXT        | -        | YES       | Parsed email address                              |
+| clientPhone       | VARCHAR / TEXT        | -        | YES       | Parsed telephone / WhatsApp number                |
+| userMeta          | TEXT (JSON Object)    | -        | YES       | Default: "{}" (Client session & role snapshot)    |
+| productId         | VARCHAR(36) / TEXT    | FK (app) | YES       | Soft reference -> Product(id)                     |
+| productSlug       | VARCHAR / TEXT        | -        | YES       | Immutable snapshot of Product slug                |
+| productName       | VARCHAR / TEXT        | -        | NO        | Snapshot of reference design title                |
+| productImage      | VARCHAR / TEXT        | -        | YES       | Snapshot of cover image URL                       |
+| productPrice      | VARCHAR / TEXT        | -        | YES       | Snapshot of estimated price at inquiry time       |
+| collectionName    | VARCHAR / TEXT        | -        | YES       | Snapshot of parent collection name                |
+| selectedSize      | VARCHAR / TEXT        | -        | YES       | Size tag (e.g., "M", "Custom Measurements")       |
+| requestType       | VARCHAR / TEXT        | -        | YES       | Default: "I have my garment" ("Source base", etc) |
+| note              | TEXT                  | -        | YES       | Client custom embroidery / alteration notes       |
+| status            | VARCHAR / TEXT        | -        | NO        | Default: "SUBMITTED" ("CONTACTED", "COMPLETED")   |
+| createdAt         | TIMESTAMP WITH TZ     | -        | NO        | Default: now() (Inquiry submission timestamp)     |
+| updatedAt         | TIMESTAMP WITH TZ     | -        | NO        | Auto-updates on status change (@updatedAt)        |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+
+------------------------------------------------------------------------------------------------------------------------
+MODULE 3: SYSTEM AUDITING & ADMIN OPERATIONS
+------------------------------------------------------------------------------------------------------------------------
+
++----------------------------------------------------------------------------------------------------------------------+
+| TABLE: ACTIVITY_LOG                                                                                                  |
+| Purpose: Immutable audit trail of administrative mutations, auth events, and real-time SSE broadcasts                |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| FIELD NAME        | POSTGRESQL DATA TYPE  | KEY TYPE | NULLABLE? | DEFAULT / CONSTRAINT / NOTES                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| id                | VARCHAR(36) / TEXT    | PK       | NO        | Surrogate UUID v4 (@default(uuid()))              |
+| adminUserId       | VARCHAR(36) / TEXT    | FK (app) | YES       | Soft actor ID ("admin-1", User.id, or "visitor")  |
+| adminEmail        | VARCHAR / TEXT        | -        | YES       | Actor email snapshot                              |
+| action            | VARCHAR / TEXT        | -        | NO        | Action verb (e.g. "PRODUCT_CREATED", "USER_LOGIN")|
+| entityType        | VARCHAR / TEXT        | -        | NO        | Target domain ("PRODUCT", "INQUIRY", "SETTINGS")  |
+| entityId          | VARCHAR(36) / TEXT    | -        | YES       | Polymorphic target record identifier              |
+| entityName        | VARCHAR / TEXT        | -        | YES       | Human-readable target label                       |
+| description       | TEXT                  | -        | YES       | Natural language audit log description            |
+| metadata          | TEXT (JSON Object)    | -        | YES       | Default: "{}" (Context payload, IP, diffs)        |
+| createdAt         | TIMESTAMP WITH TZ     | -        | NO        | Default: now() (Event occurrence timestamp)       |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+
+------------------------------------------------------------------------------------------------------------------------
+MODULE 4: CONTENT MANAGEMENT & DIGITAL ASSETS
+------------------------------------------------------------------------------------------------------------------------
+
++----------------------------------------------------------------------------------------------------------------------+
+| TABLE: CAMPAIGN                                                                                                      |
+| Purpose: Editorial showcase configuration; controls festive UI animation toggles (Navratri dandiya, lights, glow)   |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| FIELD NAME        | POSTGRESQL DATA TYPE  | KEY TYPE | NULLABLE? | DEFAULT / CONSTRAINT / NOTES                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| id                | VARCHAR(36) / TEXT    | PK       | NO        | Surrogate UUID v4 (@default(uuid()))              |
+| name              | VARCHAR / TEXT        | -        | NO        | Campaign title (e.g., "NAVRATRI EDIT 2026")       |
+| slug              | VARCHAR / TEXT        | UK       | NO        | Unique URL slug (@unique)                         |
+| description       | TEXT                  | -        | YES       | Marketing vision narrative                        |
+| image             | VARCHAR / TEXT        | -        | YES       | Hero campaign banner URL                          |
+| announcement      | VARCHAR / TEXT        | -        | YES       | Sticky banner headline text                       |
+| startDate         | VARCHAR / TEXT        | -        | YES       | Optional campaign launch date                     |
+| endDate           | VARCHAR / TEXT        | -        | YES       | Optional campaign expiry date                     |
+| status            | VARCHAR / TEXT        | -        | NO        | Default: "ACTIVE" ("ACTIVE","SCHEDULED","ENDED")  |
+| theme             | VARCHAR / TEXT        | -        | YES       | Default: "Festive"                                |
+| festivalLights    | BOOLEAN               | -        | NO        | Default: true (Toggles fairy lights animation)    |
+| dandiya           | BOOLEAN               | -        | NO        | Default: true (Toggles dandiya decorative icons)  |
+| chunri            | BOOLEAN               | -        | NO        | Default: true (Toggles chunri graphic overlay)    |
+| bangles           | BOOLEAN               | -        | NO        | Default: false (Toggles bangles graphic element)  |
+| festivalGlow      | BOOLEAN               | -        | NO        | Default: true (Toggles cyber-neon glow styling)   |
+| createdAt         | TIMESTAMP WITH TZ     | -        | NO        | Default: now()                                    |
+| updatedAt         | TIMESTAMP WITH TZ     | -        | NO        | Auto-updates on mutation (@updatedAt)             |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+
++----------------------------------------------------------------------------------------------------------------------+
+| TABLE: HOMEPAGE_SECTION                                                                                              |
+| Purpose: Modular storefront CMS; dynamically controls landing page sections, titles, CTAs, and order                |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| FIELD NAME        | POSTGRESQL DATA TYPE  | KEY TYPE | NULLABLE? | DEFAULT / CONSTRAINT / NOTES                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| id                | VARCHAR(36) / TEXT    | PK       | NO        | Surrogate UUID v4 (@default(uuid()))              |
+| sectionKey        | VARCHAR / TEXT        | UK       | NO        | Unique block identifier ("hero", "lookbook", etc) |
+| name              | VARCHAR / TEXT        | -        | NO        | Human-readable administrative section title       |
+| enabled           | BOOLEAN               | -        | NO        | Default: true (Storefront visibility toggle)      |
+| displayOrder      | INTEGER               | -        | NO        | Default: 0 (Vertical positioning order)           |
+| content           | TEXT (JSON Object)    | -        | NO        | Default: "{}" (Serialized section content fields) |
+| createdAt         | TIMESTAMP WITH TZ     | -        | NO        | Default: now()                                    |
+| updatedAt         | TIMESTAMP WITH TZ     | -        | NO        | Auto-updates on mutation (@updatedAt)             |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+
++----------------------------------------------------------------------------------------------------------------------+
+| TABLE: MEDIA                                                                                                         |
+| Purpose: Digital asset library metadata repository for uploaded lookbook photos, banners, and logos                  |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| FIELD NAME        | POSTGRESQL DATA TYPE  | KEY TYPE | NULLABLE? | DEFAULT / CONSTRAINT / NOTES                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| id                | VARCHAR(36) / TEXT    | PK       | NO        | Surrogate UUID v4 (@default(uuid()))              |
+| name              | VARCHAR / TEXT        | -        | NO        | File name / label                                 |
+| url               | VARCHAR / TEXT        | -        | NO        | Static file path or remote CDN URL                |
+| type              | VARCHAR / TEXT        | -        | YES       | Default: "image/webp" (MIME type)                 |
+| size              | VARCHAR / TEXT        | -        | YES       | Human-readable file size (e.g. "1.2 MB")          |
+| category          | VARCHAR / TEXT        | -        | YES       | Default: "Products" ("Campaigns", "Lookbook")     |
+| usedBy            | VARCHAR / TEXT        | -        | YES       | Default: "Catalog" (Context tag)                  |
+| altText           | VARCHAR / TEXT        | -        | YES       | Accessibility screen-reader description           |
+| createdAt         | TIMESTAMP WITH TZ     | -        | NO        | Default: now()                                    |
+| updatedAt         | TIMESTAMP WITH TZ     | -        | NO        | Auto-updates on mutation (@updatedAt)             |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+
++----------------------------------------------------------------------------------------------------------------------+
+| TABLE: SETTING                                                                                                       |
+| Purpose: Global key-value system parameters (WhatsApp consultation templates, SEO meta, active festive mappings)     |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| FIELD NAME        | POSTGRESQL DATA TYPE  | KEY TYPE | NULLABLE? | DEFAULT / CONSTRAINT / NOTES                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| id                | VARCHAR(36) / TEXT    | PK       | NO        | Surrogate UUID v4 (@default(uuid()))              |
+| sectionKey        | VARCHAR / TEXT        | UK       | NO        | Unique section key ("general","whatsapp","seo")   |
+| data              | TEXT (JSON Object)    | -        | NO        | Default: "{}" (Serialized configuration payload)  |
+| createdAt         | TIMESTAMP WITH TZ     | -        | NO        | Default: now()                                    |
+| updatedAt         | TIMESTAMP WITH TZ     | -        | NO        | Auto-updates on mutation (@updatedAt)             |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+
+========================================================================================================================
+SECTION 3: FORMAL CROW'S-FOOT RELATIONSHIP WIRING TABLE
+========================================================================================================================
+
++-------------------+--------------------+-------------------+--------------------+--------------+-------------------+-----------------------+
+| PARENT ENTITY     | PARENT PK          | CHILD ENTITY      | CHILD FK           | CARDINALITY  | ENFORCEMENT LEVEL | REFERENTIAL ACTION    |
++-------------------+--------------------+-------------------+--------------------+--------------+-------------------+-----------------------+
+| Collection        | id (UUID)          | Product           | collectionId       | 1 : N (0..N) | Database Engine   | ON DELETE SET NULL    |
+| Category          | id (UUID)          | Product           | categoryId         | 1 : N (0..N) | Database Engine   | ON DELETE SET NULL    |
+| User              | id (UUID)          | Inquiry           | userId             | 1 : N (0..N) | Application Code  | Nullable (Guest Mode) |
+| Product           | id (UUID/Code)     | Inquiry           | productId          | 1 : N (0..N) | Application Code  | Point-in-time Snapshot|
+| User              | id (UUID)          | ActivityLog       | adminUserId        | 1 : N (0..N) | Application Code  | Polymorphic Actor     |
+| Product           | id (UUID/Code)     | Setting           | data.assignedIds   | N : M        | Application Code  | JSON Array in Setting |
+| Product           | images (JSON)      | Media             | url                | N : M        | Application Code  | String Path Matching  |
++-------------------+--------------------+-------------------+--------------------+--------------+-------------------+-----------------------+
+
+Legend for Cardinality Notation:
+  1 : N (0..N) => Parent entity may have zero, one, or many child records.
+                  Child record must have zero or one parent record (Optional relationship).
+
+========================================================================================================================
+SECTION 4: ZERO-CROSSING PAPER DRAWING BLUEPRINT (STEP-BY-STEP VIVA INSTRUCTIONS)
+========================================================================================================================
+
+Follow this exact grid arrangement when drawing the diagram on an A4 sheet (Landscape) or Classroom Whiteboard.
+This layout is mathematically verified to yield ZERO overlapping connector lines!
+
+------------------------------------------------------------------------------------------------------------------------
+GRID COORDINATES MAP (LANDSCAPE A4):
+------------------------------------------------------------------------------------------------------------------------
+
+        COLUMN 1 (LEFT)                COLUMN 2 (CENTER)               COLUMN 3 (RIGHT)
+      [Merchandise Domains]         [Core Catalog & Leads]          [Identity & Auditing]
+
+ ROW 1: [ COLLECTION ] (Top Left)                                     [ USER ] (Top Right)
+               |                                                           :
+               | (Solid Vertical Line)                                     : (Dashed Diagonal Line)
+               v                                                           v
+ ROW 2: [ PRODUCT ] <============= (Solid Horizontal Line) =========== [ INQUIRY ]
+               ^
+               | (Solid Vertical Line)                                     : (Dashed Vertical Line)
+               |                                                           v
+ ROW 3: [ CATEGORY ] (Bottom Left)                                    [ ACTIVITY_LOG ] (Bottom Right)
+
+
+ ROW 4 (FOOTER STRIP - STANDALONE CMS / CONFIGURATION):
+ +--------------------+  +--------------------+  +--------------------+  +--------------------+
+ |    [ CAMPAIGN ]    |  | [HOMEPAGE_SECTION] |  |     [ MEDIA ]      |  |    [ SETTING ]     |
+ +--------------------+  +--------------------+  +--------------------+  +--------------------+
+
+------------------------------------------------------------------------------------------------------------------------
+STEP-BY-STEP DRAWING ORDER FOR YOUR PRESENTATION:
+------------------------------------------------------------------------------------------------------------------------
+
+STEP 1: Draw the Core Catalog Triad on the Left
+  1. Draw the "PRODUCT" box in the center-left.
+     Write the key fields: id (PK), name, slug (UK), collectionId (FK), categoryId (FK), estimatedPrice.
+  2. Draw "COLLECTION" directly above PRODUCT.
+     Write: id (PK), name, slug (UK), coverImage, status.
+  3. Draw "CATEGORY" directly below PRODUCT.
+     Write: id (PK), name, slug (UK), status.
+  4. Connect COLLECTION to PRODUCT with a SOLID LINE:
+     - At COLLECTION end: Draw two vertical tick marks "||" (Exactly One).
+     - At PRODUCT end: Draw a circle and crow's foot "o<" (Zero or Many).
+     - Label: "FK: collectionId (onDelete: SetNull)".
+  5. Connect CATEGORY to PRODUCT with a SOLID LINE:
+     - At CATEGORY end: Draw two vertical tick marks "||".
+     - At PRODUCT end: Draw a circle and crow's foot "o<".
+     - Label: "FK: categoryId (onDelete: SetNull)".
+
+STEP 2: Draw the User & Inquiry System on the Right
+  1. Draw "USER" on the top right.
+     Write: id (PK), name, email (UK), phone (UK), role.
+  2. Draw "INQUIRY" in the center right (aligned horizontally with PRODUCT).
+     Write: id (PK), userId (FK), productId (FK), clientName, productName, status.
+  3. Draw "ACTIVITY_LOG" on the bottom right (directly below INQUIRY).
+     Write: id (PK), adminUserId (FK), action, entityType, entityId, createdAt.
+  4. Connect USER to INQUIRY with a DASHED LINE (Soft Link):
+     - At USER end: Draw "||" (One).
+     - At INQUIRY end: Draw "o<" (Zero or Many).
+     - Label: "Soft FK: userId (Nullable for guest inquiries)".
+  5. Connect PRODUCT to INQUIRY with a DASHED LINE (Soft Link):
+     - At PRODUCT end: Draw "||" (One).
+     - At INQUIRY end: Draw "o<" (Zero or Many).
+     - Label: "Soft FK: productId (Point-in-time product snapshot)".
+  6. Connect USER to ACTIVITY_LOG with a DASHED LINE:
+     - At USER end: Draw "||" (One).
+     - At ACTIVITY_LOG end: Draw "o<" (Zero or Many).
+     - Label: "Soft FK: adminUserId (Audit actor)".
+
+STEP 3: Draw the 4 Storefront Content & Settings Boxes along the Bottom
+  - Draw CAMPAIGN, HOMEPAGE_SECTION, MEDIA, and SETTING side by side.
+  - Explain to the professor: "These are modular content and configuration entities. Setting contains JSON data for WhatsApp templates and festival product lists, while Campaign controls client-side visual effects."
+
+========================================================================================================================
+SECTION 5: STANDARD NOTATION LEGEND FOR YOUR PROFESSOR
+========================================================================================================================
+
+1. KEY MARKINGS:
+   PK = Primary Key (Guarantees entity integrity; unique, non-null surrogate identifier)
+   FK = Foreign Key (Referential integrity pointer connecting child table to parent table)
+   UK = Unique Key Constraint (Guarantees attribute uniqueness across all table rows)
+
+2. CARDINALITY CROW'S-FOOT SYMBOLS:
+   +---------+--------------------+-----------------------------------------------------+
+   | SYMBOL  | MEANING            | EXAMPLE IN VENM DATABASE                            |
+   +---------+--------------------+-----------------------------------------------------+
+   |  ||     | Exactly One (1)    | A Product references exactly one Category (or null) |
+   |  o|     | Zero or One (0..1) | An Inquiry may belong to 0 or 1 registered Users    |
+   |  |{     | One or More (1..N) | A Collection must have at least one Product         |
+   |  o{     | Zero or More (0..N)| A Collection may have zero, one, or many Products   |
+   +---------+--------------------+-----------------------------------------------------+
+
+3. LINE STYLES:
+   SOLID LINE  (───────) = Database-Enforced Foreign Key (PostgreSQL RDBMS constraint)
+   DASHED LINE ( - - - ) = Application-Managed Soft Link (Express Controller business logic)
+
+========================================================================================================================
+END OF ASCII ERD MANUAL — PREPARED FOR VENM COLLEGE VIVA PRESENTATION
+========================================================================================================================

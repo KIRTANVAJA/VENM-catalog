@@ -273,7 +273,7 @@ const InquiryModal = ({ product, selectedSize, isOpen, onClose }) => {
                 <span>REQUEST THIS LOOK ON WHATSAPP</span>
               </a>
               <p className="text-[10px] text-neutral-500 text-center font-mono tracking-wider">
-                Directly connects to VENM Studio ({settings.whatsapp.number})
+                Directly connects to VENM Studio ({(settings?.whatsapp?.number && !settings.whatsapp.number.includes('96649') && !settings.whatsapp.number.includes('84749')) ? settings.whatsapp.number : '+91 74340 96095'})
               </p>
             </div>
 

@@ -45,6 +45,8 @@ const Navbar = () => {
       ? `${settings.general.brandName} // ${settings.general.tagline}` 
       : 'VENM × ACTIVE FEST: THE FESTIVE EDIT IS NOW LIVE');
 
+  const whatsappRaw = ((settings?.whatsapp?.number || settings?.whatsapp?.rawNumber || '917434096095').replace(/[^0-9]/g, '')).replace(/^919664984749$|^9664984749$/, '917434096095') || '917434096095';
+
   const navLinks = [
     { name: 'HOME', path: '/' },
     { name: 'COLLECTIONS', path: '/collections' },
@@ -172,7 +174,7 @@ const Navbar = () => {
             )}
 
             <a
-              href="https://wa.me/919664984749?text=Hello%20VENM!%20I'd%20like%20to%20request%20a%20look%20from%20your%20reference%20catalog."
+              href={`https://wa.me/${whatsappRaw}?text=${encodeURIComponent("Hello VENM! I'd like to request a look from your reference catalog.")}`}
               target="_blank"
               rel="noopener noreferrer"
               className="btn-venm-primary text-xs px-5 py-2.5 flex items-center gap-1.5 font-bold tracking-wider"
@@ -294,7 +296,7 @@ const Navbar = () => {
 
           <div className="space-y-4 pt-6 border-t border-neutral-200">
             <a
-              href="https://wa.me/919664984749?text=Hello%20VENM%20Catalog%20Inquiry"
+              href={`https://wa.me/${whatsappRaw}?text=${encodeURIComponent("Hello VENM Catalog Inquiry")}`}
               target="_blank"
               rel="noopener noreferrer"
               className="w-full btn-venm-primary py-3 text-center text-xs font-semibold tracking-widest flex items-center justify-center gap-2 uppercase"

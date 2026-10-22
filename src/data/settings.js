@@ -40,6 +40,13 @@ function loadStoredSettings() {
     const raw = localStorage.getItem('venm_settings');
     if (raw) {
       const parsed = JSON.parse(raw);
+      if (parsed.whatsapp?.number && (parsed.whatsapp.number.includes('96649') || parsed.whatsapp.number.includes('84749'))) {
+        parsed.whatsapp.number = DEFAULT_SETTINGS.whatsapp.number;
+        parsed.whatsapp.rawNumber = DEFAULT_SETTINGS.whatsapp.rawNumber;
+      }
+      if (parsed.general?.contactPhone && (parsed.general.contactPhone.includes('96649') || parsed.general.contactPhone.includes('84749'))) {
+        parsed.general.contactPhone = DEFAULT_SETTINGS.general.contactPhone;
+      }
       return {
         general: { ...DEFAULT_SETTINGS.general, ...(parsed.general || {}) },
         whatsapp: { ...DEFAULT_SETTINGS.whatsapp, ...(parsed.whatsapp || {}) },
@@ -81,6 +88,13 @@ export async function fetchLiveSettings() {
   try {
     const live = await apiGetSettings();
     if (live && Object.keys(live).length > 0) {
+      if (live.whatsapp?.number && (live.whatsapp.number.includes('96649') || live.whatsapp.number.includes('84749'))) {
+        live.whatsapp.number = DEFAULT_SETTINGS.whatsapp.number;
+        live.whatsapp.rawNumber = DEFAULT_SETTINGS.whatsapp.rawNumber;
+      }
+      if (live.general?.contactPhone && (live.general.contactPhone.includes('96649') || live.general.contactPhone.includes('84749'))) {
+        live.general.contactPhone = DEFAULT_SETTINGS.general.contactPhone;
+      }
       cachedSettings = {
         general: { ...DEFAULT_SETTINGS.general, ...(live.general || {}) },
         whatsapp: { ...DEFAULT_SETTINGS.whatsapp, ...(live.whatsapp || {}) },
@@ -133,8 +147,11 @@ export async function saveSettingsSection(sectionKey, newValues) {
 
 export function formatWhatsAppUrl(product, size = '', requestType = '', user = null) {
   const settings = getSettings();
-  const phone = settings.whatsapp?.number || settings.whatsapp?.rawNumber || '+91 74340 96095';
-  const rawNum = phone.replace(/[^0-9]/g, '');
+  let phone = settings.whatsapp?.number || settings.whatsapp?.rawNumber || '+91 74340 96095';
+  if (phone.includes('96649') || phone.includes('84749')) {
+    phone = '+91 74340 96095';
+  }
+  const rawNum = phone.replace(/[^0-9]/g, '') || '917434096095';
   
   let msg = settings.whatsapp?.defaultTemplate || `Hi VENM! 👋\n\nI'd like to request this look:\n\nReference:\n{{product_name}}\n\nReference ID:\n{{product_id}}\n\nEstimated Price:\n{{estimated_price}}\n\nRequest Option:\n{{request_type}}\n\nI'd like to discuss:\n• Customization\n• Sizing / measurements\n• Garment sourcing / My own garment\n\nReference:\n{{product_url}}\n\nPlease let me know how we can take this forward.\nThank you!`;
   

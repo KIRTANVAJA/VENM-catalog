@@ -134,7 +134,7 @@ const AdminSettings = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-neutral-800 tracking-widest uppercase block">CONTACT PHONE NUMBER</label>
+              <label className="text-[11px] font-bold text-neutral-800 tracking-widest uppercase block">CONTACT PHONE NUMBER (+91 74340 96095)</label>
               <input
                 type="text"
                 value={settings.general.contactPhone || ''}
@@ -189,7 +189,7 @@ const AdminSettings = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-neutral-800 tracking-widest uppercase block">
-                BUSINESS WHATSAPP NUMBER (+91 96649 84749)
+                BUSINESS WHATSAPP NUMBER (+91 74340 96095)
               </label>
               <input
                 type="text"

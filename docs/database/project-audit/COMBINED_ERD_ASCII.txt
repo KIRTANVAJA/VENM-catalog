@@ -1,0 +1,391 @@
+========================================================================================================================
+VENM CLOTHING BRAND — MASTER COMBINED ENTITY RELATIONSHIP DIAGRAM (ASCII REFERENCE)
+Comprehensive Technical Blueprint & Academic Viva Defense Reference
+Database: PostgreSQL 16 | ORM: Prisma Client 6.4.0 | Architecture: Decoupled Full-Stack
+========================================================================================================================
+
+Author: Senior Database Architect & Software Systems Analyst
+Project: VENM Bespoke Clothing Brand & Reference Catalog Platform
+Target Presentation: College Project Submission, ERD Presentation Board & Viva Voce Examination
+
+------------------------------------------------------------------------------------------------------------------------
+TABLE OF CONTENTS:
+1. Master High-Level Architecture Map (10 Tables & Actor Interaction Layers)
+2. Complete Entity Specification Boxes (Field-by-Field Academic Reference)
+3. Formal Cardinality & Relationship Wiring Table
+4. Zero-Crossing Presentation Blueprint (Blackboard / Whiteboard / Chart Paper Drawing Guide)
+5. Standard Notation Legend (Keys, Cardinalities, Connectors)
+------------------------------------------------------------------------------------------------------------------------
+
+
+========================================================================================================================
+SECTION 1: MASTER HIGH-LEVEL ARCHITECTURE MAP
+========================================================================================================================
+
+  ACTORS & ROLES:
+  +-------------------------------------+            +-------------------------------------+
+  |          ADMINISTRATOR              |            |           CUSTOMER / CLIENT         |
+  |  (Studio Admin: venm1310@gmail.com) |            |  (Public Visitor / Registered User) |
+  |  Access: /admin/* (JWT + Passkey)   |            |  Access: Storefront, Look Inquiries |
+  +------------------+------------------+            +------------------+------------------+
+                     |                                                  |
+                     | Both Actors Authenticated via Shared Model       |
+                     +-----------------------+--------------------------+
+                                             |
+                                             v
+                                   +-------------------+
+                                   |       USER        |
+                                   | (Clients & Admins)|
+                                   +---------+---------+
+                                             |
+                   +-------------------------+-------------------------+
+                   : (1:N Soft Reference)                               : (1:N Soft Reference)
+                   v                                                     v
+  +----------------+--+      (1:N Soft Reference)      +-----------------+--+
+  |    ACTIVITY_LOG    |<..............................|      INQUIRY       |
+  | (System Audit Log) |                               | (Bespoke Requests) |
+  +--------------------+                               +--------+-----------+
+                                                                :
+                                                                : (1:N Soft Reference)
+                                                                v
+  +-------------------+      (1:N Enforced FK)         +--------------------+
+  |    COLLECTION     |===============================>|      PRODUCT       |
+  |  (Seasonal Edits) |                                | (Style References) |
+  +-------------------+                                +--------+-----------+
+                                                                ^
+                                                                | (1:N Enforced FK)
+  +-------------------+                                         |
+  |     CATEGORY      |=========================================+
+  | (Taxonomy Groups) |
+  +-------------------+
+
+  -------------------------------- STOREFRONT CMS & METADATA MODULES ---------------------------------
+  +-------------------+      +-------------------+      +-------------------+      +------------------+
+  |     CAMPAIGN      |      |  HOMEPAGE_SECTION |      |       MEDIA       |      |     SETTING      |
+  | (Festival Themes) |      |   (Modular CMS)   |      |  (Asset Library)  |      | (Global Config)  |
+  +-------------------+      +-------------------+      +-------------------+      +------------------+
+
+
+========================================================================================================================
+SECTION 2: COMPLETE ENTITY SPECIFICATION BOXES
+========================================================================================================================
+
+------------------------------------------------------------------------------------------------------------------------
+ENTITY 1: USER
+Underlying Table: "User"
+Purpose: Unifies both studio administrators and public clients into a single security authority.
+Discriminator Field: role ("ADMIN" vs "CUSTOMER")
+------------------------------------------------------------------------------------------------------------------------
++----------------------------------------------------------------------------------------------------------------------+
+| TABLE: USER                                                                                                          |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| FIELD NAME        | DATA TYPE             | KEY TYPE | NULLABLE? | DEFAULT / CONSTRAINT / NOTES                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| id                | VARCHAR(36) (UUID)    | PK       | NO        | Surrogate UUID v4 (@default(uuid()))              |
+| name              | VARCHAR / TEXT        | -        | NO        | Full legal or client display name                 |
+| email             | VARCHAR / TEXT        | UK       | NO        | Unique client/admin email (@unique)               |
+| phone             | VARCHAR / TEXT        | UK       | YES       | Unique 10-digit phone number (@unique)            |
+| passwordHash      | VARCHAR / TEXT        | -        | NO        | Bcrypt hash (10 rounds); random string for Google |
+| role              | VARCHAR / TEXT        | -        | NO        | Default: "CUSTOMER" ("ADMIN" | "CUSTOMER")        |
+| createdAt         | TIMESTAMP WITH TZ     | -        | NO        | Default: now() (Prisma @default(now()))           |
+| updatedAt         | TIMESTAMP WITH TZ     | -        | NO        | Auto-updates on modification (@updatedAt)         |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+
+------------------------------------------------------------------------------------------------------------------------
+ENTITY 2: COLLECTION
+Underlying Table: "Collection"
+Purpose: Groups garment style references into seasonal editorial releases (e.g., "Navratri Edit", "Raw Denim").
+------------------------------------------------------------------------------------------------------------------------
++----------------------------------------------------------------------------------------------------------------------+
+| TABLE: COLLECTION                                                                                                    |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| FIELD NAME        | DATA TYPE             | KEY TYPE | NULLABLE? | DEFAULT / CONSTRAINT / NOTES                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| id                | VARCHAR(36) (UUID)    | PK       | NO        | Surrogate UUID v4 (@default(uuid()))              |
+| name              | VARCHAR / TEXT        | -        | NO        | Collection title (e.g. "NAVRATRI EDIT")           |
+| slug              | VARCHAR / TEXT        | UK       | NO        | Unique URL slug (@unique, e.g. "navratri")        |
+| tagline           | VARCHAR / TEXT        | -        | YES       | Marketing editorial concept subtitle              |
+| description       | TEXT                  | -        | YES       | Full theme and craftsmanship overview narrative   |
+| coverImage        | VARCHAR / TEXT        | -        | NO        | Primary banner image asset URL/path               |
+| season            | VARCHAR / TEXT        | -        | YES       | Season tag (e.g. "FESTIVE 2026", "PERMANENT")     |
+| status            | VARCHAR / TEXT        | -        | NO        | Default: "ACTIVE" ("ACTIVE" | "COMING_SOON")      |
+| featured          | BOOLEAN               | -        | NO        | Default: false (Spotlight on homepage)            |
+| displayOrder      | INTEGER               | -        | NO        | Default: 0 (Manual sorting order)                 |
+| createdAt         | TIMESTAMP WITH TZ     | -        | NO        | Default: now()                                    |
+| updatedAt         | TIMESTAMP WITH TZ     | -        | NO        | Auto-updates on modification (@updatedAt)         |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+
+------------------------------------------------------------------------------------------------------------------------
+ENTITY 3: CATEGORY
+Underlying Table: "Category"
+Purpose: Garment taxonomy classification (Outerwear, Tops, Bottoms, Ethnic, Accessories).
+------------------------------------------------------------------------------------------------------------------------
++----------------------------------------------------------------------------------------------------------------------+
+| TABLE: CATEGORY                                                                                                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| FIELD NAME        | DATA TYPE             | KEY TYPE | NULLABLE? | DEFAULT / CONSTRAINT / NOTES                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| id                | VARCHAR(36) (UUID)    | PK       | NO        | Surrogate UUID v4 (@default(uuid()))              |
+| name              | VARCHAR / TEXT        | -        | NO        | Taxonomy label (e.g. "Outerwear")                 |
+| slug              | VARCHAR / TEXT        | UK       | NO        | Unique URL slug (@unique, e.g. "outerwear")       |
+| description       | TEXT                  | -        | YES       | Category scope description                        |
+| status            | VARCHAR / TEXT        | -        | NO        | Default: "Active" ("Active" | "Archived")         |
+| displayOrder      | INTEGER               | -        | NO        | Default: 0 (Filter pill display index)            |
+| createdAt         | TIMESTAMP WITH TZ     | -        | NO        | Default: now()                                    |
+| updatedAt         | TIMESTAMP WITH TZ     | -        | NO        | Auto-updates on modification (@updatedAt)         |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+
+------------------------------------------------------------------------------------------------------------------------
+ENTITY 4: PRODUCT
+Underlying Table: "Product"
+Purpose: Master reference catalog table for bespoke garments, design concepts, and requestable styles.
+------------------------------------------------------------------------------------------------------------------------
++----------------------------------------------------------------------------------------------------------------------+
+| TABLE: PRODUCT                                                                                                       |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| FIELD NAME        | DATA TYPE             | KEY TYPE | NULLABLE? | DEFAULT / CONSTRAINT / NOTES                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| id                | VARCHAR(36) (UUID)    | PK       | NO        | Surrogate UUID v4 (@default(uuid()))              |
+| name              | VARCHAR / TEXT        | -        | NO        | Reference title (e.g. "GARBA CYBER VEST")         |
+| slug              | VARCHAR / TEXT        | UK       | NO        | Unique URL slug identifier (@unique)              |
+| description       | TEXT                  | -        | YES       | Garment cut, fabric, craftsmanship narrative      |
+| details           | TEXT (JSON Array)     | -        | NO        | Default: "[]" (Bullet specifications)             |
+| collectionId      | VARCHAR(36) (UUID)    | FK       | YES       | Enforced FK -> Collection.id (onDelete: SetNull)  |
+| categoryId        | VARCHAR(36) (UUID)    | FK       | YES       | Enforced FK -> Category.id (onDelete: SetNull)    |
+| collectionSlug    | VARCHAR / TEXT        | -        | YES       | Soft link -> Collection.slug (URL matching)       |
+| collectionName    | VARCHAR / TEXT        | -        | YES       | Denormalized collection display title             |
+| category          | VARCHAR / TEXT        | -        | YES       | Soft link -> Category.name (Category filtering)   |
+| images            | TEXT (JSON Array)     | -        | NO        | Default: "[]" (Array of image URLs/paths)         |
+| sizes             | TEXT (JSON Array)     | -        | NO        | Default: "[]" (e.g. ["S","M","L","XL","Custom"])  |
+| availability      | VARCHAR / TEXT        | -        | NO        | Default: "REQUESTABLE" (REQUESTABLE, DRAFT, etc.) |
+| estimatedPrice    | VARCHAR / TEXT        | -        | YES       | Default: "Estimated from ₹1,800"                  |
+| minPrice          | VARCHAR / TEXT        | -        | YES       | Lower bound estimated numeric price string        |
+| maxPrice          | VARCHAR / TEXT        | -        | YES       | Upper bound estimated numeric price string        |
+| priceDisplayMode  | VARCHAR / TEXT        | -        | YES       | Default: "STARTING_FROM" (PRICE_RANGE, etc.)      |
+| customizationInfo | TEXT                  | -        | YES       | Studio tailoring and alteration guidance          |
+| sizingInfo        | TEXT                  | -        | YES       | Customer body measurement instructions            |
+| sourceAttribution | VARCHAR / TEXT        | -        | YES       | Default: "VENM Reference Design"                  |
+| isFeatured        | BOOLEAN               | -        | NO        | Default: false (Coverflow / Grid spotlight)       |
+| isNavratriEdit    | BOOLEAN               | -        | NO        | Default: false (Active festive filter flag)       |
+| tags              | TEXT (JSON Array)     | -        | NO        | Default: "[]" (Style search keywords)             |
+| garmentCare       | TEXT                  | -        | YES       | Garment dry cleaning and wash instructions        |
+| viewCount         | INTEGER               | -        | NO        | Default: 0 (Incremented on customer detail visits)|
+| displayOrder      | INTEGER               | -        | NO        | Default: 0 (Manual ordering rank)                 |
+| createdAt         | TIMESTAMP WITH TZ     | -        | NO        | Default: now()                                    |
+| updatedAt         | TIMESTAMP WITH TZ     | -        | NO        | Auto-updates on modification (@updatedAt)         |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+
+------------------------------------------------------------------------------------------------------------------------
+ENTITY 5: CAMPAIGN
+Underlying Table: "Campaign"
+Purpose: Controls seasonal themes, banner announcements, festival dates, and atmospheric UI toggle switches.
+------------------------------------------------------------------------------------------------------------------------
++----------------------------------------------------------------------------------------------------------------------+
+| TABLE: CAMPAIGN                                                                                                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| FIELD NAME        | DATA TYPE             | KEY TYPE | NULLABLE? | DEFAULT / CONSTRAINT / NOTES                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| id                | VARCHAR(36) (UUID)    | PK       | NO        | Surrogate UUID v4 (@default(uuid()))              |
+| name              | VARCHAR / TEXT        | -        | NO        | Campaign title (e.g. "NAVRATRI EDIT 2026")        |
+| slug              | VARCHAR / TEXT        | UK       | NO        | Unique campaign slug identifier (@unique)         |
+| description       | TEXT                  | -        | YES       | Seasonal cultural manifesto narrative             |
+| image             | VARCHAR / TEXT        | -        | YES       | Campaign hero backdrop asset path/URL             |
+| announcement      | VARCHAR / TEXT        | -        | YES       | Marquee headline text for top banner              |
+| startDate         | VARCHAR / TEXT        | -        | YES       | Campaign activation date                          |
+| endDate           | VARCHAR / TEXT        | -        | YES       | Campaign expiration date                          |
+| status            | VARCHAR / TEXT        | -        | NO        | Default: "ACTIVE" ("ACTIVE" | "ENDED")            |
+| theme             | VARCHAR / TEXT        | -        | YES       | Default: "Festive"                                |
+| festivalLights    | BOOLEAN               | -        | NO        | Default: true (Frontend twinkle lights FX)        |
+| dandiya           | BOOLEAN               | -        | NO        | Default: true (Frontend dandiya sticks FX)        |
+| chunri            | BOOLEAN               | -        | NO        | Default: true (Frontend floating chunri FX)       |
+| bangles           | BOOLEAN               | -        | NO        | Default: false (Frontend bangles visual accent)   |
+| festivalGlow      | BOOLEAN               | -        | NO        | Default: true (Frontend neon atmospheric glow FX) |
+| createdAt         | TIMESTAMP WITH TZ     | -        | NO        | Default: now()                                    |
+| updatedAt         | TIMESTAMP WITH TZ     | -        | NO        | Auto-updates on modification (@updatedAt)         |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+
+------------------------------------------------------------------------------------------------------------------------
+ENTITY 6: HOMEPAGE_SECTION
+Underlying Table: "HomepageSection"
+Purpose: Modular Content Management System (CMS) blocks for storefront homepage rendering.
+------------------------------------------------------------------------------------------------------------------------
++----------------------------------------------------------------------------------------------------------------------+
+| TABLE: HOMEPAGE_SECTION                                                                                              |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| FIELD NAME        | DATA TYPE             | KEY TYPE | NULLABLE? | DEFAULT / CONSTRAINT / NOTES                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| id                | VARCHAR(36) (UUID)    | PK       | NO        | Surrogate UUID v4 (@default(uuid()))              |
+| sectionKey        | VARCHAR / TEXT        | UK       | NO        | Unique block key (@unique: hero, lookbook, etc.)  |
+| name              | VARCHAR / TEXT        | -        | NO        | Admin CMS section label                           |
+| enabled           | BOOLEAN               | -        | NO        | Default: true (Storefront visibility switch)      |
+| displayOrder      | INTEGER               | -        | NO        | Default: 0 (Vertical positioning index)           |
+| content           | TEXT (JSON Object)    | -        | NO        | Default: "{}" (Headings, subtitles, CTA links)    |
+| createdAt         | TIMESTAMP WITH TZ     | -        | NO        | Default: now()                                    |
+| updatedAt         | TIMESTAMP WITH TZ     | -        | NO        | Auto-updates on modification (@updatedAt)         |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+
+------------------------------------------------------------------------------------------------------------------------
+ENTITY 7: MEDIA
+Underlying Table: "Media"
+Purpose: Centralized media library index of digital assets, catalog photography, and lookbooks.
+------------------------------------------------------------------------------------------------------------------------
++----------------------------------------------------------------------------------------------------------------------+
+| TABLE: MEDIA                                                                                                         |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| FIELD NAME        | DATA TYPE             | KEY TYPE | NULLABLE? | DEFAULT / CONSTRAINT / NOTES                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| id                | VARCHAR(36) (UUID)    | PK       | NO        | Surrogate UUID v4 (@default(uuid()))              |
+| name              | VARCHAR / TEXT        | -        | NO        | Asset filename or label                           |
+| url               | VARCHAR / TEXT        | -        | NO        | Static path (/assets/*) or cloud URL              |
+| type              | VARCHAR / TEXT        | -        | YES       | Default: "image/webp" (MIME type)                 |
+| size              | VARCHAR / TEXT        | -        | YES       | Human-readable file size (e.g. "240 KB")          |
+| category          | VARCHAR / TEXT        | -        | YES       | Default: "Products" (Campaigns, Lookbook, etc.)   |
+| usedBy            | VARCHAR / TEXT        | -        | YES       | Default: "Catalog"                                |
+| altText           | VARCHAR / TEXT        | -        | YES       | Accessibility image alternative text              |
+| createdAt         | TIMESTAMP WITH TZ     | -        | NO        | Default: now()                                    |
+| updatedAt         | TIMESTAMP WITH TZ     | -        | NO        | Auto-updates on modification (@updatedAt)         |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+
+------------------------------------------------------------------------------------------------------------------------
+ENTITY 8: SETTING
+Underlying Table: "Setting"
+Purpose: Key-value persistent partition store for WhatsApp templates, social URLs, general contact, and SEO metadata.
+------------------------------------------------------------------------------------------------------------------------
++----------------------------------------------------------------------------------------------------------------------+
+| TABLE: SETTING                                                                                                       |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| FIELD NAME        | DATA TYPE             | KEY TYPE | NULLABLE? | DEFAULT / CONSTRAINT / NOTES                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| id                | VARCHAR(36) (UUID)    | PK       | NO        | Surrogate UUID v4 (@default(uuid()))              |
+| sectionKey        | VARCHAR / TEXT        | UK       | NO        | Unique partition key (@unique: general, seo, etc.)|
+| data              | TEXT (JSON Object)    | -        | NO        | Default: "{}" (Configuration values dictionary)   |
+| createdAt         | TIMESTAMP WITH TZ     | -        | NO        | Default: now()                                    |
+| updatedAt         | TIMESTAMP WITH TZ     | -        | NO        | Auto-updates on modification (@updatedAt)         |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+
+------------------------------------------------------------------------------------------------------------------------
+ENTITY 9: ACTIVITY_LOG
+Underlying Table: "ActivityLog"
+Purpose: Immutable security audit trail and real-time SSE stream ledger capturing all user and admin actions.
+------------------------------------------------------------------------------------------------------------------------
++----------------------------------------------------------------------------------------------------------------------+
+| TABLE: ACTIVITY_LOG                                                                                                  |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| FIELD NAME        | DATA TYPE             | KEY TYPE | NULLABLE? | DEFAULT / CONSTRAINT / NOTES                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| id                | VARCHAR(36) (UUID)    | PK       | NO        | Surrogate UUID v4 (@default(uuid()))              |
+| adminUserId       | VARCHAR / TEXT        | -        | YES       | Soft link -> User.id (actor)                      |
+| adminEmail        | VARCHAR / TEXT        | -        | YES       | Actor email or "public-visitor"                   |
+| action            | VARCHAR / TEXT        | -        | NO        | Verb: LOGIN, CREATE, VIEW, INQUIRY, etc.          |
+| entityType        | VARCHAR / TEXT        | -        | NO        | Domain: AUTH, PRODUCT, INQUIRY, CMS, etc.         |
+| entityId          | VARCHAR / TEXT        | -        | YES       | Polymorphic soft FK to primary key of entity      |
+| entityName        | VARCHAR / TEXT        | -        | YES       | Human-readable target entity title                |
+| description       | TEXT                  | -        | YES       | Narrative description of the recorded action      |
+| metadata          | TEXT (JSON Object)    | -        | YES       | Default: "{}" (Contextual query/IP metadata)      |
+| createdAt         | TIMESTAMP WITH TZ     | -        | NO        | Default: now() (Prisma @default(now()))           |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+
+------------------------------------------------------------------------------------------------------------------------
+ENTITY 10: INQUIRY
+Underlying Table: "Inquiry"
+Purpose: Stores bespoke garment alteration requests, custom tailoring leads, and direct WhatsApp inquiries.
+------------------------------------------------------------------------------------------------------------------------
++----------------------------------------------------------------------------------------------------------------------+
+| TABLE: INQUIRY                                                                                                       |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| FIELD NAME        | DATA TYPE             | KEY TYPE | NULLABLE? | DEFAULT / CONSTRAINT / NOTES                      |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+| id                | VARCHAR(36) (UUID)    | PK       | NO        | Surrogate UUID v4 (@default(uuid()))              |
+| userId            | VARCHAR / TEXT        | -        | YES       | Soft link -> User.id (Nullable for guests)        |
+| clientName        | VARCHAR / TEXT        | -        | YES       | Name of client submitting request                 |
+| clientContact     | VARCHAR / TEXT        | -        | YES       | Phone or email contact identifier                 |
+| clientEmail       | VARCHAR / TEXT        | -        | YES       | Verified email address                            |
+| clientPhone       | VARCHAR / TEXT        | -        | YES       | Verified phone number                             |
+| userMeta          | TEXT (JSON Object)    | -        | YES       | Default: "{}" (Point-in-time snapshot of user)    |
+| productId         | VARCHAR / TEXT        | -        | YES       | Soft link -> Product.id                           |
+| productSlug       | VARCHAR / TEXT        | -        | YES       | Soft link -> Product.slug (Deep linking)          |
+| productName       | VARCHAR / TEXT        | -        | NO        | Denormalized snapshot of requested look title     |
+| productImage      | VARCHAR / TEXT        | -        | YES       | Snapshot of product cover image URL               |
+| productPrice      | VARCHAR / TEXT        | -        | YES       | Snapshot of estimated reference price at inquiry  |
+| collectionName    | VARCHAR / TEXT        | -        | YES       | Snapshot of parent collection name                |
+| selectedSize      | VARCHAR / TEXT        | -        | YES       | Selected size tag (e.g. "M", "Custom")            |
+| requestType       | VARCHAR / TEXT        | -        | YES       | Default: "I have my garment"                      |
+| note              | TEXT                  | -        | YES       | Client customization, measurement & fit notes     |
+| status            | VARCHAR / TEXT        | -        | NO        | Default: "SUBMITTED" (SUBMITTED, IN_REVIEW, etc.) |
+| createdAt         | TIMESTAMP WITH TZ     | -        | NO        | Default: now()                                    |
+| updatedAt         | TIMESTAMP WITH TZ     | -        | NO        | Auto-updates on modification (@updatedAt)         |
++-------------------+-----------------------+----------+-----------+---------------------------------------------------+
+
+
+========================================================================================================================
+SECTION 3: FORMAL CARDINALITY & RELATIONSHIP WIRING TABLE
+========================================================================================================================
+
+| Source Entity | Source Field | Target Entity | Target Field | Cardinality | Type of Relationship | Enforcement Mechanism |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- |
+| `Product` | `collectionId` | `Collection` | `id` | **N : 1** | Relational Child-to-Parent | Database FK (`onDelete: SetNull`) |
+| `Product` | `categoryId` | `Category` | `id` | **N : 1** | Relational Child-to-Parent | Database FK (`onDelete: SetNull`) |
+| `Product` | `collectionSlug`| `Collection` | `slug` | **N : 1** | Denormalized Natural Link | Application Controller Logic |
+| `Product` | `category` | `Category` | `name` | **N : 1** | Taxonomy Name Matching | Application Controller Logic |
+| `Inquiry` | `userId` | `User` | `id` | **N : 1** | Account Association | Application Controller Logic |
+| `Inquiry` | `productId` | `Product` | `id` | **N : 1** | Product Reference | Application Controller Logic |
+| `Inquiry` | `productSlug` | `Product` | `slug` | **N : 1** | Deep URL Reference | Application Controller Logic |
+| `ActivityLog` | `adminUserId`| `User` | `id` | **N : 1** | Actor Association | Application Logger Utility |
+| `ActivityLog` | `adminEmail` | `User` | `email` | **N : 1** | Contact Audit Link | Application Logger Utility |
+| `ActivityLog` | `entityId` | *Any Entity* | `id`/`key` | **Polymorphic**| Multi-Table Audit Soft FK | Application Logger Utility |
+| `HomepageSection`| `content.collectionSlug`| `Collection`| `slug` | **N : 1** | JSON-Embedded Link | Frontend CMS Dispatcher |
+| `Setting` | `data.active_fest.slug`| `Collection` | `slug` | **1 : 1** | JSON Configuration Link | Storefront & Navbar Dispatcher |
+
+
+========================================================================================================================
+SECTION 4: ZERO-CROSSING PRESENTATION BLUEPRINT (FOR DRAWING ON CHARTS & BOARDS)
+========================================================================================================================
+
+Follow these spatial placement coordinates to draw the ER Diagram without intersecting relationship lines:
+
+                              [ USER ] (Top Center-Right)
+                              PK: id | UK: email, phone
+                                  :                :
+          +.......................+                +.......................+
+          : (Soft 1:N Link)                                                : (Soft 1:N Link)
+          v                                                                v
+   [ ACTIVITY_LOG ] (Far Right)                                    [ INQUIRY ] (Center)
+   PK: id                                                          PK: id
+   adminUserId . . . . . . . . . . . . . . . . . . . . . . . . . . userId
+   entityId (Polymorphic)                                          productId . . . +
+                                                                                   :
+                                                                                   : (Soft 1:N Link)
+                                                                                   v
+   [ COLLECTION ] (Top Left) ===(1:N Enforced FK)===============> [ PRODUCT ] (Center-Bottom)
+   PK: id                                                         PK: id | UK: slug
+   UK: slug                                                       FK: collectionId
+                                                                  FK: categoryId
+                                                                       ^
+   [ CATEGORY ] (Bottom Left) ===(1:N Enforced FK)=====================+
+   PK: id | UK: slug
+
+   =========================== STANDALONE STOREFRONT METADATA BLOCKS ===========================
+   (Position neatly along the bottom margin of the diagram)
+
+   [ CAMPAIGN ]              [ HOMEPAGE_SECTION ]              [ MEDIA ]              [ SETTING ]
+   PK: id | UK: slug         PK: id | UK: sectionKey           PK: id                 PK: id | UK: sectionKey
+   (Navratri Atmosphere)     (Hero, Lookbook, Manifesto)       (Asset URL / Type)     (WhatsApp, SEO, Brand)
+
+
+========================================================================================================================
+SECTION 5: STANDARD NOTATION LEGEND
+========================================================================================================================
+
+  SYMBOL / LINE STYLE       MEANING
+  -------------------       -------
+  PK                        Primary Key (Surrogate UUID v4 in all 10 entities)
+  FK                        Foreign Key (Referential integrity constraint)
+  UK                        Unique Key Constraint (@unique in Prisma schema)
+  === [ 1 ] === [ N ] ==>   Database-Enforced Foreign Key Relation (Solid Line)
+  ... [ 1 ] ... [ N ] ...>  Application-Level Soft Relationship (Dashed Line)
+  JSON { key: value }       Represented inside stringified JSON column
+  [ onDelete: SetNull ]     Prisma referential action setting foreign key to null if parent is deleted
+
+========================================================================================================================
+END OF FILE — VENM MASTER COMBINED ERD ASCII SPECIFICATION
+========================================================================================================================
