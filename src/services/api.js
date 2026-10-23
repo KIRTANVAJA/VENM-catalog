@@ -31,46 +31,15 @@ export const getBaseUrl = () => {
 
 export const API_BASE_URL = getBaseUrl();
 
-let loginPromise = null;
-async function getOrFetchAdminToken() {
+export function getStoredAdminToken() {
   if (typeof window === 'undefined') return null;
-  let t = localStorage.getItem('venm_admin_token');
-  if (t) return t;
-
-  if (!loginPromise) {
-    loginPromise = fetch(`${API_BASE_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'venm1310@gmail.com', password: 'password123' })
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.token) {
-          localStorage.setItem('venm_admin_token', data.token);
-          if (data.user) localStorage.setItem('venm_admin_user', JSON.stringify(data.user));
-          return data.token;
-        }
-        return null;
-      })
-      .catch(() => null)
-      .finally(() => {
-        loginPromise = null;
-      });
-  }
-  return loginPromise;
+  return localStorage.getItem('venm_admin_token') || localStorage.getItem('venm_user_token');
 }
 
 async function request(endpoint, options = {}) {
   let url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
   
-  const isAuthRequest = endpoint.includes('/auth/login') || endpoint.includes('/auth/register') || endpoint.includes('/auth/google');
-  let token = typeof window !== 'undefined'
-    ? (localStorage.getItem('venm_user_token') || localStorage.getItem('venm_admin_token'))
-    : null;
-
-  if (!token && options.method && options.method !== 'GET' && !isAuthRequest) {
-    token = await getOrFetchAdminToken();
-  }
+  const token = getStoredAdminToken();
 
   const headers = {
     'Content-Type': 'application/json',
@@ -125,18 +94,8 @@ async function request(endpoint, options = {}) {
     }
 
     if (!res.ok) {
-      if (res.status === 401 && !options._retried && !isAuthRequest) {
-        const freshToken = await getOrFetchAdminToken();
-        if (freshToken) {
-          return request(endpoint, {
-            ...options,
-            _retried: true,
-            headers: {
-              ...(options.headers || {}),
-              'Authorization': `Bearer ${freshToken}`
-            }
-          });
-        }
+      if (res.status === 401 && typeof window !== 'undefined') {
+        localStorage.removeItem('venm_admin_token');
       }
       const errorDetail = data?.error ? `${data?.message || 'ERROR'}: ${data.error}` : (data?.message || `API ERROR (${res.status})`);
       throw new Error(errorDetail);
