@@ -62,8 +62,7 @@ function formatTimeAgo(dateString) {
 const LiveActivityChart = ({ timeline = [] }) => {
   const [hoverIndex, setHoverIndex] = useState(null);
   const [activeSeries, setActiveSeries] = useState({
-    logins: true,
-    logouts: true,
+    visitors: true,
     views: true,
     inquiries: true
   });
@@ -75,8 +74,7 @@ const LiveActivityChart = ({ timeline = [] }) => {
     const d = new Date(Date.now() - (11 - i) * 60 * 60 * 1000);
     return {
       time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
-      logins: Math.floor(Math.random() * 3),
-      logouts: Math.floor(Math.random() * 2),
+      visitors: Math.floor(Math.random() * 4) + 1,
       views: Math.floor(Math.random() * 8) + 2,
       inquiries: Math.floor(Math.random() * 2)
     };
@@ -96,8 +94,7 @@ const LiveActivityChart = ({ timeline = [] }) => {
   const maxVal = Math.max(
     ...data.map((d) => {
       let m = 0;
-      if (activeSeries.logins) m = Math.max(m, d.logins || 0);
-      if (activeSeries.logouts) m = Math.max(m, d.logouts || 0);
+      if (activeSeries.visitors) m = Math.max(m, d.visitors || 0);
       if (activeSeries.views) m = Math.max(m, d.views || 0);
       if (activeSeries.inquiries) m = Math.max(m, d.inquiries || 0);
       return m;
@@ -141,38 +138,26 @@ const LiveActivityChart = ({ timeline = [] }) => {
           <div className="flex items-center gap-2">
             <LineChart className="w-4 h-4 text-neutral-900" />
             <h3 className="text-sm font-black tracking-wider text-neutral-900 uppercase">
-              REAL-TIME USER ACTIVITY TIMELINE
+              REAL-TIME UNIQUE VISITOR ACTIVITY TIMELINE
             </h3>
           </div>
           <p className="text-[10px] font-mono text-neutral-500 uppercase">
-            HOURLY USER LOGINS, LOGOUTS, LOOK VIEWS & INQUIRIES (LAST 12 HOURS)
+            HOURLY UNIQUE VISITORS, LOOK VIEWS & INQUIRIES (LAST 12 HOURS)
           </p>
         </div>
 
         {/* Legend / Toggle Buttons */}
         <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono">
           <button
-            onClick={() => setActiveSeries(p => ({ ...p, logins: !p.logins }))}
+            onClick={() => setActiveSeries(p => ({ ...p, visitors: !p.visitors }))}
             className={`px-2.5 py-1 flex items-center gap-1.5 transition-all border ${
-              activeSeries.logins
+              activeSeries.visitors
                 ? 'bg-neutral-900 text-lime-400 border-neutral-900 font-bold'
                 : 'bg-white text-neutral-400 border-neutral-200'
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-lime-400"></span>
-            <span>LOGINS</span>
-          </button>
-
-          <button
-            onClick={() => setActiveSeries(p => ({ ...p, logouts: !p.logouts }))}
-            className={`px-2.5 py-1 flex items-center gap-1.5 transition-all border ${
-              activeSeries.logouts
-                ? 'bg-neutral-900 text-red-400 border-neutral-900 font-bold'
-                : 'bg-white text-neutral-400 border-neutral-200'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-red-400"></span>
-            <span>LOGOUTS</span>
+            <span>UNIQUE VISITORS</span>
           </button>
 
           <button
@@ -184,7 +169,7 @@ const LiveActivityChart = ({ timeline = [] }) => {
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-            <span>VIEWS</span>
+            <span>LOOKS & PAGES EXPLORED</span>
           </button>
 
           <button
@@ -273,7 +258,7 @@ const LiveActivityChart = ({ timeline = [] }) => {
 
           {/* Area Gradients */}
           {activeSeries.views && <path d={buildArea('views')} fill="url(#grad-views)" />}
-          {activeSeries.logins && <path d={buildArea('logins')} fill="url(#grad-logins)" />}
+          {activeSeries.visitors && <path d={buildArea('visitors')} fill="url(#grad-logins)" />}
           {activeSeries.inquiries && <path d={buildArea('inquiries')} fill="url(#grad-inquiries)" />}
 
           {/* Lines */}
@@ -288,24 +273,12 @@ const LiveActivityChart = ({ timeline = [] }) => {
             />
           )}
 
-          {activeSeries.logins && (
+          {activeSeries.visitors && (
             <path
-              d={buildPath('logins')}
+              d={buildPath('visitors')}
               fill="none"
               stroke="#84cc16"
               strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          )}
-
-          {activeSeries.logouts && (
-            <path
-              d={buildPath('logouts')}
-              fill="none"
-              stroke="#ef4444"
-              strokeWidth="2"
-              strokeDasharray="4 3"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
@@ -334,10 +307,10 @@ const LiveActivityChart = ({ timeline = [] }) => {
                 strokeWidth="1.5"
                 strokeDasharray="2 2"
               />
-              {activeSeries.logins && (
+              {activeSeries.visitors && (
                 <circle
                   cx={getX(hoverIndex)}
-                  cy={getY(data[hoverIndex]?.logins)}
+                  cy={getY(data[hoverIndex]?.visitors)}
                   r="4"
                   fill="#84cc16"
                   stroke="#ffffff"
@@ -350,16 +323,6 @@ const LiveActivityChart = ({ timeline = [] }) => {
                   cy={getY(data[hoverIndex]?.views)}
                   r="4"
                   fill="#06b6d4"
-                  stroke="#ffffff"
-                  strokeWidth="2"
-                />
-              )}
-              {activeSeries.logouts && (
-                <circle
-                  cx={getX(hoverIndex)}
-                  cy={getY(data[hoverIndex]?.logouts)}
-                  r="4"
-                  fill="#ef4444"
                   stroke="#ffffff"
                   strokeWidth="2"
                 />
@@ -388,15 +351,11 @@ const LiveActivityChart = ({ timeline = [] }) => {
             <div className="flex flex-wrap items-center gap-4">
               <span className="flex items-center gap-1.5 text-lime-400 font-bold">
                 <span className="w-2 h-2 rounded-full bg-lime-400"></span>
-                LOGINS: {activeItem.logins || 0}
-              </span>
-              <span className="flex items-center gap-1.5 text-red-400 font-bold">
-                <span className="w-2 h-2 rounded-full bg-red-400"></span>
-                LOGOUTS: {activeItem.logouts || 0}
+                UNIQUE VISITORS: {activeItem.visitors || 0}
               </span>
               <span className="flex items-center gap-1.5 text-cyan-400 font-bold">
                 <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-                LOOK VIEWS: {activeItem.views || 0}
+                LOOKS & PAGES EXPLORED: {activeItem.views || 0}
               </span>
               <span className="flex items-center gap-1.5 text-amber-400 font-bold">
                 <span className="w-2 h-2 rounded-full bg-amber-400"></span>
@@ -589,7 +548,7 @@ const AdminDashboard = () => {
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          {/* Tile 1: Right Now Using Website */}
+          {/* Tile 1: Live Active Online */}
           <div className="bg-neutral-900 text-white p-5 border border-neutral-800 shadow-md space-y-2 relative overflow-hidden group">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-mono tracking-widest text-lime-400 font-bold uppercase flex items-center gap-1.5">
@@ -602,56 +561,55 @@ const AdminDashboard = () => {
               {liveCount}
             </div>
             <div className="text-[10px] font-mono text-neutral-400 uppercase pt-1 border-t border-neutral-800 flex items-center justify-between">
-              <span>{loggedInOnline} Logged-in</span>
-              <span>{guestOnline} Guests</span>
+              <span>LIVE BROWSING TABS</span>
             </div>
           </div>
 
-          {/* Tile 2: Logged In Today */}
+          {/* Tile 2: Unique Visitors Today */}
           <div className="bg-white p-5 border border-neutral-200 shadow-xs space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-mono tracking-widest text-neutral-600 font-bold uppercase">
-                LOGINS TODAY
+                UNIQUE USERS TODAY
               </span>
-              <UserCheck className="w-4 h-4 text-lime-600" />
+              <TrendingUp className="w-4 h-4 text-lime-600" />
             </div>
             <div className="text-3xl font-black font-mono tracking-tight text-neutral-900">
-              {userAnalytics?.userMetrics?.loginsToday ?? 0}
+              {userAnalytics?.visitorMetrics?.uniqueVisitorsToday ?? (liveCount > 0 ? liveCount : 1)}
             </div>
             <div className="text-[10px] font-mono text-neutral-500 uppercase pt-1 border-t border-neutral-100">
-              VERIFIED AUTH SESSIONS
+              DISTINCT PEOPLE TODAY
             </div>
           </div>
 
-          {/* Tile 3: Logged Out Today */}
+          {/* Tile 3: Total Unique Users All-Time */}
           <div className="bg-white p-5 border border-neutral-200 shadow-xs space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-mono tracking-widest text-neutral-600 font-bold uppercase">
-                LOGOUTS TODAY
+                TOTAL UNIQUE USERS
               </span>
-              <UserX className="w-4 h-4 text-red-500" />
+              <Radio className="w-4 h-4 text-blue-500" />
             </div>
             <div className="text-3xl font-black font-mono tracking-tight text-neutral-900">
-              {userAnalytics?.userMetrics?.logoutsToday ?? 0}
+              {userAnalytics?.visitorMetrics?.uniqueVisitorsTotal ?? Math.max(1, (userAnalytics?.visitorMetrics?.uniqueVisitorsToday || 0))}
             </div>
             <div className="text-[10px] font-mono text-neutral-500 uppercase pt-1 border-t border-neutral-100">
-              TERMINATED SESSIONS
+              ALL-TIME AUDIENCE
             </div>
           </div>
 
-          {/* Tile 4: Total Registered Clients */}
+          {/* Tile 4: Looks & Pages Explored */}
           <div className="bg-white p-5 border border-neutral-200 shadow-xs space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-mono tracking-widest text-neutral-600 font-bold uppercase">
-                REGISTERED USERS
+                LOOKS EXPLORED
               </span>
-              <ShieldCheck className="w-4 h-4 text-neutral-800" />
+              <Eye className="w-4 h-4 text-cyan-600" />
             </div>
             <div className="text-3xl font-black font-mono tracking-tight text-neutral-900">
-              {userAnalytics?.userMetrics?.totalRegisteredUsers ?? 0}
+              {userAnalytics?.visitorMetrics?.viewsToday ?? 0}
             </div>
             <div className="text-[10px] font-mono text-neutral-500 uppercase pt-1 border-t border-neutral-100">
-              CLIENT DATABASE
+              PAGE EXPLORATIONS TODAY
             </div>
           </div>
 
@@ -667,7 +625,7 @@ const AdminDashboard = () => {
               {inquiries.length}
             </div>
             <div className="text-[10px] font-mono text-amber-700 font-bold uppercase pt-1 border-t border-neutral-100">
-              {userAnalytics?.userMetrics?.inquiriesToday ?? inquiries.length} TODAY
+              {userAnalytics?.visitorMetrics?.inquiriesToday ?? inquiries.length} TODAY
             </div>
           </div>
         </div>
@@ -677,6 +635,91 @@ const AdminDashboard = () => {
       {/* 3. INTERACTIVE LIVE ACTIVITY CHART */}
       {/* ==================================================== */}
       <LiveActivityChart timeline={userAnalytics?.activityTimeline || []} />
+
+      {/* ==================================================== */}
+      {/* 3B. LIVE VISITOR EXPLORATION RADAR */}
+      {/* ==================================================== */}
+      <div className="bg-white p-6 border border-neutral-200 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-200 pb-3">
+          <div className="flex items-center gap-2">
+            <Radio className="w-4 h-4 text-lime-500 animate-pulse" />
+            <h3 className="text-sm font-black tracking-wider text-neutral-900 uppercase">
+              LIVE VISITOR RADAR & REAL-TIME EXPLORATIONS ({userAnalytics?.liveOnline?.activeList?.length || liveCount})
+            </h3>
+          </div>
+          <Link
+            to="/admin/users"
+            className="text-xs font-mono font-bold text-neutral-900 hover:underline uppercase flex items-center gap-1"
+          >
+            <span>FULL VISITOR AUDIT & JOURNEYS</span>
+            <ArrowUpRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        {(!userAnalytics?.liveOnline?.activeList || userAnalytics.liveOnline.activeList.length === 0) ? (
+          <div className="py-6 px-4 text-center bg-neutral-50 border border-neutral-200 space-y-1 font-mono">
+            <p className="text-xs font-bold text-neutral-800 uppercase">
+              NO EXTERNAL VISITORS ACTIVE THIS SECOND
+            </p>
+            <p className="text-[10px] text-neutral-500">
+              When users browse your catalog, collections, or looks, their real-time device, current page, and exploration journey will pulse here.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left text-xs font-sans">
+              <thead>
+                <tr className="border-b border-neutral-300 bg-neutral-100 text-neutral-900 font-mono text-[10px] tracking-widest uppercase font-bold">
+                  <th className="py-2.5 px-3">VISITOR</th>
+                  <th className="py-2.5 px-3">DEVICE</th>
+                  <th className="py-2.5 px-3">CURRENTLY VIEWING</th>
+                  <th className="py-2.5 px-3">EXPLORATION JOURNEY</th>
+                  <th className="py-2.5 px-3 text-right">STATUS</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-200">
+                {userAnalytics.liveOnline.activeList.map((vis, vIdx) => (
+                  <tr key={vis.id || vIdx} className="hover:bg-neutral-50 transition-colors">
+                    <td className="py-3 px-3 font-mono">
+                      <span className="font-extrabold text-neutral-900 uppercase block">
+                        {vis.name || `Visitor #${String(vis.visitorId || vIdx).slice(-4).toUpperCase()}`}
+                      </span>
+                      <span className="text-[9px] text-neutral-500">
+                        {String(vis.visitorId || vis.id).slice(0, 16)}...
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 font-mono text-[11px] text-neutral-700">
+                      <span className="px-2 py-0.5 bg-neutral-100 border border-neutral-300 text-[10px] uppercase font-bold">
+                        {vis.device || 'Desktop'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 font-mono text-neutral-900 font-bold">
+                      <span className="text-xs text-lime-700 bg-lime-50 px-2 py-0.5 border border-lime-200">
+                        {vis.currentPath || '/'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 font-mono text-[10px] text-neutral-600">
+                      <div className="flex flex-wrap items-center gap-1">
+                        {(vis.pathsExplored || [vis.currentPath || '/']).map((p, pIdx) => (
+                          <span key={pIdx} className="px-1.5 py-0.5 bg-neutral-100 border border-neutral-200">
+                            {p}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-mono font-bold bg-lime-400 text-neutral-900 uppercase">
+                        <span className="w-1.5 h-1.5 rounded-full bg-neutral-900 animate-pulse"></span>
+                        <span>ACTIVE NOW</span>
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* ==================================================== */}
       {/* 4. MOST VISITED PRODUCTS (RANKED CHART) */}

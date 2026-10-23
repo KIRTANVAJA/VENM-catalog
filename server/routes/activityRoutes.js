@@ -3,6 +3,7 @@ import {
   getActivityLogs,
   getDashboardStats,
   getLiveUserAnalytics,
+  getUniqueVisitors,
   recordHeartbeat,
   recordProductView,
   streamActivity
@@ -14,6 +15,7 @@ const router = express.Router();
 router.get('/logs', protectAdmin, getActivityLogs);
 router.get('/dashboard-stats', protectAdmin, getDashboardStats);
 router.get('/live-analytics', protectAdmin, getLiveUserAnalytics);
+router.get('/visitors', protectAdmin, getUniqueVisitors);
 router.get('/stream', streamActivity);
 
 // Public analytics endpoints from client app

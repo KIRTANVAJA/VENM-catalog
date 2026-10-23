@@ -232,10 +232,6 @@ const CollectionDetail = () => {
                 key={product.id}
                 product={product}
                 onQuickInquire={(p) => {
-                  if (!isAuthenticated) {
-                    openLoginModal('login', 'inquiry_required');
-                    return;
-                  }
                   setActiveInquiryProduct(p);
                 }}
               />

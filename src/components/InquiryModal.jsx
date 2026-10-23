@@ -199,56 +199,13 @@ const InquiryModal = ({ product, selectedSize, isOpen, onClose }) => {
           </div>
         </div>
 
-        {!isAuthenticated ? (
-          <div className="py-8 px-4 text-center space-y-5 bg-neutral-50 border border-neutral-200 animate-fadeIn">
-            <div className="w-14 h-14 bg-neutral-900 text-white flex items-center justify-center mx-auto shadow-sm">
-              <Lock className="w-6 h-6 text-lime-400" />
-            </div>
-
-            <div className="space-y-1.5 max-w-sm mx-auto">
-              <span className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase font-bold">
-                CLIENT ACCESS REQUIRED
-              </span>
-              <h3 className="text-base sm:text-lg font-black uppercase tracking-wider text-neutral-900">
-                SIGN IN REQUIRED TO INQUIRE
-              </h3>
-              <p className="text-xs text-neutral-600 font-sans leading-relaxed">
-                You can freely browse our reference catalog as a guest, but submitting bespoke inquiries and receiving custom styling estimates requires signing in.
-              </p>
-            </div>
-
-            <div className="space-y-2 pt-2 max-w-sm mx-auto">
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  openLoginModal('login', 'inquiry_required');
-                }}
-                className="w-full btn-venm-primary py-3.5 text-xs font-black tracking-widest uppercase flex items-center justify-center gap-2 bg-lime-400 text-neutral-900 hover:bg-lime-300"
-              >
-                <User className="w-4 h-4" />
-                <span>SIGN IN TO INQUIRE</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  openLoginModal('register', 'inquiry_required');
-                }}
-                className="w-full btn-venm-secondary py-2.5 text-xs font-bold tracking-widest uppercase flex items-center justify-center gap-2"
-              >
-                <span>CREATE NEW CLIENT ACCOUNT</span>
-              </button>
-            </div>
-          </div>
-        ) : formSubmitted ? (
+        {formSubmitted ? (
           <div className="py-8 text-center space-y-4 animate-fadeIn">
             <CheckCircle2 className="w-12 h-12 text-black mx-auto" />
             <div className="space-y-1">
               <h3 className="text-lg font-bold text-neutral-900 tracking-wider uppercase">REQUEST RECEIVED</h3>
               <p className="text-xs text-neutral-600 max-w-xs mx-auto leading-relaxed">
-                Thank you, {formData.name || currentUser?.name || 'Valued Client'}. Your inquiry has been saved to your account! Our styling team will review your request ({requestType}) and contact you.
+                Thank you, {formData.name || 'Valued Client'}. Your custom styling request has been recorded! Our styling team will review your requirements ({requestType}) and contact you directly on WhatsApp / phone.
               </p>
             </div>
             <button
@@ -330,8 +287,8 @@ const InquiryModal = ({ product, selectedSize, isOpen, onClose }) => {
             </form>
 
             <div className="flex items-center justify-center gap-2 text-[10px] font-mono text-neutral-500 pt-2 border-t border-neutral-200">
-              <ShieldCheck className="w-3.5 h-3.5 text-neutral-700" />
-              <span>INQUIRY IS SAVED TO YOUR VENM CLIENT ACCOUNT</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-lime-600" />
+              <span>DIRECT INQUIRY // CONFIRMED DIRECTLY VIA WHATSAPP & PHONE // NO LOGIN NEEDED</span>
             </div>
           </div>
         )}

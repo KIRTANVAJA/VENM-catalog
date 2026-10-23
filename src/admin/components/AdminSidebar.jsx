@@ -32,9 +32,9 @@ const AdminSidebar = ({ mobileOpen, setMobileOpen }) => {
       ]
     },
     {
-      title: 'CLIENT MANAGEMENT',
+      title: 'AUDIENCE & TRAFFIC',
       items: [
-        { name: 'Registered Users', path: '/admin/users', icon: Users, badge: 'NEW' }
+        { name: 'Visitor Activity & Traffic', path: '/admin/users', icon: Users, badge: 'LIVE' }
       ]
     },
     {

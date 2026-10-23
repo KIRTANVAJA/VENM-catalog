@@ -1,5 +1,6 @@
 import prisma from '../config/db.js';
 import { logActivity } from '../utils/activityLogger.js';
+import { sanitizeImageArray } from '../utils/pathSanitizer.js';
 
 export const getProducts = async (req, res) => {
   try {
@@ -143,7 +144,7 @@ export const createProduct = async (req, res) => {
         collectionSlug: collectionSlug || 'navratri',
         collectionName: collectionName || 'NAVRATRI EDIT',
         category: category || 'Outerwear',
-        images: JSON.stringify(images || []),
+        images: JSON.stringify(sanitizeImageArray(images || [])),
         sizes: JSON.stringify(sizes || ['S', 'M', 'L', 'XL', 'Custom']),
         availability: availability || 'REQUESTABLE',
         estimatedPrice: estimatedPrice || 'Estimated from ₹1,800',
@@ -210,7 +211,7 @@ export const updateProduct = async (req, res) => {
     if (!dataToUpdate.categoryId) delete dataToUpdate.categoryId;
 
     if (body.details && typeof body.details !== 'string') dataToUpdate.details = JSON.stringify(body.details);
-    if (body.images && typeof body.images !== 'string') dataToUpdate.images = JSON.stringify(body.images);
+    if (body.images !== undefined) dataToUpdate.images = JSON.stringify(sanitizeImageArray(body.images));
     if (body.sizes && typeof body.sizes !== 'string') dataToUpdate.sizes = JSON.stringify(body.sizes);
     if (body.tags && typeof body.tags !== 'string') dataToUpdate.tags = JSON.stringify(body.tags);
     if (body.isFeatured !== undefined) dataToUpdate.isFeatured = Boolean(body.isFeatured);

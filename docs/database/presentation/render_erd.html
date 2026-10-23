@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>VENM Master Database ERD</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 40px;
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .header h1 {
+      color: #a3e635;
+      font-size: 28px;
+      letter-spacing: 2px;
+      margin: 0 0 8px 0;
+      text-transform: uppercase;
+      font-family: monospace;
+    }
+    .header p {
+      color: #8b949e;
+      font-size: 14px;
+      margin: 0;
+      font-family: monospace;
+    }
+    #diagram {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      max-width: 100%;
+      overflow-x: auto;
+    }
+    svg {
+      max-width: 100%;
+      height: auto;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <div class="header">
+    <h1>VENM — MASTER DATABASE ERD</h1>
+    <p>PostgreSQL 15+ // Prisma ORM 6.4.0 // 8 Production Entities // 3NF Architectural Architecture</p>
+  </div>
+  <div id="diagram">
+    <pre class="mermaid">
+erDiagram
+    User {
+        String id PK "UUID v4 surrogate key"
+        String name "Client or Admin full name"
+        String email UK "Unique email address"
+        String phone UK "Unique phone number"
+        String passwordHash "Bcrypt hash salt 10"
+        String role "Role: CUSTOMER | ADMIN"
+        DateTime createdAt "Auto timestamp"
+        DateTime updatedAt "Auto timestamp"
+    }
+
+    ActivityLog {
+        String id PK "UUID v4 surrogate key"
+        String adminUserId FK "Soft reference -> User.id"
+        String adminEmail "Actor email snapshot"
+        String action "Event type"
+        String entityType "Target entity"
+        String entityId "Target record ID"
+        String entityName "Human label"
+        String description "Event narrative"
+        String metadata "JSON payload"
+        DateTime createdAt "Auto timestamp"
+    }
+
+    Collection {
+        String id PK "UUID v4 surrogate key"
+        String name "Editorial collection title"
+        String slug UK "Unique URL slug"
+        String tagline "Marketing concept"
+        String description "Curatorial overview"
+        String coverImage "Cover asset path"
+        String season "Seasonal designation"
+        String status "ACTIVE | COMING_SOON"
+        Boolean featured "Showcase flag"
+        Int displayOrder "Sorting order"
+        DateTime createdAt "Auto timestamp"
+        DateTime updatedAt "Auto timestamp"
+    }
+
+    Category {
+        String id PK "UUID v4 surrogate key"
+        String name "Category name"
+        String slug UK "Unique URL slug"
+        String description "Scope / description"
+        String status "Active | Inactive"
+        Int displayOrder "Navigation order"
+        DateTime createdAt "Auto timestamp"
+        DateTime updatedAt "Auto timestamp"
+    }
+
+    Product {
+        String id PK "UUID v4 or Custom ID"
+        String name "Reference design title"
+        String slug UK "Unique URL slug"
+        String description "Garment craft narrative"
+        String details "JSON array specs"
+        String collectionId FK "FK -> Collection.id (SetNull)"
+        String categoryId FK "FK -> Category.id (SetNull)"
+        String collectionSlug "Denormalized slug"
+        String collectionName "Denormalized collection"
+        String category "Denormalized category"
+        String images "JSON array URLs"
+        String sizes "JSON array sizes"
+        String availability "REQUESTABLE | PUBLISHED"
+        String estimatedPrice "Formatted starting price"
+        String minPrice "Minimum price boundary"
+        String maxPrice "Maximum price boundary"
+        String priceDisplayMode "STARTING_FROM | CUSTOM"
+        String customizationInfo "Alterations info"
+        String sizingInfo "Fitting protocol"
+        String sourceAttribution "Studio design source"
+        Boolean isFeatured "Featured flag"
+        Boolean isNavratriEdit "Festive edit flag"
+        String tags "JSON style tags"
+        String garmentCare "Fabric maintenance"
+        Int viewCount "Popularity counter"
+        Int displayOrder "Catalog ordering index"
+        DateTime createdAt "Auto timestamp"
+        DateTime updatedAt "Auto timestamp"
+    }
+
+    Inquiry {
+        String id PK "UUID v4 surrogate key"
+        String userId FK "Soft reference -> User.id"
+        String clientName "Client full name"
+        String clientContact "Contact (Phone or Email)"
+        String clientEmail "Client email"
+        String clientPhone "Client telephone"
+        String userMeta "JSON session snapshot"
+        String productId FK "Soft reference -> Product.id"
+        String productSlug "Snapshot product slug"
+        String productName "Snapshot product title"
+        String productImage "Snapshot cover image"
+        String productPrice "Price quotation snapshot"
+        String collectionName "Collection snapshot"
+        String selectedSize "Requested size"
+        String requestType "Garment option request"
+        String note "Bespoke styling notes"
+        String status "SUBMITTED | CONTACTED"
+        DateTime createdAt "Auto timestamp"
+        DateTime updatedAt "Auto timestamp"
+    }
+
+    Campaign {
+        String id PK "UUID v4 surrogate key"
+        String name "Campaign title"
+        String slug UK "Unique campaign slug"
+        String description "Campaign theme"
+        String image "Spotlight banner asset"
+        String announcement "Top banner text"
+        String startDate "Launch date"
+        String endDate "Expiration date"
+        String status "ACTIVE | SCHEDULED"
+        String theme "Visual theme"
+        Boolean festivalLights "Interactive lights"
+        Boolean dandiya "Interactive dandiya"
+        Boolean chunri "Interactive chunri"
+        Boolean bangles "Interactive bangles"
+        Boolean festivalGlow "Neon glow filter"
+        DateTime createdAt "Auto timestamp"
+        DateTime updatedAt "Auto timestamp"
+    }
+
+    HomepageSection {
+        String id PK "UUID v4 surrogate key"
+        String sectionKey UK "hero | brand_statement"
+        String name "CMS section title"
+        Boolean enabled "Visibility toggle"
+        Int displayOrder "Positioning sequence"
+        String content "JSON content fields"
+        DateTime createdAt "Auto timestamp"
+        DateTime updatedAt "Auto timestamp"
+    }
+
+    Media {
+        String id PK "UUID v4 surrogate key"
+        String name "Display label"
+        String url "Asset file path / CDN URL"
+        String type "MIME type"
+        String size "Human file size"
+        String category "Asset group"
+        String usedBy "Usage context"
+        String altText "SEO descriptive text"
+        DateTime createdAt "Auto timestamp"
+        DateTime updatedAt "Auto timestamp"
+    }
+
+    Setting {
+        String id PK "UUID v4 surrogate key"
+        String sectionKey UK "general | whatsapp | seo"
+        String data "JSON settings payload"
+        DateTime createdAt "Auto timestamp"
+        DateTime updatedAt "Auto timestamp"
+    }
+
+    Collection ||--o{ Product : "1:N via Product.collectionId (FK)"
+    Category ||--o{ Product : "1:N via Product.categoryId (FK)"
+    User ||--o{ Inquiry : "1:N soft link via Inquiry.userId"
+    Product ||--o{ Inquiry : "1:N soft link via Inquiry.productId"
+    User ||--o{ ActivityLog : "1:N soft audit link"
+    Product }o--o{ Setting : "N:M soft link via assignedProductIds"
+    Product }o--o{ Media : "N:M soft link via images JSON"
+    </pre>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#161b22',
+        primaryColor: '#1f2937',
+        primaryTextColor: '#f3f4f6',
+        primaryBorderColor: '#a3e635',
+        lineColor: '#38bdf8',
+        secondaryColor: '#111827',
+        tertiaryColor: '#1e293b'
+      }
+    });
+  </script>
+</body>
+</html>

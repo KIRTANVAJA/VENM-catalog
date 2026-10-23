@@ -407,15 +407,10 @@ const ProductDetail = () => {
             <div className="space-y-3 border-t border-neutral-200 pt-6">
               {statusCTA.isRequestable ? (
                 <a
-                  href={isAuthenticated ? formatWhatsAppUrl(product, selectedSize, requestOption, currentUser) : '#'}
-                  target={isAuthenticated ? "_blank" : "_self"}
+                  href={formatWhatsAppUrl(product, selectedSize, requestOption, currentUser)}
+                  target="_blank"
                   rel="noopener noreferrer"
-                  onClick={(e) => {
-                    if (!isAuthenticated) {
-                      e.preventDefault();
-                      openLoginModal('login', 'inquiry_required');
-                      return;
-                    }
+                  onClick={() => {
                     apiTrackWhatsAppClick(product.name, product.collectionName);
                   }}
                   className="w-full btn-venm-primary py-4 px-6 text-xs sm:text-sm font-bold tracking-[0.18em] flex items-center justify-center gap-3 uppercase group"
@@ -431,10 +426,6 @@ const ProductDetail = () => {
 
               <button
                 onClick={() => {
-                  if (!isAuthenticated) {
-                    openLoginModal('login', 'inquiry_required');
-                    return;
-                  }
                   setIsInquiryModalOpen(true);
                 }}
                 className="w-full btn-venm-secondary py-3 px-6 text-xs font-semibold tracking-widest flex items-center justify-center gap-2 uppercase"
@@ -557,10 +548,6 @@ const ProductDetail = () => {
                 key={rel.id}
                 product={rel}
                 onQuickInquire={(p) => {
-                  if (!isAuthenticated) {
-                    openLoginModal('login', 'inquiry_required');
-                    return;
-                  }
                   setQuickInquireProduct(p);
                 }}
               />

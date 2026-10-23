@@ -4,8 +4,35 @@ import { logActivity } from '../utils/activityLogger.js';
 // Connected SSE clients set
 const sseClients = new Set();
 
-// In-memory active visitors store: key = sessionId or IP, value = { id, userId, name, email, phone, role, isLoggedIn, currentPath, viewingProductId, lastSeen }
+// In-memory active visitors store: key = sessionId or IP, value = active visitor state
 const activeVisitors = new Map();
+
+// In-memory unique visitors registry (tracks unique visitor devices, sessions, and journeys across the site)
+const uniqueVisitorRegistry = new Map();
+
+function getOrInitVisitor(vid, sessKey, device, ip) {
+  const visitorKey = vid || sessKey || ip || `vid_${Date.now()}`;
+  let v = uniqueVisitorRegistry.get(visitorKey);
+  if (!v) {
+    const shortCode = visitorKey.replace(/^vid_/, '').slice(0, 6).toUpperCase();
+    v = {
+      id: visitorKey,
+      shortId: shortCode,
+      name: `Visitor #${shortCode}`,
+      device: device || 'Desktop',
+      ip: ip || 'Remote Client',
+      firstSeen: new Date().toISOString(),
+      lastSeen: new Date().toISOString(),
+      totalSessions: 1,
+      totalExplorations: 0,
+      pathsExplored: [],
+      currentPath: '/',
+      inquiriesCount: 0
+    };
+    uniqueVisitorRegistry.set(visitorKey, v);
+  }
+  return v;
+}
 
 // Register global SSE broadcast function so db.activityLog.create triggers live updates
 global.broadcastActivitySSE = (activityLog) => {
@@ -21,39 +48,63 @@ global.broadcastActivitySSE = (activityLog) => {
 
 /**
  * POST /api/analytics/heartbeat
- * Periodic heartbeat from active client tabs
+ * Periodic heartbeat and page exploration tracker from active client tabs
  */
 export const recordHeartbeat = async (req, res) => {
   try {
-    const { sessionId, user, currentPath, viewingProductId } = req.body;
-    const key = sessionId || (user?.id ? `user-${user.id}` : null) || req.ip || `vis-${Date.now()}`;
+    const { visitorId, sessionId, user, currentPath, viewingProductId, pageTitle, device, referrer } = req.body;
+    const now = Date.now();
+    const vid = visitorId || sessionId || req.ip || `vid_${now}`;
+    const sessKey = sessionId || vid;
 
-    activeVisitors.set(key, {
-      id: key,
-      userId: user?.id || null,
-      name: user?.name || 'Guest Visitor',
-      email: user?.email || null,
-      phone: user?.phone || null,
-      role: user?.role || 'GUEST',
-      isLoggedIn: !!user,
+    const v = getOrInitVisitor(vid, sessKey, device, req.ip);
+    v.lastSeen = new Date().toISOString();
+    v.currentPath = currentPath || '/';
+    if (device) v.device = device;
+    if (currentPath && !v.pathsExplored.includes(currentPath)) {
+      v.pathsExplored.push(currentPath);
+      v.totalExplorations = v.pathsExplored.length;
+    }
+
+    activeVisitors.set(sessKey, {
+      id: sessKey,
+      visitorId: vid,
+      name: v.name,
+      device: v.device,
       currentPath: currentPath || '/',
-      viewingProductId: viewingProductId || null,
-      lastSeen: Date.now()
+      pageTitle: pageTitle || currentPath || '/',
+      pathsExplored: v.pathsExplored,
+      totalExplored: v.pathsExplored.length,
+      lastSeen: now,
+      onlineSince: v.firstSeen
     });
 
     // Cleanup expired visitors (> 45 seconds)
-    const cutoff = Date.now() - 45000;
-    for (const [k, v] of activeVisitors.entries()) {
-      if (v.lastSeen < cutoff) activeVisitors.delete(k);
+    const cutoff = now - 45000;
+    for (const [k, item] of activeVisitors.entries()) {
+      if (item.lastSeen < cutoff) activeVisitors.delete(k);
     }
 
-    const list = Array.from(activeVisitors.values());
+    // Log significant site explorations to ActivityLog in database
+    if (currentPath && currentPath !== '/' && (!v.lastLoggedPath || v.lastLoggedPath !== currentPath)) {
+      v.lastLoggedPath = currentPath;
+      logActivity({
+        adminUserId: vid,
+        adminEmail: 'visitor@venm.exe',
+        action: 'VISITOR_EXPLORATION',
+        entityType: 'VISITOR',
+        entityId: vid,
+        entityName: currentPath,
+        description: `${v.name} (${v.device}) explored "${currentPath}"`
+      }).catch(() => {});
+    }
+
+    const liveList = Array.from(activeVisitors.values());
     res.json({
       success: true,
-      liveOnlineCount: list.length,
-      onlineUsersCount: list.filter(v => v.isLoggedIn).length,
-      onlineGuestsCount: list.filter(v => !v.isLoggedIn).length,
-      activeVisitors: list.slice(0, 15)
+      liveOnlineCount: liveList.length,
+      activeVisitors: liveList.slice(0, 20),
+      uniqueVisitorsCount: uniqueVisitorRegistry.size
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -66,7 +117,7 @@ export const recordHeartbeat = async (req, res) => {
  */
 export const recordProductView = async (req, res) => {
   try {
-    const { productId, productSlug, productName, user } = req.body;
+    const { productId, productSlug, productName, visitorId, user } = req.body;
     
     // Increment viewCount on product in db
     if (productId || productSlug) {
@@ -83,15 +134,18 @@ export const recordProductView = async (req, res) => {
       }).catch(() => {});
     }
 
+    const vid = visitorId || user?.id || 'visitor';
+    const shortCode = String(vid).replace(/^vid_/, '').slice(0, 6).toUpperCase();
+
     // Log in database
     await logActivity({
-      adminUserId: user?.id || 'visitor',
-      adminEmail: user?.email || user?.phone || 'visitor',
+      adminUserId: vid,
+      adminEmail: user?.email || user?.phone || 'visitor@venm.exe',
       action: 'PRODUCT_VIEW',
       entityType: 'PRODUCT',
       entityId: productId || productSlug,
       entityName: productName || 'Product Look',
-      description: `${user?.name ? `${user.name} (${user.email || user.phone || 'client'})` : 'Visitor'} viewed "${productName || 'look'}"`
+      description: `Visitor #${shortCode} viewed "${productName || 'look'}"`
     }).catch(() => {});
 
     res.json({ success: true });
@@ -118,13 +172,11 @@ export const getLiveUserAnalytics = async (req, res) => {
     today.setHours(0, 0, 0, 0);
 
     const [
-      totalUsers,
       allActivityLogs,
       todayInquiriesCount,
       totalInquiriesCount,
       allProducts
     ] = await Promise.all([
-      db.user.count(),
       db.activityLog.findMany({
         where: {
           createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // last 24h
@@ -162,17 +214,15 @@ export const getLiveUserAnalytics = async (req, res) => {
       };
     });
 
-    // Count user logins & logouts in last 24 hours / today
-    const loginsToday = allActivityLogs.filter(
-      (l) => (l.action === 'USER_LOGIN' || l.action === 'ADMIN_LOGIN') && new Date(l.createdAt) >= today
-    ).length;
-
-    const logoutsToday = allActivityLogs.filter(
-      (l) => (l.action === 'USER_LOGOUT' || l.action === 'LOGOUT') && new Date(l.createdAt) >= today
-    ).length;
+    // Compute unique visitors
+    const todayVisitorsList = Array.from(uniqueVisitorRegistry.values()).filter(
+      (v) => new Date(v.lastSeen) >= today
+    );
+    const uniqueVisitorsTodayCount = Math.max(todayVisitorsList.length, currentOnline.length);
+    const uniqueVisitorsTotalCount = Math.max(uniqueVisitorRegistry.size, uniqueVisitorsTodayCount);
 
     const viewsToday = allActivityLogs.filter(
-      (l) => l.action === 'PRODUCT_VIEW' && new Date(l.createdAt) >= today
+      (l) => (l.action === 'PRODUCT_VIEW' || l.action === 'VISITOR_EXPLORATION') && new Date(l.createdAt) >= today
     ).length;
 
     // Build timeline for chart (hourly slots for last 12 hours)
@@ -189,36 +239,52 @@ export const getLiveUserAnalytics = async (req, res) => {
         return t >= slotStart && t < slotEnd;
       });
 
+      const uniqueInSlot = new Set(slotLogs.map(l => l.adminUserId).filter(Boolean)).size;
+
       timelineSlots.push({
         time: hourStr,
-        logins: slotLogs.filter((l) => l.action === 'USER_LOGIN' || l.action === 'ADMIN_LOGIN').length,
-        logouts: slotLogs.filter((l) => l.action === 'USER_LOGOUT' || l.action === 'LOGOUT').length,
-        views: slotLogs.filter((l) => l.action === 'PRODUCT_VIEW').length,
-        inquiries: slotLogs.filter((l) => l.action === 'INQUIRY_CREATED').length
+        visitors: Math.max(uniqueInSlot, slotLogs.filter(l => l.action === 'VISITOR_EXPLORATION').length),
+        views: slotLogs.filter((l) => l.action === 'PRODUCT_VIEW' || l.action === 'VISITOR_EXPLORATION').length,
+        inquiries: slotLogs.filter((l) => l.action === 'INQUIRY_CREATED' || l.action === 'INQUIRY_FORM_SUBMITTED').length
       });
     }
 
     res.json({
       liveOnline: {
-        total: Math.max(currentOnline.length, 1), // At least admin viewing
-        loggedInUsers: currentOnline.filter(v => v.isLoggedIn).length,
-        guestVisitors: currentOnline.filter(v => !v.isLoggedIn).length,
+        total: currentOnline.length,
         activeList: currentOnline
       },
-      userMetrics: {
-        totalRegisteredUsers: totalUsers,
-        loginsToday,
-        logoutsToday,
-        viewsToday,
+      visitorMetrics: {
+        uniqueVisitorsToday: uniqueVisitorsTodayCount,
+        uniqueVisitorsTotal: uniqueVisitorsTotalCount,
+        viewsToday: Math.max(viewsToday, currentOnline.reduce((acc, v) => acc + (v.totalExplored || 1), 0)),
         inquiriesToday: todayInquiriesCount,
         inquiriesTotal: totalInquiriesCount
       },
       mostVisitedProducts,
       activityTimeline: timelineSlots,
-      recentUserEvents: allActivityLogs.slice(0, 20)
+      recentUserEvents: allActivityLogs.slice(0, 30)
     });
   } catch (err) {
     console.error('[GET LIVE USER ANALYTICS ERROR]', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * GET /api/admin/activity/visitors
+ * Detailed unique visitor journeys and exploration history
+ */
+export const getUniqueVisitors = async (req, res) => {
+  try {
+    const visitors = Array.from(uniqueVisitorRegistry.values()).sort(
+      (a, b) => new Date(b.lastSeen) - new Date(a.lastSeen)
+    );
+    res.json({
+      totalUniqueVisitors: visitors.length,
+      visitors
+    });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };

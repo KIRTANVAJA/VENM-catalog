@@ -47,12 +47,25 @@ const ScrollToTop = () => {
   return null;
 };
 
-// Real-time visitor presence heartbeat tracker for live admin analytics
+// Real-time unique visitor presence and site exploration tracker for admin analytics
 const VisitorPresenceTracker = () => {
   const { pathname } = useLocation();
   const { currentUser } = useAuth();
 
   useEffect(() => {
+    // 1. Persistent Unique Visitor ID (persists across visits, browser restarts, and days)
+    let visitorId = null;
+    try {
+      visitorId = localStorage.getItem('venm_unique_visitor_id');
+      if (!visitorId) {
+        visitorId = 'vid_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+        localStorage.setItem('venm_unique_visitor_id', visitorId);
+      }
+    } catch (e) {
+      visitorId = 'vid_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+    }
+
+    // 2. Tab Session ID (tracks specific active browsing session)
     let sessionId = null;
     try {
       sessionId = sessionStorage.getItem('venm_session_id');
@@ -64,16 +77,24 @@ const VisitorPresenceTracker = () => {
       sessionId = 'sess_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
     }
 
+    // Detect Device Type
+    const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const deviceType = isMobile ? 'Mobile' : 'Desktop';
+
     const sendBeat = () => {
       apiSendHeartbeat({
+        visitorId,
         sessionId,
         user: currentUser,
-        currentPath: pathname
+        currentPath: pathname,
+        pageTitle: document.title || pathname,
+        device: deviceType,
+        referrer: typeof document !== 'undefined' ? document.referrer : ''
       });
     };
 
     sendBeat();
-    const interval = setInterval(sendBeat, 20000);
+    const interval = setInterval(sendBeat, 15000);
 
     return () => clearInterval(interval);
   }, [pathname, currentUser]);
@@ -112,8 +133,6 @@ const App = () => {
         <VisitorPresenceTracker />
         {/* Global Shortcut Listener for Ctrl+Shift+A Passkey Modal */}
         <AdminPasskeyModal />
-        {/* Global Client & Admin Authentication Modal */}
-        <AuthModal />
 
         <Routes>
           {/* PUBLIC CATALOG ROUTES */}
@@ -157,22 +176,10 @@ const App = () => {
               </PublicLayout>
             }
           />
-          <Route
-            path="/login"
-            element={
-              <PublicLayout>
-                <Login />
-              </PublicLayout>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <PublicLayout>
-                <Profile />
-              </PublicLayout>
-            }
-          />
+          {/* Customer login/register removed: redirect smoothly to home */}
+          <Route path="/login" element={<Navigate to="/" replace />} />
+          <Route path="/register" element={<Navigate to="/" replace />} />
+          <Route path="/profile" element={<Navigate to="/" replace />} />
 
           {/* ADMIN PANEL ROUTES */}
           <Route path="/admin/login" element={<AdminLogin />} />

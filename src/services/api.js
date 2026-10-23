@@ -266,6 +266,10 @@ export function apiGetLiveUserAnalytics() {
   return request('/admin/activity/live-analytics');
 }
 
+export function apiGetUniqueVisitors() {
+  return request('/admin/activity/visitors');
+}
+
 export function apiSendHeartbeat(data) {
   return request('/analytics/heartbeat', {
     method: 'POST',

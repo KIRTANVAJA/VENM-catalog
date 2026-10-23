@@ -19,6 +19,7 @@ import {
   Crop
 } from 'lucide-react';
 import ImageAdjusterModal from '../components/ImageAdjusterModal';
+import { sanitizeImageUrl, sanitizeImageArray } from '../../lib/pathSanitizer';
 
 const AdminProductForm = ({ mode = 'create' }) => {
   const { id } = useParams();
@@ -444,11 +445,8 @@ const AdminProductForm = ({ mode = 'create' }) => {
                   onClick={() => {
                     const input = document.getElementById('new-img-input');
                     if (input && input.value.trim()) {
-                      let val = input.value.trim();
-                      if (!val.startsWith('http') && !val.startsWith('data:') && !val.startsWith('/')) {
-                        val = '/' + val;
-                      }
-                      setFormData({ ...formData, images: [...(formData.images || []), val] });
+                      const cleanVal = sanitizeImageUrl(input.value.trim());
+                      setFormData({ ...formData, images: [...(formData.images || []), cleanVal] });
                       input.value = '';
                     }
                   }}

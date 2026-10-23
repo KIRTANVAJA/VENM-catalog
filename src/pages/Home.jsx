@@ -33,10 +33,6 @@ const Home = () => {
   const [referenceViewMode, setReferenceViewMode] = useState('coverflow');
 
   const handleInquire = (product) => {
-    if (!isAuthenticated) {
-      openLoginModal('login', 'inquiry_required');
-      return;
-    }
     setActiveInquiryProduct(product);
   };
 
