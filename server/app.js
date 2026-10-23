@@ -54,22 +54,44 @@ app.use(cookieParser());
 // Static uploads / public directory serving
 app.use('/assets', express.static(path.join(__dirname, '../public/assets')));
 
-// Health Check
+// Health Check & Database Diagnostics
 app.get('/api/health', async (req, res) => {
   const dbConfigured = Boolean(process.env.DATABASE_URL);
   let dbStatus = 'NOT_CONFIGURED';
+  let diagnostics = null;
+
   if (dbConfigured) {
     try {
-      await prisma.$queryRaw`SELECT 1`;
+      const rows = await prisma.$queryRaw`
+        SELECT 
+          current_database() AS db_name, 
+          current_schema() AS schema_name,
+          (SELECT count(*)::int FROM information_schema.tables WHERE table_schema = current_schema()) AS table_count
+      `;
       dbStatus = 'CONNECTED';
+
+      let activeHost = 'UNKNOWN';
+      try {
+        const u = new URL(process.env.DATABASE_URL);
+        activeHost = u.hostname;
+      } catch (err) {}
+
+      diagnostics = {
+        host: activeHost,
+        database: rows[0]?.db_name || null,
+        schema: rows[0]?.schema_name || null,
+        tableCount: Number(rows[0]?.table_count || 0)
+      };
     } catch (e) {
       dbStatus = `ERROR: ${e.message}`;
     }
   }
+
   res.json({
     status: dbStatus === 'CONNECTED' ? 'OK' : 'DEGRADED',
     message: 'VENM API ONLINE',
     database: dbStatus,
+    diagnostics,
     timestamp: new Date()
   });
 });
