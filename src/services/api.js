@@ -413,7 +413,7 @@ export function apiUpdateHomepageSection(data) {
 }
 
 // ----------------------------------------------------
-// MEDIA LIBRARY API
+// MEDIA LIBRARY & CLOUDINARY UPLOAD API
 // ----------------------------------------------------
 export function apiGetMedia() {
   return request('/media');
@@ -428,6 +428,85 @@ export function apiCreateMedia(data) {
 
 export function apiDeleteMedia(id) {
   return request(`/media/${id}`, { method: 'DELETE' });
+}
+
+export async function apiGetUploadSignature(folder = 'venm-catalog/products') {
+  const query = folder ? `?folder=${encodeURIComponent(folder)}` : '';
+  return request(`/media/upload-signature${query}`);
+}
+
+/**
+ * Uploads an image File or Blob directly from the browser to Cloudinary.
+ * The binary file never touches the Vercel backend serverless function,
+ * completely avoiding FUNCTION_PAYLOAD_TOO_LARGE.
+ *
+ * @param {File|Blob} fileOrBlob - The image file or canvas blob to upload.
+ * @param {Object} signatureData - The signed upload parameters from apiGetUploadSignature.
+ * @param {Function} [onProgress] - Optional callback receiving progress percentage (0 - 100).
+ * @returns {Promise<{ secure_url: string, public_id: string, width: number, height: number, bytes: number }>}
+ */
+export function apiDirectCloudinaryUpload(fileOrBlob, signatureData, onProgress) {
+  return new Promise((resolve, reject) => {
+    if (!signatureData || !signatureData.signature || !signatureData.cloudName || !signatureData.apiKey) {
+      return reject(new Error('Invalid or missing Cloudinary upload credentials.'));
+    }
+
+    const formData = new FormData();
+    formData.append('file', fileOrBlob);
+    formData.append('api_key', signatureData.apiKey);
+    formData.append('timestamp', signatureData.timestamp);
+    formData.append('signature', signatureData.signature);
+    if (signatureData.folder) {
+      formData.append('folder', signatureData.folder);
+    }
+
+    const xhr = new XMLHttpRequest();
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${signatureData.cloudName}/image/upload`;
+
+    xhr.open('POST', uploadUrl);
+
+    if (xhr.upload && onProgress) {
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percent = Math.round((event.loaded / event.total) * 100);
+          onProgress(percent);
+        }
+      };
+    }
+
+    xhr.onload = () => {
+      let response;
+      try {
+        response = JSON.parse(xhr.responseText);
+      } catch (e) {
+        response = { message: xhr.responseText };
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve({
+          secure_url: response.secure_url || response.url,
+          public_id: response.public_id,
+          width: response.width,
+          height: response.height,
+          bytes: response.bytes,
+          format: response.format
+        });
+      } else {
+        const errorMsg = response?.error?.message || response?.message || `Upload failed with HTTP ${xhr.status}`;
+        reject(new Error(errorMsg));
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new Error('Network error occurred during direct Cloudinary upload.'));
+    };
+
+    xhr.ontimeout = () => {
+      reject(new Error('Cloudinary upload timed out. Please check network connection.'));
+    };
+
+    xhr.send(formData);
+  });
 }
 
 // ----------------------------------------------------

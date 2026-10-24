@@ -1,5 +1,35 @@
 import prisma from '../config/db.js';
 import { logActivity } from '../utils/activityLogger.js';
+import {
+  isCloudinaryConfigured,
+  generateSignedUploadParams,
+  safeDeleteCloudinaryAssetIfUnused
+} from '../config/cloudinary.js';
+
+export const getUploadSignature = async (req, res) => {
+  try {
+    if (!isCloudinaryConfigured()) {
+      return res.status(200).json({
+        configured: false,
+        message: 'Cloudinary credentials are not configured. Please add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to your environment variables.'
+      });
+    }
+
+    const folder = req.query.folder || req.body?.folder || 'venm-catalog/products';
+    const params = generateSignedUploadParams(folder);
+
+    res.json({
+      configured: true,
+      ...params
+    });
+  } catch (error) {
+    res.status(500).json({
+      configured: false,
+      message: 'FAILED TO GENERATE UPLOAD SIGNATURE',
+      error: error.message
+    });
+  }
+};
 
 export const getMedia = async (req, res) => {
   try {
@@ -37,7 +67,14 @@ export const createMedia = async (req, res) => {
 export const deleteMedia = async (req, res) => {
   try {
     const { id } = req.params;
+    const existing = await prisma.media.findUnique({ where: { id } });
+
     await prisma.media.delete({ where: { id } });
+
+    // Safely cleanup from Cloudinary if unused elsewhere
+    if (existing?.url) {
+      await safeDeleteCloudinaryAssetIfUnused(existing.url);
+    }
 
     await logActivity({
       adminUserId: req.user?.id || 'admin-1',

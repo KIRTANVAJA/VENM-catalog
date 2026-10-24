@@ -1,6 +1,40 @@
 import prisma from '../config/db.js';
 import { logActivity } from '../utils/activityLogger.js';
 import { sanitizeImageArray } from '../utils/pathSanitizer.js';
+import { safeDeleteCloudinaryAssetIfUnused } from '../config/cloudinary.js';
+
+/**
+ * Checks whether any image in the given array/string is a direct Base64 or Data URL.
+ * Base64 payload embeddings are forbidden in product API routes to guarantee
+ * that request sizes stay tiny and never cause Vercel FUNCTION_PAYLOAD_TOO_LARGE.
+ */
+function containsBase64Image(images) {
+  if (!images) return false;
+  let list = [];
+  if (Array.isArray(images)) {
+    list = images;
+  } else if (typeof images === 'string') {
+    if (images.trim().startsWith('[')) {
+      try {
+        list = JSON.parse(images);
+      } catch (e) {
+        list = [images];
+      }
+    } else {
+      list = [images];
+    }
+  }
+
+  return list.some((img) => {
+    if (typeof img !== 'string') return false;
+    const trimmed = img.trim();
+    return (
+      trimmed.startsWith('data:image/') ||
+      trimmed.startsWith('data:application/') ||
+      (trimmed.length > 2000 && !trimmed.startsWith('http://') && !trimmed.startsWith('https://') && !trimmed.startsWith('/'))
+    );
+  });
+}
 
 export const getProducts = async (req, res) => {
   try {
@@ -129,6 +163,13 @@ export const createProduct = async (req, res) => {
       return res.status(400).json({ message: 'REFERENCE NAME IS REQUIRED' });
     }
 
+    // STRICT CHECK: Reject any Base64 image payload
+    if (containsBase64Image(images)) {
+      return res.status(400).json({
+        message: 'INVALID_IMAGE_PAYLOAD: Direct Base64 image data is not permitted. All images must be uploaded to Cloudinary storage and submitted as secure URLs.'
+      });
+    }
+
     let finalSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const existing = await prisma.product.findUnique({ where: { slug: finalSlug } });
     if (existing) {
@@ -200,6 +241,13 @@ export const updateProduct = async (req, res) => {
       return res.status(404).json({ message: 'PRODUCT NOT FOUND' });
     }
 
+    // STRICT CHECK: Reject any Base64 image payload
+    if (body.images !== undefined && containsBase64Image(body.images)) {
+      return res.status(400).json({
+        message: 'INVALID_IMAGE_PAYLOAD: Direct Base64 image data is not permitted. All images must be uploaded to Cloudinary storage and submitted as secure URLs.'
+      });
+    }
+
     const dataToUpdate = { ...body };
     delete dataToUpdate.id;
     delete dataToUpdate.collection;
@@ -260,9 +308,18 @@ export const deleteProduct = async (req, res) => {
       return res.status(404).json({ message: 'PRODUCT NOT FOUND' });
     }
 
+    const existingImages = typeof existing.images === 'string' ? JSON.parse(existing.images || '[]') : (existing.images || []);
+
     await prisma.product.delete({
       where: { id: existing.id }
     });
+
+    // Safely cleanup Cloudinary images if unused by other entities
+    for (const imgUrl of existingImages) {
+      safeDeleteCloudinaryAssetIfUnused(imgUrl, existing.id).catch((err) => {
+        console.warn(`[PRODUCT DELETE] Error checking asset "${imgUrl}":`, err.message);
+      });
+    }
 
     await logActivity({
       adminUserId: req.user?.id || 'admin-1',

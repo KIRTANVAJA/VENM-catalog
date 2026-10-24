@@ -10,8 +10,10 @@ import {
   Move,
   ZoomIn,
   Crop,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
+import { apiGetUploadSignature, apiDirectCloudinaryUpload } from '../../services/api';
 
 const ASPECT_RATIOS = [
   { label: '3:4 (Garment Look)', value: '3:4', w: 3, h: 4 },
@@ -103,24 +105,59 @@ const ImageAdjusterModal = ({ isOpen, imageUrl, onSave, onClose, defaultAspect =
     ctx.restore();
   };
 
-  const handleApply = () => {
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
+
+  const handleApply = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     setIsProcessing(true);
-    setTimeout(() => {
-      try {
-        const dataUrl = canvas.toDataURL('image/webp', 0.92);
-        onSave(dataUrl);
-        setIsProcessing(false);
-        onClose();
-      } catch (err) {
-        // Fallback to jpeg if webp unsupported
-        const fallbackUrl = canvas.toDataURL('image/jpeg', 0.9);
-        onSave(fallbackUrl);
-        setIsProcessing(false);
-        onClose();
+    setErrorMessage(null);
+    setUploadProgress(0);
+
+    try {
+      // Convert canvas to Blob
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob(
+          (b) => {
+            if (b) resolve(b);
+            else reject(new Error('Failed to extract image from canvas.'));
+          },
+          'image/webp',
+          0.92
+        );
+      });
+
+      // Get secure signed upload params
+      const sigData = await apiGetUploadSignature('venm-catalog/products');
+      if (!sigData || !sigData.configured) {
+        throw new Error(
+          sigData?.message ||
+            'Cloudinary credentials are not configured. Cannot upload cropped image.'
+        );
       }
-    }, 100);
+
+      // Direct upload from browser to Cloudinary
+      const uploadResult = await apiDirectCloudinaryUpload(
+        blob,
+        sigData,
+        (percent) => {
+          setUploadProgress(percent);
+        }
+      );
+
+      if (uploadResult?.secure_url) {
+        onSave(uploadResult.secure_url);
+        setIsProcessing(false);
+        onClose();
+      } else {
+        throw new Error('Upload succeeded but no secure URL was returned.');
+      }
+    } catch (err) {
+      console.error('[IMAGE ADJUSTER] Cloudinary upload failed:', err);
+      setErrorMessage(err.message || 'Failed to upload adjusted image.');
+      setIsProcessing(false);
+    }
   };
 
   const handleReset = () => {
@@ -343,24 +380,50 @@ const ImageAdjusterModal = ({ isOpen, imageUrl, onSave, onClose, defaultAspect =
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-neutral-200 bg-white flex items-center justify-between font-mono">
-          <button
-            type="button"
-            onClick={onClose}
-            className="btn-venm-secondary text-xs px-5 py-2.5 uppercase font-bold"
-          >
-            CANCEL
-          </button>
+        <div className="p-4 border-t border-neutral-200 bg-white flex flex-col sm:flex-row items-center justify-between gap-3 font-mono">
+          <div className="flex-1 text-xs">
+            {errorMessage && (
+              <div className="text-red-600 flex items-center gap-1.5 font-bold">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+            {isProcessing && uploadProgress !== null && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[11px] font-bold text-neutral-800">
+                  <span>UPLOADING TO CLOUDINARY...</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-neutral-200 h-1.5 overflow-hidden">
+                  <div
+                    className="bg-lime-500 h-full transition-all duration-200"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
 
-          <button
-            type="button"
-            onClick={handleApply}
-            disabled={isProcessing}
-            className="btn-venm-primary bg-lime-400 text-neutral-900 hover:bg-lime-300 text-xs px-6 py-2.5 uppercase font-extrabold flex items-center gap-2 shadow-md"
-          >
-            <Check className="w-4 h-4" />
-            <span>{isProcessing ? 'PROCESSING...' : 'APPLY & SAVE ADJUSTED IMAGE'}</span>
-          </button>
+          <div className="flex items-center gap-3 self-end sm:self-auto">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isProcessing}
+              className="btn-venm-secondary text-xs px-5 py-2.5 uppercase font-bold disabled:opacity-50"
+            >
+              CANCEL
+            </button>
+
+            <button
+              type="button"
+              onClick={handleApply}
+              disabled={isProcessing}
+              className="btn-venm-primary bg-lime-400 text-neutral-900 hover:bg-lime-300 text-xs px-6 py-2.5 uppercase font-extrabold flex items-center gap-2 shadow-md disabled:opacity-50"
+            >
+              <Check className="w-4 h-4" />
+              <span>{isProcessing ? 'UPLOADING TO CLOUDINARY...' : 'APPLY & SAVE ADJUSTED IMAGE'}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -1,7 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getAdminMedia, addAdminMedia } from '../../data/adminMock';
-import { apiGetMedia, apiCreateMedia, apiDeleteMedia } from '../../services/api';
-import { Upload, Search, Trash2, Eye, CheckCircle2, X } from 'lucide-react';
+import {
+  apiGetMedia,
+  apiCreateMedia,
+  apiDeleteMedia,
+  apiGetUploadSignature,
+  apiDirectCloudinaryUpload
+} from '../../services/api';
+import { Upload, Search, Trash2, Eye, CheckCircle2, X, AlertTriangle, Loader2 } from 'lucide-react';
 import { BRAND_ASSETS } from '../../config/assets';
 
 const AdminMediaLibrary = () => {
@@ -11,9 +17,12 @@ const AdminMediaLibrary = () => {
 
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const [uploadingState, setUploadingState] = useState('idle');
+  const [uploadingState, setUploadingState] = useState('idle'); // 'idle' | 'uploading' | 'success' | 'error'
+  const [uploadError, setUploadError] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const [previewMedia, setPreviewMedia] = useState(null);
+  const fileInputRef = useRef(null);
 
   const loadMedia = async () => {
     try {
@@ -35,6 +44,63 @@ const AdminMediaLibrary = () => {
     const matchesCategory = categoryFilter === 'ALL' || m.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
+
+  const handleFileUpload = async (file) => {
+    if (!file) return;
+
+    setUploadingState('uploading');
+    setUploadError(null);
+    setUploadProgress(0);
+
+    try {
+      // 1. Get signed upload credentials
+      let sigData;
+      try {
+        sigData = await apiGetUploadSignature('venm-catalog/media');
+      } catch (e) {
+        sigData = { configured: false };
+      }
+
+      let persistentUrl = BRAND_ASSETS.FALLBACK_CAMPAIGN;
+      let assetSize = `${Math.round(file.size / 1024)} KB`;
+
+      if (sigData && sigData.configured) {
+        // Direct Cloudinary upload
+        const result = await apiDirectCloudinaryUpload(file, sigData, (p) => {
+          setUploadProgress(p);
+        });
+        persistentUrl = result.secure_url;
+      }
+
+      const newMediaObj = {
+        name: file.name,
+        category: categoryFilter !== 'ALL' ? categoryFilter : 'Products',
+        type: file.type || 'image/webp',
+        size: assetSize,
+        url: persistentUrl,
+        usedBy: 'Catalog Asset'
+      };
+
+      try {
+        const created = await apiCreateMedia(newMediaObj);
+        setMediaItems((prev) => [created, ...prev]);
+      } catch (err) {
+        const updated = addAdminMedia(newMediaObj);
+        setMediaItems([...updated]);
+      }
+
+      setUploadingState('success');
+      setTimeout(() => {
+        setUploadingState('idle');
+        setUploadModalOpen(false);
+      }, 1200);
+
+    } catch (err) {
+      console.error('[MEDIA UPLOAD] Failed:', err);
+      setUploadError(err.message || 'Upload failed');
+      setUploadingState('error');
+    }
+  };
 
   const handleSimulatedUpload = async (filename = 'new_campaign_look.webp') => {
     setUploadingState('uploading');
@@ -85,7 +151,11 @@ const AdminMediaLibrary = () => {
         </div>
 
         <button
-          onClick={() => setUploadModalOpen(true)}
+          onClick={() => {
+            setUploadError(null);
+            setUploadingState('idle');
+            setUploadModalOpen(true);
+          }}
           className="btn-venm-neon px-6 py-3 text-xs font-bold tracking-widest flex items-center justify-center gap-2 uppercase self-start sm:self-auto"
         >
           <Upload className="w-4 h-4 text-neutral-900" />
@@ -163,7 +233,7 @@ const AdminMediaLibrary = () => {
         ))}
       </div>
 
-      {/* Upload Simulation Modal */}
+      {/* Upload Modal */}
       {uploadModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="bg-white p-6 sm:p-8 max-w-lg w-full border border-neutral-300 shadow-xl space-y-6 relative">
@@ -176,10 +246,17 @@ const AdminMediaLibrary = () => {
 
             <div className="space-y-1 border-b border-neutral-200 pb-3">
               <span className="text-[10px] font-mono text-neutral-800 font-bold tracking-widest uppercase">
-                MEDIA UPLOADER
+                DIRECT STORAGE UPLOADER
               </span>
-              <h3 className="text-xl font-black text-neutral-900 uppercase">UPLOAD ASSET</h3>
+              <h3 className="text-xl font-black text-neutral-900 uppercase">UPLOAD BRAND ASSET</h3>
             </div>
+
+            {uploadError && (
+              <div className="p-3 bg-red-50 border border-red-300 text-red-700 text-xs font-mono flex items-center gap-2 font-bold">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                <span>{uploadError}</span>
+              </div>
+            )}
 
             <div
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -187,7 +264,12 @@ const AdminMediaLibrary = () => {
               onDrop={(e) => {
                 e.preventDefault();
                 setDragOver(false);
-                handleSimulatedUpload('dragged_asset.png');
+                const file = e.dataTransfer?.files?.[0];
+                if (file) {
+                  handleFileUpload(file);
+                } else {
+                  handleSimulatedUpload('dragged_asset.png');
+                }
               }}
               className={`p-10 border-2 border-dashed text-center space-y-3 transition-colors ${
                 dragOver ? 'border-lime-500 bg-lime-400/10' : 'border-neutral-300 bg-neutral-50'
@@ -198,24 +280,49 @@ const AdminMediaLibrary = () => {
                 <p className="text-xs font-bold text-neutral-900 uppercase">DRAG & DROP IMAGE HERE</p>
                 <p className="text-[10px] font-mono text-neutral-600 font-medium">SUPPORTS WEBP, PNG, JPG, AVIF (MAX 10MB)</p>
               </div>
-              <button
-                type="button"
-                onClick={() => handleSimulatedUpload('uploaded_asset.webp')}
-                className="btn-venm-outline px-4 py-2 text-xs font-mono font-bold uppercase"
-              >
-                BROWSE FILES
-              </button>
+
+              <div className="pt-2 flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="btn-venm-primary px-5 py-2.5 text-xs font-mono font-bold uppercase shadow-sm"
+                >
+                  BROWSE FILES
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload(file);
+                  }}
+                />
+              </div>
             </div>
 
             {uploadingState === 'uploading' && (
-              <div className="p-4 bg-lime-400/20 border border-lime-500 text-neutral-900 text-xs font-mono font-bold text-center animate-pulse">
-                UPLOADING MEDIA ASSET TO REGISTRY...
+              <div className="p-4 bg-neutral-900 text-white border border-neutral-800 space-y-2 font-mono">
+                <div className="flex items-center justify-between text-xs text-lime-400 font-bold">
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>UPLOADING TO STORAGE DIRECTLY...</span>
+                  </span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-neutral-800 h-2 overflow-hidden border border-neutral-700">
+                  <div
+                    className="bg-lime-400 h-full transition-all duration-200"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
               </div>
             )}
 
             {uploadingState === 'success' && (
               <div className="p-4 bg-lime-400 text-neutral-900 text-xs font-mono font-bold text-center flex items-center justify-center gap-2">
-                <CheckCircle2 className="w-4 h-4" /> ASSET UPLOADED SUCCESSFULLY!
+                <CheckCircle2 className="w-4 h-4" /> ASSET UPLOADED TO REGISTRY!
               </div>
             )}
           </div>

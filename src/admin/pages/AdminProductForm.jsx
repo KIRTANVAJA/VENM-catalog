@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   apiGetProductBySlug,
   apiCreateProduct,
   apiUpdateProduct,
-  apiDeleteProduct
+  apiDeleteProduct,
+  apiGetUploadSignature,
+  apiDirectCloudinaryUpload
 } from '../../services/api';
 import { getAdminProducts } from '../../data/adminMock';
 import {
@@ -16,14 +18,23 @@ import {
   X,
   AlertTriangle,
   CheckCircle2,
-  Crop
+  Crop,
+  Upload,
+  ArrowLeftSquare,
+  ArrowRightSquare,
+  Loader2,
+  Info
 } from 'lucide-react';
 import ImageAdjusterModal from '../components/ImageAdjusterModal';
 import { sanitizeImageUrl, sanitizeImageArray } from '../../lib/pathSanitizer';
 
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB max per file
+
 const AdminProductForm = ({ mode = 'create' }) => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     id: '',
@@ -49,8 +60,17 @@ const AdminProductForm = ({ mode = 'create' }) => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [newDetailText, setNewDetailText] = useState('');
 
+  // Upload Management State
+  const [uploadQueue, setUploadQueue] = useState({});
+  const [uploadErrors, setUploadErrors] = useState([]);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  // Image Adjuster Modal State
   const [adjusterImage, setAdjusterImage] = useState(null);
   const [adjusterIndex, setAdjusterIndex] = useState(null);
+
+  const isUploading = Object.values(uploadQueue).some((item) => item.status === 'uploading');
+  const activeUploadCount = Object.values(uploadQueue).filter((item) => item.status === 'uploading').length;
 
   const handleAdjusterSave = (adjustedUrl) => {
     if (adjusterIndex !== null && adjusterIndex >= 0) {
@@ -117,8 +137,154 @@ const AdminProductForm = ({ mode = 'create' }) => {
     setFormData({ ...formData, sizes: updated });
   };
 
+  /**
+   * DIRECT CLOUDINARY MULTI-IMAGE UPLOADER
+   * Validates file format & file size, generates secure backend upload signatures,
+   * uploads directly to Cloudinary without routing through Vercel serverless function,
+   * tracks live progress, and prevents Base64 explosion.
+   */
+  const handleFilesSelected = async (fileList) => {
+    if (!fileList || fileList.length === 0) return;
+    const files = Array.from(fileList);
+
+    const validationErrors = [];
+    const validFiles = [];
+
+    for (const file of files) {
+      if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+        validationErrors.push(`"${file.name}" has unsupported format (${file.type || 'unknown'}). Allowed formats: JPG, PNG, WebP, GIF, AVIF.`);
+        continue;
+      }
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        validationErrors.push(`"${file.name}" is ${(file.size / (1024 * 1024)).toFixed(1)}MB, exceeding the 10MB maximum limit.`);
+        continue;
+      }
+      validFiles.push(file);
+    }
+
+    if (validationErrors.length > 0) {
+      setUploadErrors((prev) => [...prev, ...validationErrors]);
+    }
+
+    if (validFiles.length === 0) return;
+
+    // Retrieve signed upload parameters from backend
+    let sigData;
+    try {
+      sigData = await apiGetUploadSignature('venm-catalog/products');
+    } catch (err) {
+      setUploadErrors((prev) => [...prev, `Failed to retrieve upload signature from backend: ${err.message}`]);
+      return;
+    }
+
+    if (!sigData || !sigData.configured) {
+      setUploadErrors((prev) => [
+        ...prev,
+        sigData?.message || 'Cloudinary credentials are not configured in environment variables. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET.'
+      ]);
+      return;
+    }
+
+    // Process valid files directly to Cloudinary
+    for (const file of validFiles) {
+      const fileId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+      setUploadQueue((prev) => ({
+        ...prev,
+        [fileId]: {
+          id: fileId,
+          name: file.name,
+          size: (file.size / 1024).toFixed(0) + ' KB',
+          progress: 0,
+          status: 'uploading',
+          error: null
+        }
+      }));
+
+      try {
+        const uploadRes = await apiDirectCloudinaryUpload(file, sigData, (percent) => {
+          setUploadQueue((prev) => (prev[fileId] ? {
+            ...prev,
+            [fileId]: { ...prev[fileId], progress: percent }
+          } : prev));
+        });
+
+        if (uploadRes?.secure_url) {
+          setUploadQueue((prev) => (prev[fileId] ? {
+            ...prev,
+            [fileId]: { ...prev[fileId], progress: 100, status: 'completed' }
+          } : prev));
+
+          // Append persistent HTTPS URL to product images
+          setFormData((prev) => ({
+            ...prev,
+            images: [...(prev.images || []), uploadRes.secure_url]
+          }));
+
+          // Clean up finished item from queue after a brief moment
+          setTimeout(() => {
+            setUploadQueue((prev) => {
+              const next = { ...prev };
+              delete next[fileId];
+              return next;
+            });
+          }, 2500);
+        } else {
+          throw new Error('Cloudinary did not return a secure URL.');
+        }
+      } catch (err) {
+        console.error(`[IMAGE UPLOAD] Error uploading ${file.name}:`, err);
+        setUploadQueue((prev) => (prev[fileId] ? {
+          ...prev,
+          [fileId]: { ...prev[fileId], status: 'error', error: err.message || 'Upload failed' }
+        } : prev));
+        setUploadErrors((prev) => [...prev, `Upload failed for "${file.name}": ${err.message}`]);
+      }
+    }
+
+    // Reset file input value so same files can be re-selected if desired
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleMoveImage = (idx, direction) => {
+    const currentImages = [...(formData.images || [])];
+    if (direction === 'left' && idx > 0) {
+      const temp = currentImages[idx];
+      currentImages[idx] = currentImages[idx - 1];
+      currentImages[idx - 1] = temp;
+      setFormData({ ...formData, images: currentImages });
+    } else if (direction === 'right' && idx < currentImages.length - 1) {
+      const temp = currentImages[idx];
+      currentImages[idx] = currentImages[idx + 1];
+      currentImages[idx + 1] = temp;
+      setFormData({ ...formData, images: currentImages });
+    }
+  };
+
+  const handleSetCover = (idx) => {
+    if (idx === 0) return;
+    const currentImages = [...(formData.images || [])];
+    const [selected] = currentImages.splice(idx, 1);
+    currentImages.unshift(selected);
+    setFormData({ ...formData, images: currentImages });
+  };
+
+  const handleRemoveImage = (idx) => {
+    const currentImages = formData.images.filter((_, i) => i !== idx);
+    setFormData({ ...formData, images: currentImages });
+  };
+
   const handleSubmit = async (e, statusOverride = null) => {
     if (e) e.preventDefault();
+
+    if (isUploading) {
+      setIsErrorToast(true);
+      setToastMessage('UPLOADS IN PROGRESS: PLEASE WAIT FOR IMAGES TO FINISH');
+      return;
+    }
+
     if (isSaving) return;
 
     setIsSaving(true);
@@ -203,19 +369,27 @@ const AdminProductForm = ({ mode = 'create' }) => {
 
           <button
             onClick={(e) => handleSubmit(e, 'DRAFT')}
-            disabled={isSaving}
+            disabled={isSaving || isUploading}
             className="btn-venm-secondary px-4 py-2.5 text-xs font-bold tracking-widest uppercase disabled:opacity-50"
           >
-            {isSaving ? 'SAVING...' : 'SAVE DRAFT'}
+            {isUploading ? `UPLOADING (${activeUploadCount})...` : (isSaving ? 'SAVING...' : 'SAVE DRAFT')}
           </button>
 
           <button
             onClick={(e) => handleSubmit(e)}
-            disabled={isSaving}
+            disabled={isSaving || isUploading}
             className="btn-venm-primary px-6 py-2.5 text-xs font-bold tracking-widest uppercase flex items-center gap-2 disabled:opacity-50"
           >
-            <Save className="w-4 h-4 text-white" />
-            <span>{isSaving ? 'SAVING TO DB...' : (mode === 'create' ? 'PUBLISH PRODUCT' : 'SAVE CHANGES')}</span>
+            {isUploading ? (
+              <Loader2 className="w-4 h-4 animate-spin text-white" />
+            ) : (
+              <Save className="w-4 h-4 text-white" />
+            )}
+            <span>
+              {isUploading
+                ? `UPLOADING (${activeUploadCount} REMAINING)...`
+                : (isSaving ? 'SAVING TO DB...' : (mode === 'create' ? 'PUBLISH PRODUCT' : 'SAVE CHANGES'))}
+            </span>
           </button>
         </div>
       </div>
@@ -308,55 +482,229 @@ const AdminProductForm = ({ mode = 'create' }) => {
           </div>
         </div>
 
-        {/* Section 2: Images */}
+        {/* Section 2: Images (DIRECT STORAGE & MULTI-IMAGE UPLOADER) */}
         <div className="bg-white p-6 sm:p-8 border border-neutral-200 space-y-6">
-          <h3 className="text-xs font-mono text-neutral-500 tracking-[0.25em] uppercase border-b border-neutral-200 pb-3 font-semibold">
-            2. PRODUCT MEDIA & IMAGES
-          </h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-200 pb-3 gap-2">
+            <div>
+              <h3 className="text-xs font-mono text-neutral-800 tracking-[0.25em] uppercase font-bold">
+                2. PRODUCT MEDIA & MULTIPLE IMAGES
+              </h3>
+              <p className="text-[11px] font-mono text-neutral-500 mt-0.5">
+                Supports 5+ high-res images per product. Uploads directly to Cloudinary storage.
+              </p>
+            </div>
+            <span className="px-2.5 py-1 bg-neutral-900 text-lime-400 font-mono text-[11px] font-bold self-start sm:self-auto">
+              ATTACHED: {formData.images?.length || 0} / 5+ RECOMMENDED
+            </span>
+          </div>
 
-          <div className="space-y-4">
+          {/* Validation & Error Banners */}
+          {uploadErrors.length > 0 && (
+            <div className="p-4 bg-red-50 border border-red-300 text-red-700 text-xs font-mono space-y-1.5">
+              <div className="flex items-center justify-between font-bold">
+                <span className="flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-red-600" />
+                  <span>UPLOAD ISSUES ENCOUNTERED:</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setUploadErrors([])}
+                  className="text-red-600 hover:text-black uppercase text-[10px] underline font-bold"
+                >
+                  DISMISS
+                </button>
+              </div>
+              <ul className="list-disc list-inside space-y-1 pl-1">
+                {uploadErrors.map((errMsg, errIdx) => (
+                  <li key={errIdx} className="text-[11px]">{errMsg}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Active Upload Queue Progress Cards */}
+          {Object.keys(uploadQueue).length > 0 && (
+            <div className="p-4 bg-neutral-900 text-white border border-neutral-800 space-y-3 font-mono">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold uppercase tracking-wider text-lime-400 flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>DIRECT STORAGE UPLOADS IN PROGRESS ({activeUploadCount} ACTIVE)</span>
+                </span>
+                <span className="text-[10px] text-neutral-400">PUBLISHING LOCKED UNTIL COMPLETED</span>
+              </div>
+
+              <div className="space-y-2">
+                {Object.values(uploadQueue).map((item) => (
+                  <div key={item.id} className="p-2.5 bg-neutral-800 border border-neutral-700 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-bold truncate max-w-xs">{item.name} ({item.size})</span>
+                      <span className={`font-bold uppercase ${
+                        item.status === 'completed'
+                          ? 'text-lime-400'
+                          : item.status === 'error'
+                          ? 'text-red-400'
+                          : 'text-neutral-300'
+                      }`}>
+                        {item.status === 'completed' ? '✓ UPLOADED' : item.status === 'error' ? 'FAILED' : `${item.progress}%`}
+                      </span>
+                    </div>
+
+                    <div className="w-full bg-neutral-900 h-2 overflow-hidden border border-neutral-700">
+                      <div
+                        className={`h-full transition-all duration-300 ${
+                          item.status === 'completed'
+                            ? 'bg-lime-400'
+                            : item.status === 'error'
+                            ? 'bg-red-500'
+                            : 'bg-lime-500'
+                        }`}
+                        style={{ width: `${item.progress}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Drag & Drop Multi-Image Dropzone */}
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setIsDragOver(true);
+            }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsDragOver(false);
+              if (e.dataTransfer?.files) {
+                handleFilesSelected(e.dataTransfer.files);
+              }
+            }}
+            className={`p-8 border-2 border-dashed text-center space-y-3 transition-colors ${
+              isDragOver
+                ? 'border-lime-500 bg-lime-400/10'
+                : 'border-neutral-300 bg-neutral-50 hover:bg-neutral-100/60'
+            }`}
+          >
+            <Upload className="w-10 h-10 text-neutral-800 mx-auto" />
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-neutral-900 uppercase tracking-wider">
+                DRAG & DROP MULTIPLE PRODUCT PHOTOS HERE (SELECT 5+ IMAGES)
+              </p>
+              <p className="text-[11px] font-mono text-neutral-600">
+                Supports JPG, PNG, WebP, AVIF up to 10MB per photo. Uploads directly to Cloudinary storage.
+              </p>
+            </div>
+
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+              <label className="btn-venm-primary px-5 py-2.5 text-xs font-mono font-bold flex items-center justify-center gap-2 cursor-pointer shadow-md">
+                <Upload className="w-4 h-4 text-white" />
+                <span>CHOOSE IMAGES FROM DEVICE (MULTI-SELECT)</span>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files) {
+                      handleFilesSelected(e.target.files);
+                    }
+                  }}
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Grid of Attached Product Images */}
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-[10px] font-mono text-neutral-500 tracking-widest uppercase">
-                PRODUCT IMAGES ({formData.images?.length || 0} ATTACHED)
+              <label className="text-[10px] font-mono text-neutral-600 tracking-widest uppercase font-bold">
+                ATTACHED IMAGES ({formData.images?.length || 0}) — FIRST IMAGE IS MAIN COVER
               </label>
               <span className="text-[10px] font-mono text-neutral-500">
-                FIRST IMAGE WILL BE USED AS MAIN COVER ON CATALOG CARDS & HOMEPAGE
+                DRAG OR USE CONTROLS TO REORDER / SET COVER
               </span>
             </div>
 
             {(!formData.images || formData.images.length === 0) ? (
-              <div className="p-8 text-center bg-neutral-50 border-2 border-dashed border-neutral-300 space-y-2">
+              <div className="p-6 text-center bg-neutral-50 border border-neutral-200 space-y-1.5">
                 <p className="text-xs font-mono font-bold text-neutral-700 uppercase">
                   NO IMAGES ATTACHED YET
                 </p>
                 <p className="text-[11px] text-neutral-500 font-sans">
-                  Upload an image from your device, pick a studio sample below, or enter an image URL to showcase this piece on the site.
+                  Use the multi-file uploader above or select studio samples below to add 4 to 5 photos for this product.
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {formData.images.map((img, idx) => (
-                  <div key={idx} className={`relative group p-2 border ${idx === 0 ? 'bg-neutral-900/5 border-neutral-900 shadow-sm' : 'bg-neutral-50 border-neutral-200'}`}>
-                    <img
-                      src={img}
-                      alt={`Asset ${idx}`}
-                      className="w-full h-44 object-cover bg-neutral-100 border border-neutral-200"
-                      onError={(e) => {
-                        e.target.src = '/assets/products/Denim Jacket.jpg';
-                      }}
-                    />
-                    <div className="pt-2 flex items-center justify-between text-[10px] font-mono">
-                      <span className={`px-1.5 py-0.5 font-bold uppercase ${idx === 0 ? 'bg-neutral-900 text-lime-400' : 'bg-neutral-200 text-neutral-700'}`}>
-                        {idx === 0 ? '★ MAIN COVER' : `IMAGE #${idx + 1}`}
-                      </span>
-                      <div className="flex items-center gap-2">
+                  <div
+                    key={idx}
+                    className={`relative p-2.5 border transition-all ${
+                      idx === 0
+                        ? 'bg-neutral-900/5 border-neutral-900 shadow-md ring-1 ring-neutral-900'
+                        : 'bg-neutral-50 border-neutral-200 hover:border-neutral-400'
+                    }`}
+                  >
+                    <div className="relative aspect-[3/4] bg-neutral-100 border border-neutral-200 overflow-hidden">
+                      <img
+                        src={img}
+                        alt={`Asset ${idx + 1}`}
+                        className="w-full h-full object-cover object-center"
+                        onError={(e) => {
+                          e.target.src = '/assets/products/Denim Jacket.jpg';
+                        }}
+                      />
+                      {idx === 0 && (
+                        <div className="absolute top-2 left-2 bg-neutral-900 text-lime-400 font-mono text-[9px] font-extrabold px-2 py-0.5 uppercase tracking-wider shadow-md border border-lime-400/30">
+                          ★ MAIN COVER
+                        </div>
+                      )}
+                      <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-xs text-white font-mono text-[10px] px-1.5 py-0.5">
+                        #{idx + 1}
+                      </div>
+                    </div>
+
+                    {/* Image Action Controls */}
+                    <div className="pt-2.5 space-y-2 text-[10px] font-mono">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-neutral-700 uppercase">
+                          {idx === 0 ? 'MAIN COVER PHOTO' : `IMAGE #${idx + 1}`}
+                        </span>
+
+                        {/* Move Order Buttons */}
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleMoveImage(idx, 'left')}
+                            disabled={idx === 0}
+                            title="Move Image Left / Up"
+                            className="p-1 text-neutral-700 hover:text-black hover:bg-neutral-200 disabled:opacity-20 border border-neutral-300"
+                          >
+                            <ArrowLeftSquare className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveImage(idx, 'right')}
+                            disabled={idx === formData.images.length - 1}
+                            title="Move Image Right / Down"
+                            className="p-1 text-neutral-700 hover:text-black hover:bg-neutral-200 disabled:opacity-20 border border-neutral-300"
+                          >
+                            <ArrowRightSquare className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1 border-t border-neutral-200">
                         <button
                           type="button"
                           onClick={() => {
                             setAdjusterIndex(idx);
                             setAdjusterImage(img);
                           }}
-                          className="px-2 py-0.5 bg-lime-400 text-neutral-900 hover:bg-lime-300 font-mono font-extrabold uppercase flex items-center gap-1 border border-neutral-900 shadow-xs"
+                          className="px-2 py-1 bg-lime-400 text-neutral-900 hover:bg-lime-300 font-mono font-extrabold uppercase flex items-center gap-1 border border-neutral-900 shadow-xs"
                           title="Adjust Image Ratio, Crop & Fit"
                         >
                           <Crop className="w-3 h-3" />
@@ -366,24 +714,17 @@ const AdminProductForm = ({ mode = 'create' }) => {
                         {idx > 0 && (
                           <button
                             type="button"
-                            onClick={() => {
-                              const updated = [...formData.images];
-                              const [selected] = updated.splice(idx, 1);
-                              updated.unshift(selected);
-                              setFormData({ ...formData, images: updated });
-                            }}
-                            className="text-neutral-900 hover:underline font-bold"
+                            onClick={() => handleSetCover(idx)}
+                            className="px-2 py-1 bg-neutral-900 text-white hover:bg-neutral-800 font-bold uppercase"
                           >
                             SET COVER
                           </button>
                         )}
+
                         <button
                           type="button"
-                          onClick={() => {
-                            const updatedImgs = formData.images.filter((_, i) => i !== idx);
-                            setFormData({ ...formData, images: updatedImgs });
-                          }}
-                          className="text-red-600 hover:underline font-bold"
+                          onClick={() => handleRemoveImage(idx)}
+                          className="px-2 py-1 text-red-600 hover:bg-red-50 font-bold uppercase border border-red-300"
                         >
                           REMOVE
                         </button>
@@ -395,7 +736,7 @@ const AdminProductForm = ({ mode = 'create' }) => {
             )}
 
             {/* Quick-Pick Studio Samples */}
-            <div className="p-3 bg-neutral-50 border border-neutral-200 space-y-2">
+            <div className="p-3 bg-neutral-50 border border-neutral-200 space-y-2 mt-4">
               <span className="text-[10px] font-mono text-neutral-600 font-bold uppercase tracking-wider block">
                 ⚡ QUICK-SELECT FROM STUDIO CATALOG PHOTOS:
               </span>
@@ -432,11 +773,12 @@ const AdminProductForm = ({ mode = 'create' }) => {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 pt-1">
+            {/* Direct Image URL / Path Input */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <div className="flex-1 flex gap-2">
                 <input
                   type="text"
-                  placeholder="/assets/products/filename.jpg or https://image-url..."
+                  placeholder="/assets/products/filename.jpg or https://res.cloudinary.com/..."
                   className="flex-1 bg-neutral-50 border border-neutral-300 px-4 py-2 text-xs text-neutral-900 font-mono"
                   id="new-img-input"
                 />
@@ -455,30 +797,6 @@ const AdminProductForm = ({ mode = 'create' }) => {
                   ADD IMAGE PATH
                 </button>
               </div>
-
-              {/* Native File Uploader */}
-              <label className="btn-venm-primary px-4 py-2 text-xs font-mono font-bold flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap">
-                <span>📁 UPLOAD IMAGE FROM DEVICE</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onload = (evt) => {
-                        const dataUrl = evt.target.result;
-                        setFormData((prev) => ({
-                          ...prev,
-                          images: [...(prev.images || []), dataUrl]
-                        }));
-                      };
-                      reader.readAsDataURL(file);
-                    }
-                  }}
-                />
-              </label>
             </div>
           </div>
         </div>
@@ -663,7 +981,7 @@ const AdminProductForm = ({ mode = 'create' }) => {
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Footer Actions */}
         <div className="flex items-center justify-between border-t border-neutral-200 pt-6">
           {mode === 'edit' ? (
             <button
@@ -682,10 +1000,23 @@ const AdminProductForm = ({ mode = 'create' }) => {
             </Link>
             <button
               type="submit"
-              className="btn-venm-primary px-8 py-3 text-xs font-bold tracking-widest uppercase flex items-center gap-2"
+              disabled={isSaving || isUploading}
+              className="btn-venm-primary px-8 py-3 text-xs font-bold tracking-widest uppercase flex items-center gap-2 disabled:opacity-50"
             >
-              <Save className="w-4 h-4 text-white" />
-              <span>{mode === 'create' ? 'PUBLISH PRODUCT' : 'SAVE CHANGES'}</span>
+              {isUploading ? (
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
+              ) : (
+                <Save className="w-4 h-4 text-white" />
+              )}
+              <span>
+                {isUploading
+                  ? `UPLOADING (${activeUploadCount} REMAINING)...`
+                  : isSaving
+                  ? 'SAVING TO DB...'
+                  : mode === 'create'
+                  ? 'PUBLISH PRODUCT'
+                  : 'SAVE CHANGES'}
+              </span>
             </button>
           </div>
         </div>
