@@ -3,7 +3,8 @@ import { logActivity } from '../utils/activityLogger.js';
 import {
   isCloudinaryConfigured,
   generateSignedUploadParams,
-  safeDeleteCloudinaryAssetIfUnused
+  safeDeleteCloudinaryAssetIfUnused,
+  getCloudinaryDiagnostics
 } from '../config/cloudinary.js';
 
 export const getUploadSignature = async (req, res) => {
@@ -23,7 +24,10 @@ export const getUploadSignature = async (req, res) => {
     const folder = typeof requestedFolder === 'string' ? requestedFolder.trim() : 'venm-catalog/products';
     const params = generateSignedUploadParams(folder);
 
-    // Safe diagnostic logging (strictly NO secrets logged)
+    // Run safe diagnostics (strictly NO secrets logged or exposed)
+    const shouldVerifyPing = req.query.verify === 'true' || req.query.diagnostic === 'true';
+    const diagnostics = await getCloudinaryDiagnostics({ verifyPing: shouldVerifyPing });
+
     const isCloudNameSuspicious = params.cloudName === params.apiKey || /^\d+$/.test(params.cloudName);
     console.log('[CLOUDINARY DIAGNOSTIC] Upload signature generated successfully:', {
       cloudName: params.cloudName,
@@ -32,7 +36,9 @@ export const getUploadSignature = async (req, res) => {
       folder: params.folder,
       timestamp: params.timestamp,
       signaturePrefix: params.signature ? `${params.signature.slice(0, 6)}...` : null,
-      environment: process.env.VERCEL_ENV || process.env.NODE_ENV || 'development'
+      environment: process.env.VERCEL_ENV || process.env.NODE_ENV || 'development',
+      secretLength: diagnostics?.secretDiagnostic?.length,
+      pingStatus: diagnostics?.pingResult?.status
     });
 
     if (isCloudNameSuspicious) {
@@ -42,6 +48,7 @@ export const getUploadSignature = async (req, res) => {
     res.json({
       configured: true,
       ...params,
+      diagnostics,
       ...(isCloudNameSuspicious ? {
         warning: 'CLOUDINARY_CLOUD_NAME is identical to or formatted like CLOUDINARY_API_KEY. Please verify in your Cloudinary Dashboard under Settings > Access Keys that CLOUDINARY_CLOUD_NAME contains your account cloud name, not your 15-digit API key.'
       } : {})
@@ -51,6 +58,23 @@ export const getUploadSignature = async (req, res) => {
     res.status(500).json({
       configured: false,
       message: 'FAILED TO GENERATE UPLOAD SIGNATURE',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Dedicated diagnostic endpoint for Admins to inspect Cloudinary connectivity
+ * and configuration health without exposing credentials.
+ */
+export const getCloudinaryDiagnosticStatus = async (req, res) => {
+  try {
+    const diagnostics = await getCloudinaryDiagnostics({ verifyPing: true });
+    res.json(diagnostics);
+  } catch (error) {
+    res.status(500).json({
+      configured: false,
+      message: 'FAILED TO RUN CLOUDINARY DIAGNOSTIC',
       error: error.message
     });
   }

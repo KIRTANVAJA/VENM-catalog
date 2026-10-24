@@ -435,6 +435,10 @@ export async function apiGetUploadSignature(folder = 'venm-catalog/products') {
   return request(`/media/upload-signature${query}`);
 }
 
+export async function apiGetCloudinaryDiagnostic() {
+  return request('/media/cloudinary-diagnostic');
+}
+
 /**
  * Uploads an image File or Blob directly from the browser to Cloudinary.
  * The binary file never touches the Vercel backend serverless function,

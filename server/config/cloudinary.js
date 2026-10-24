@@ -1,16 +1,42 @@
 import { v2 as cloudinary } from 'cloudinary';
 import dotenv from 'dotenv';
+import crypto from 'crypto';
 import prisma from './db.js';
 
 dotenv.config();
 
 /**
- * Sanitizes an environment variable value by trimming whitespace/newlines
- * and stripping surrounding single or double quotes commonly added by deployment dashboards.
+ * Sanitizes an environment variable value by trimming whitespace/newlines,
+ * stripping surrounding single or double quotes commonly added by deployment dashboards,
+ * and removing accidental key prefixes (e.g. KEY=value).
  */
-export function cleanEnvString(val) {
+export function cleanEnvString(val, keyName = null) {
   if (!val || typeof val !== 'string') return '';
-  return val.trim().replace(/^["']|["']$/g, '').trim();
+  let cleaned = val.replace(/[\r\n\t]/g, '').trim();
+  // Strip surrounding quotes (double or single)
+  cleaned = cleaned.replace(/^["']|["']$/g, '').trim();
+  // Strip variable name prefix if accidentally included in Vercel value field
+  if (keyName && cleaned.startsWith(`${keyName}=`)) {
+    cleaned = cleaned.slice(keyName.length + 1).trim();
+    cleaned = cleaned.replace(/^["']|["']$/g, '').trim();
+  }
+  const genericPrefixes = [
+    'CLOUDINARY_API_SECRET=',
+    'CLOUDINARY_API_KEY=',
+    'CLOUDINARY_CLOUD_NAME=',
+    'CLOUDINARY_URL=',
+    'api_secret=',
+    'api_key=',
+    'cloud_name='
+  ];
+  for (const prefix of genericPrefixes) {
+    if (cleaned.toLowerCase().startsWith(prefix.toLowerCase())) {
+      cleaned = cleaned.slice(prefix.length).trim();
+      cleaned = cleaned.replace(/^["']|["']$/g, '').trim();
+      break;
+    }
+  }
+  return cleaned;
 }
 
 /**
@@ -39,9 +65,9 @@ export function parseCloudinaryUrl(url) {
  * individual environment variables or a CLOUDINARY_URL connection string.
  */
 export function getCloudinaryConfig() {
-  let cloudName = cleanEnvString(process.env.CLOUDINARY_CLOUD_NAME);
-  let apiKey = cleanEnvString(process.env.CLOUDINARY_API_KEY);
-  let apiSecret = cleanEnvString(process.env.CLOUDINARY_API_SECRET);
+  let cloudName = cleanEnvString(process.env.CLOUDINARY_CLOUD_NAME, 'CLOUDINARY_CLOUD_NAME');
+  let apiKey = cleanEnvString(process.env.CLOUDINARY_API_KEY, 'CLOUDINARY_API_KEY');
+  let apiSecret = cleanEnvString(process.env.CLOUDINARY_API_SECRET, 'CLOUDINARY_API_SECRET');
   let defaultFolder = cleanEnvString(process.env.CLOUDINARY_FOLDER) || 'venm-catalog/products';
 
   // Fallback: If any key is missing, check CLOUDINARY_URL
@@ -138,6 +164,71 @@ export function generateSignedUploadParams(customFolder = null) {
     apiKey: config.apiKey,
     cloudName: config.cloudName,
     folder
+  };
+}
+
+/**
+ * Safe Cloudinary diagnostics for debugging signature or credentials mismatches.
+ * CRITICAL: NEVER logs or returns the raw API secret.
+ */
+export async function getCloudinaryDiagnostics(options = {}) {
+  const { verifyPing = false } = options;
+  const config = getCloudinaryConfig();
+  const rawSecret = config.apiSecret || '';
+  const rawEnvSecret = process.env.CLOUDINARY_API_SECRET || '';
+
+  let pingResult = { ok: null, status: 'Not performed', error: null };
+  if (verifyPing && config.cloudName && config.apiKey && rawSecret) {
+    syncCloudinarySdkConfig();
+    try {
+      const res = await cloudinary.api.ping();
+      pingResult = {
+        ok: true,
+        status: res?.status || 'ok',
+        message: 'Cloudinary credentials verified successfully!'
+      };
+    } catch (err) {
+      pingResult = {
+        ok: false,
+        status: 'failed',
+        error: err?.error?.message || err?.message || 'Verification failed',
+        httpCode: err?.error?.http_code || err?.http_code || 401
+      };
+    }
+  }
+
+  const sha256 = rawSecret
+    ? crypto.createHash('sha256').update(rawSecret).digest('hex')
+    : null;
+
+  return {
+    configured: Boolean(config.cloudName && config.apiKey && rawSecret),
+    cloudName: config.cloudName || null,
+    apiKey: config.apiKey || null,
+    apiKeyPrefix: config.apiKey ? `${config.apiKey.slice(0, 4)}...${config.apiKey.slice(-3)}` : null,
+    folder: config.defaultFolder,
+    secretDiagnostic: {
+      isConfigured: Boolean(rawSecret),
+      length: rawSecret.length,
+      isStandardLength27: rawSecret.length === 27,
+      mask: rawSecret.length >= 6
+        ? `${rawSecret.slice(0, 2)}***${rawSecret.slice(-2)}`
+        : (rawSecret.length > 0 ? '***' : 'empty'),
+      sha256Prefix: sha256 ? sha256.slice(0, 8) : null,
+      isSameAsApiKey: Boolean(rawSecret && rawSecret === config.apiKey),
+      isSameAsCloudName: Boolean(rawSecret && rawSecret === config.cloudName),
+      hasWhitespace: /\s/.test(rawEnvSecret),
+      hasQuotes: /^["'].*["']$/.test(rawEnvSecret.trim()),
+      hasPrefix: /^(CLOUDINARY|api_secret|secret)/i.test(rawEnvSecret.trim()),
+      hasEqualSign: rawEnvSecret.includes('=')
+    },
+    sources: {
+      hasCloudNameEnv: Boolean(process.env.CLOUDINARY_CLOUD_NAME),
+      hasApiKeyEnv: Boolean(process.env.CLOUDINARY_API_KEY),
+      hasApiSecretEnv: Boolean(process.env.CLOUDINARY_API_SECRET),
+      hasCloudinaryUrlEnv: Boolean(process.env.CLOUDINARY_URL)
+    },
+    pingResult
   };
 }
 
