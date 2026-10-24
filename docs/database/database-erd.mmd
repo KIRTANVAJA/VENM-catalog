@@ -174,12 +174,12 @@ erDiagram
     %% =========================================================================
     %% VERIFIED DATABASE RELATIONSHIPS (PostgreSQL Foreign Keys via Prisma)
     %% =========================================================================
-    Collection ||--o{ Product : "1:N via Product.collectionId (FK)"
-    Category ||--o{ Product : "1:N via Product.categoryId (FK)"
+    Collection ||--o{ Product : "1:N via Product.collectionId (FK onDelete: SetNull)"
+    Category ||--o{ Product : "1:N via Product.categoryId (FK onDelete: SetNull)"
+    User ||--o{ Inquiry : "1:N via Inquiry.userId (FK onDelete: SetNull)"
+    Product ||--o{ Inquiry : "1:N via Inquiry.productId (FK onDelete: SetNull)"
 
     %% =========================================================================
     %% APPLICATION-LEVEL RELATIONSHIPS (Enforced in Code & Controllers, No DB FK)
     %% =========================================================================
-    User ||--o{ Inquiry : "1:N soft link via Inquiry.userId"
-    Product ||--o{ Inquiry : "1:N soft link via Inquiry.productId"
     User ||--o{ ActivityLog : "1:N soft audit link via ActivityLog.adminUserId"

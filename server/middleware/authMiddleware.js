@@ -3,43 +3,40 @@ import prisma from '../config/db.js';
 
 export const protectAdmin = async (req, res, next) => {
   try {
-    let token = req.cookies?.venm_admin_token;
+    // 1. Check cookies first
+    let rawCookieToken = req.cookies?.venm_admin_token;
+    if (typeof rawCookieToken === 'string') {
+      rawCookieToken = rawCookieToken.trim();
+      if (rawCookieToken === 'null' || rawCookieToken === 'undefined' || rawCookieToken === '') {
+        rawCookieToken = null;
+      }
+    } else {
+      rawCookieToken = null;
+    }
 
-    if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
+    // 2. Check Authorization header
+    let rawHeaderToken = null;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      rawHeaderToken = req.headers.authorization.slice(7).trim();
+      if (rawHeaderToken === 'null' || rawHeaderToken === 'undefined' || rawHeaderToken === '') {
+        rawHeaderToken = null;
+      }
+    }
+
+    // Prefer cookie token; if absent or invalid, fallback to Authorization header token
+    let token = rawCookieToken;
+    let decoded = token ? verifyToken(token) : null;
+
+    if (!decoded && rawHeaderToken) {
+      token = rawHeaderToken;
+      decoded = verifyToken(token);
     }
 
     if (!token) {
-      // In development mode, fall back to default admin so admin actions never get blocked by missing cookies
-      if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
-        const defaultAdmin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
-        if (defaultAdmin) {
-          req.user = {
-            id: defaultAdmin.id,
-            name: defaultAdmin.name,
-            email: defaultAdmin.email,
-            role: defaultAdmin.role
-          };
-          return next();
-        }
-      }
       return res.status(401).json({ message: 'UNAUTHORIZED ACCESS — ADMIN TOKEN MISSING' });
     }
 
-    const decoded = verifyToken(token);
     if (!decoded) {
-      if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
-        const defaultAdmin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
-        if (defaultAdmin) {
-          req.user = {
-            id: defaultAdmin.id,
-            name: defaultAdmin.name,
-            email: defaultAdmin.email,
-            role: defaultAdmin.role
-          };
-          return next();
-        }
-      }
       return res.status(401).json({ message: 'UNAUTHORIZED ACCESS — INVALID OR EXPIRED TOKEN' });
     }
 
@@ -48,19 +45,11 @@ export const protectAdmin = async (req, res, next) => {
     });
 
     if (!user) {
-      if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
-        const defaultAdmin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
-        if (defaultAdmin) {
-          req.user = {
-            id: defaultAdmin.id,
-            name: defaultAdmin.name,
-            email: defaultAdmin.email,
-            role: defaultAdmin.role
-          };
-          return next();
-        }
-      }
       return res.status(401).json({ message: 'ADMIN USER NOT FOUND IN DATABASE' });
+    }
+
+    if (user.role !== 'ADMIN') {
+      return res.status(403).json({ message: 'FORBIDDEN — ADMIN PRIVILEGES REQUIRED' });
     }
 
     // Attach admin user object to request
@@ -77,3 +66,4 @@ export const protectAdmin = async (req, res, next) => {
     res.status(401).json({ message: 'AUTHENTICATION FAILED', error: error.message });
   }
 };
+

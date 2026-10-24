@@ -1,7 +1,33 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-let dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL;
+export const getActiveDatabaseUrl = () => {
+  return (
+    process.env.RENDER_DATABASE_URL ||
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL ||
+    ''
+  );
+};
+
+export const isDatabaseConfigured = () => {
+  return Boolean(getActiveDatabaseUrl());
+};
+
+export const getActiveDbHost = () => {
+  const urlStr = getActiveDatabaseUrl();
+  if (!urlStr) return 'NOT_CONFIGURED';
+  try {
+    const u = new URL(urlStr);
+    return u.hostname || 'UNKNOWN';
+  } catch {
+    const match = urlStr.match(/@([^/:?]+)/);
+    return match ? match[1] : 'UNKNOWN';
+  }
+};
+
+let dbUrl = getActiveDatabaseUrl();
 
 if (dbUrl && !dbUrl.includes('connection_limit')) {
   const joiner = dbUrl.includes('?') ? '&' : '?';

@@ -6,7 +6,7 @@ import {
   apiUpdateCollection,
   apiDeleteCollection
 } from '../../services/api';
-import { Save, ArrowLeft, Trash2, CheckCircle2 } from 'lucide-react';
+import { Save, ArrowLeft, Trash2, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 const AdminCollectionForm = ({ mode = 'create' }) => {
   const { id } = useParams();
@@ -79,8 +79,10 @@ const AdminCollectionForm = ({ mode = 'create' }) => {
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-16 animate-fadeIn font-sans">
       {toastMessage && (
-        <div className="fixed top-6 right-6 z-50 bg-lime-400 text-neutral-900 px-6 py-3 font-extrabold text-xs tracking-widest uppercase shadow-xl flex items-center gap-2 border border-lime-500">
-          <CheckCircle2 className="w-5 h-5 text-neutral-900" />
+        <div className={`fixed top-6 right-6 z-50 px-6 py-3 font-extrabold text-xs tracking-widest uppercase shadow-xl flex items-center gap-2 border ${
+          toastMessage.startsWith('SAVE FAILED') ? 'bg-red-600 text-white border-red-700' : 'bg-lime-400 text-neutral-900 border-lime-500'
+        }`}>
+          {toastMessage.startsWith('SAVE FAILED') ? <AlertTriangle className="w-5 h-5 text-white" /> : <CheckCircle2 className="w-5 h-5 text-neutral-900" />}
           <span>{toastMessage}</span>
         </div>
       )}

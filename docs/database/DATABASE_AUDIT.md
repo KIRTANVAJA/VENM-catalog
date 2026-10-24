@@ -283,34 +283,37 @@ erDiagram
 
 ## 5. Phased Schema Modernization Roadmap
 
-### Phase A: Referential Integrity & Performance (Zero Code Breaking Changes)
+### Phase A: Referential Integrity & Performance (Zero Code Breaking Changes) — [COMPLETED]
 *Goal: Harden the existing database without modifying frontend contracts.*
 
-1. **Add Foreign Key Constraints in Prisma**:
-   - Add explicit relation: `Inquiry.userId -> User.id` (`onDelete: SetNull`).
-   - Add explicit relation: `Inquiry.productId -> Product.id` (`onDelete: SetNull`).
-2. **Add Crucial B-Tree Indexes**:
-   ```prisma
-   // Add to Product model in schema.prisma
-   @@index([collectionId])
-   @@index([categoryId])
-   @@index([collectionSlug])
-   @@index([availability])
-   @@index([isFeatured, displayOrder])
+1. **Foreign Key Constraints in Prisma [COMPLETED]**:
+   - Added explicit relation: `Inquiry.userId -> User.id` (`onDelete: SetNull`).
+   - Added explicit relation: `Inquiry.productId -> Product.id` (`onDelete: SetNull`).
+   - Added reverse relation `User.inquiries` and `Product.inquiries`.
+   - Updated `inquiryController.js` to defensively validate relations and leverage Prisma's relational `include: { user: ..., product: ... }`.
 
-   // Add to Inquiry model
-   @@index([userId])
-   @@index([clientContact])
-   @@index([status])
-   @@index([createdAt(sort: Desc)])
+2. **Crucial B-Tree Indexes [COMPLETED]**:
+   - Added to `Product` model in `schema.prisma`:
+     - `@@index([collectionId])`
+     - `@@index([categoryId])`
+     - `@@index([collectionSlug])`
+     - `@@index([availability])`
+     - `@@index([isFeatured, displayOrder])`
+   - Added to `Inquiry` model:
+     - `@@index([userId])`
+     - `@@index([productId])`
+     - `@@index([clientContact])`
+     - `@@index([status])`
+     - `@@index([createdAt(sort: Desc)])`
+   - Added to `ActivityLog` model:
+     - `@@index([createdAt(sort: Desc)])`
+     - `@@index([action])`
+     - `@@index([entityType])`
 
-   // Add to ActivityLog model
-   @@index([createdAt(sort: Desc)])
-   @@index([action])
-   @@index([entityType])
-   ```
-3. **Add Rate-Limiting Middleware**:
-   - Implement `express-rate-limit` on `/api/analytics/*` and `/api/inquiries` (e.g., max 20 requests per IP per 15 minutes).
+3. **Rate-Limiting Middleware [COMPLETED]**:
+   - Implemented in `server/middleware/rateLimitMiddleware.js`.
+   - Bound `inquiryLimiter` (max 30 requests / 15m) to `/api/inquiries`.
+   - Bound `analyticsLimiter` (max 100 requests / 15m) to `/api/analytics/*`, `/api/analytics/whatsapp-click`, and `/api/analytics/inquiry-form`.
 
 ### Phase B: Data Normalization & Native JSONB (Minor Backend Refactor)
 *Goal: Eliminate text-serialized JSON and sync denormalized strings automatically.*

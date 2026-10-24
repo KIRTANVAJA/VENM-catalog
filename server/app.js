@@ -15,10 +15,11 @@ import mediaRoutes from './routes/mediaRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import activityRoutes from './routes/activityRoutes.js';
 import inquiryRoutes from './routes/inquiryRoutes.js';
+import { inquiryLimiter, analyticsLimiter } from './middleware/rateLimitMiddleware.js';
 import { logActivity } from './utils/activityLogger.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 
-import prisma from './config/db.js';
+import prisma, { getActiveDbHost, isDatabaseConfigured } from './config/db.js';
 
 dotenv.config();
 
@@ -31,6 +32,8 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
   'http://127.0.0.1:5173',
+  'https://venm-store.vercel.app',
+  'https://venm-catalog.vercel.app',
   process.env.CLIENT_URL
 ].filter(Boolean);
 
@@ -56,7 +59,7 @@ app.use('/assets', express.static(path.join(__dirname, '../public/assets')));
 
 // Health Check & Database Diagnostics
 app.get('/api/health', async (req, res) => {
-  const dbConfigured = Boolean(process.env.DATABASE_URL);
+  const dbConfigured = isDatabaseConfigured();
   let dbStatus = 'NOT_CONFIGURED';
   let diagnostics = null;
 
@@ -70,14 +73,8 @@ app.get('/api/health', async (req, res) => {
       `;
       dbStatus = 'CONNECTED';
 
-      let activeHost = 'UNKNOWN';
-      try {
-        const u = new URL(process.env.DATABASE_URL);
-        activeHost = u.hostname;
-      } catch (err) {}
-
       diagnostics = {
-        host: activeHost,
+        host: getActiveDbHost(),
         database: rows[0]?.db_name || null,
         schema: rows[0]?.schema_name || null,
         tableCount: Number(rows[0]?.table_count || 0)
@@ -97,7 +94,7 @@ app.get('/api/health', async (req, res) => {
 });
 
 // Analytics: WhatsApp Inquiry Button Click Event
-app.post('/api/analytics/whatsapp-click', async (req, res) => {
+app.post('/api/analytics/whatsapp-click', analyticsLimiter, async (req, res) => {
   const { productName, collectionName } = req.body;
   await logActivity({
     adminUserId: 'system-public',
@@ -111,7 +108,7 @@ app.post('/api/analytics/whatsapp-click', async (req, res) => {
 });
 
 // Analytics: Web Inquiry Form Submission Event
-app.post('/api/analytics/inquiry-form', async (req, res) => {
+app.post('/api/analytics/inquiry-form', analyticsLimiter, async (req, res) => {
   const { productName, collectionName, clientName, clientContact, requestType, note } = req.body;
   await logActivity({
     adminUserId: 'system-public',
@@ -134,8 +131,8 @@ app.use('/api/homepage', homepageRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/admin/activity', activityRoutes);
-app.use('/api/analytics', activityRoutes);
-app.use('/api/inquiries', inquiryRoutes);
+app.use('/api/analytics', analyticsLimiter, activityRoutes);
+app.use('/api/inquiries', inquiryLimiter, inquiryRoutes);
 
 // Error Middleware
 app.use(notFound);

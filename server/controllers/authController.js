@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import prisma from '../config/db.js';
+import prisma, { isDatabaseConfigured } from '../config/db.js';
 import { generateToken } from '../utils/token.js';
 import { logActivity } from '../utils/activityLogger.js';
 
@@ -12,10 +12,10 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: 'USERNAME AND PASSWORD ARE REQUIRED' });
     }
 
-    if (!process.env.DATABASE_URL) {
+    if (!isDatabaseConfigured()) {
       return res.status(500).json({
         message: 'DATABASE CONFIGURATION MISSING',
-        error: 'DATABASE_URL is not set in Vercel Environment Variables. Please add it in Vercel Project Settings.'
+        error: 'Database connection URL is not configured. Please set RENDER_DATABASE_URL or DATABASE_URL in Vercel Project Settings.'
       });
     }
 
@@ -67,7 +67,8 @@ export const login = async (req, res) => {
     res.cookie('venm_admin_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
@@ -112,10 +113,10 @@ export const register = async (req, res) => {
       return res.status(400).json({ message: 'PLEASE ENTER A VALID EMAIL OR 10-DIGIT PHONE NUMBER' });
     }
 
-    if (!process.env.DATABASE_URL) {
+    if (!isDatabaseConfigured()) {
       return res.status(500).json({
         message: 'DATABASE CONFIGURATION MISSING',
-        error: 'DATABASE_URL is not set in Vercel Environment Variables. Please add it in Vercel Project Settings.'
+        error: 'Database connection URL is not configured. Please set RENDER_DATABASE_URL or DATABASE_URL in Vercel Project Settings.'
       });
     }
 
@@ -151,7 +152,8 @@ export const register = async (req, res) => {
     res.cookie('venm_admin_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
@@ -248,7 +250,8 @@ export const googleLogin = async (req, res) => {
     res.cookie('venm_admin_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
@@ -291,7 +294,12 @@ export const logout = async (req, res) => {
     description: `User logged out: ${userName} (${userEmail})`
   }).catch(() => {});
 
-  res.clearCookie('venm_admin_token');
+  res.clearCookie('venm_admin_token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    path: '/'
+  });
   res.json({ message: 'LOGGED OUT SUCCESSFULLY' });
 };
 

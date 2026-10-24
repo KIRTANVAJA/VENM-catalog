@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { apiGetCategories, apiCreateCategory, apiUpdateCategory, apiDeleteCategory } from '../../services/api';
-import { Plus, Edit, Trash2, Tag, CheckCircle2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Tag, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 const AdminCategories = () => {
   const [categories, setCategories] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
+  const [toastMessage, setToastMessage] = useState(null);
+  const [isErrorToast, setIsErrorToast] = useState(false);
 
   const [formName, setFormName] = useState('');
   const [formSlug, setFormSlug] = useState('');
@@ -52,14 +54,20 @@ const AdminCategories = () => {
     try {
       if (editingCategory) {
         await apiUpdateCategory(editingCategory.id, catData);
+        setToastMessage(`CATEGORY "${catData.name.toUpperCase()}" UPDATED`);
       } else {
         await apiCreateCategory(catData);
+        setToastMessage(`CATEGORY "${catData.name.toUpperCase()}" CREATED`);
       }
+      setIsErrorToast(false);
       loadCategories();
+      setShowModal(false);
     } catch (err) {
       console.warn('Save category error:', err);
+      setToastMessage(`SAVE FAILED: ${err.message || 'DATABASE ERROR'}`);
+      setIsErrorToast(true);
     }
-    setShowModal(false);
+    setTimeout(() => setToastMessage(null), 3000);
   };
 
   const handleDelete = async (catId) => {
@@ -73,6 +81,15 @@ const AdminCategories = () => {
 
   return (
     <div className="space-y-6 animate-fadeIn max-w-5xl mx-auto font-sans">
+      {toastMessage && (
+        <div className={`fixed top-6 right-6 z-50 px-6 py-3 font-extrabold text-xs tracking-widest uppercase shadow-xl flex items-center gap-2 border ${
+          isErrorToast ? 'bg-red-600 text-white border-red-700' : 'bg-lime-400 text-neutral-900 border-lime-500'
+        }`}>
+          {isErrorToast ? <AlertTriangle className="w-5 h-5 text-white" /> : <CheckCircle2 className="w-5 h-5 text-neutral-900" />}
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-200 pb-6">
         <div className="space-y-1">

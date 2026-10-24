@@ -61,19 +61,25 @@ const AdminPasskeyModal = () => {
 
   const verifyPasskey = async (pin) => {
     if (pin === '1310') {
-      setSuccess(true);
-      setError(false);
       try {
         await apiLogin('venm1310@gmail.com', 'password123');
+        setSuccess(true);
+        setError(false);
+        setTimeout(() => {
+          setIsOpen(false);
+          setSuccess(false);
+          setPasskey(['', '', '', '']);
+          navigate('/admin/dashboard');
+        }, 500);
       } catch (err) {
         console.warn('[PASSKEY] Auto-login error:', err);
-      }
-      setTimeout(() => {
-        setIsOpen(false);
+        setError(true);
         setSuccess(false);
-        setPasskey(['', '', '', '']);
-        navigate('/admin/dashboard');
-      }, 500);
+        setTimeout(() => {
+          setPasskey(['', '', '', '']);
+          inputRefs[0].current?.focus();
+        }, 700);
+      }
     } else {
       setError(true);
       setSuccess(false);

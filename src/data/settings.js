@@ -140,6 +140,7 @@ export async function saveSettingsSection(sectionKey, newValues) {
     await apiUpdateSettings(sectionKey, cachedSettings[sectionKey]);
   } catch (err) {
     console.warn(`[SETTINGS API] Update failed for ${sectionKey}:`, err);
+    throw err;
   }
 
   return cachedSettings;

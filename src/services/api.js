@@ -33,7 +33,15 @@ export const API_BASE_URL = getBaseUrl();
 
 export function getStoredAdminToken() {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('venm_admin_token') || localStorage.getItem('venm_user_token');
+  const adminToken = localStorage.getItem('venm_admin_token');
+  if (adminToken && adminToken !== 'undefined' && adminToken !== 'null' && adminToken.trim() !== '') {
+    return adminToken.trim();
+  }
+  const userToken = localStorage.getItem('venm_user_token');
+  if (userToken && userToken !== 'undefined' && userToken !== 'null' && userToken.trim() !== '') {
+    return userToken.trim();
+  }
+  return null;
 }
 
 async function request(endpoint, options = {}) {
@@ -96,6 +104,8 @@ async function request(endpoint, options = {}) {
     if (!res.ok) {
       if (res.status === 401 && typeof window !== 'undefined') {
         localStorage.removeItem('venm_admin_token');
+        localStorage.removeItem('venm_admin_user');
+        window.dispatchEvent(new CustomEvent('venm-session-expired', { detail: { message: data?.message || 'SESSION EXPIRED' } }));
       }
       const errorDetail = data?.error ? `${data?.message || 'ERROR'}: ${data.error}` : (data?.message || `API ERROR (${res.status})`);
       throw new Error(errorDetail);

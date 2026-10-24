@@ -11,14 +11,15 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   name         String
-  email        String   @unique
-  phone        String?  @unique
+  email        String    @unique
+  phone        String?   @unique
   passwordHash String
-  role         String   @default("CUSTOMER")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  role         String    @default("CUSTOMER")
+  inquiries    Inquiry[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 model Collection {
@@ -78,28 +79,35 @@ model Product {
   garmentCare       String?
   viewCount         Int         @default(0)
   displayOrder      Int         @default(0)
+  inquiries         Inquiry[]
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
+
+  @@index([collectionId])
+  @@index([categoryId])
+  @@index([collectionSlug])
+  @@index([availability])
+  @@index([isFeatured, displayOrder])
 }
 
 model Campaign {
-  id             String    @id @default(uuid())
+  id             String   @id @default(uuid())
   name           String
-  slug           String    @unique
+  slug           String   @unique
   description    String?
   image          String?
   announcement   String?
   startDate      String?
   endDate        String?
-  status         String    @default("ACTIVE") // ACTIVE | SCHEDULED | ENDED
-  theme          String?   @default("Festive")
-  festivalLights Boolean   @default(true)
-  dandiya        Boolean   @default(true)
-  chunri         Boolean   @default(true)
-  bangles        Boolean   @default(false)
-  festivalGlow   Boolean   @default(true)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  status         String   @default("ACTIVE") // ACTIVE | SCHEDULED | ENDED
+  theme          String?  @default("Festive")
+  festivalLights Boolean  @default(true)
+  dandiya        Boolean  @default(true)
+  chunri         Boolean  @default(true)
+  bangles        Boolean  @default(false)
+  festivalGlow   Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model HomepageSection {
@@ -145,17 +153,23 @@ model ActivityLog {
   description String?
   metadata    String?  @default("{}")
   createdAt   DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([action])
+  @@index([entityType])
 }
 
 model Inquiry {
   id             String   @id @default(uuid())
   userId         String?
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   clientName     String?
   clientContact  String?
   clientEmail    String?
   clientPhone    String?
   userMeta       String?  @default("{}")
   productId      String?
+  product        Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
   productSlug    String?
   productName    String
   productImage   String?
@@ -167,6 +181,10 @@ model Inquiry {
   status         String   @default("SUBMITTED")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+  @@index([productId])
+  @@index([clientContact])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
 }
-
-

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowRight, Lock, Mail, ShieldCheck, AlertTriangle } from 'lucide-react';
-import { apiLogin } from '../../services/api';
+import { apiLogin, apiGetMe } from '../../services/api';
 import { BRAND_ASSETS } from '../../config/assets';
 
 const AdminLogin = () => {
@@ -12,23 +12,38 @@ const AdminLogin = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
+  useEffect(() => {
+    // If already logged in as admin, redirect to admin dashboard
+    apiGetMe()
+      .then((res) => {
+        if (res?.user?.role === 'ADMIN') {
+          const searchParams = new URLSearchParams(window.location.search);
+          const redirect = searchParams.get('redirect') || '/admin/dashboard';
+          navigate(redirect, { replace: true });
+        }
+      })
+      .catch(() => {});
+  }, [navigate]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg(null);
 
     try {
-      await apiLogin(email, password);
+      const res = await apiLogin(email, password);
+      if (res?.user && res.user.role !== 'ADMIN') {
+        setErrorMsg('ACCESS DENIED: ADMIN PRIVILEGES REQUIRED');
+        setLoading(false);
+        return;
+      }
       setLoading(false);
-      navigate('/admin/dashboard');
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirect = searchParams.get('redirect') || '/admin/dashboard';
+      navigate(redirect, { replace: true });
     } catch (err) {
       setLoading(false);
-      // Fallback for seamless testing if dev server is starting
-      if (email === 'venm1310@gmail.com' && (password === 'password123' || password === '••••••••••••')) {
-        navigate('/admin/dashboard');
-      } else {
-        setErrorMsg(err.message || 'INVALID ADMIN CREDENTIALS');
-      }
+      setErrorMsg(err.message || 'INVALID ADMIN CREDENTIALS');
     }
   };
 

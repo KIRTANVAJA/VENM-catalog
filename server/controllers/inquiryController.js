@@ -33,6 +33,14 @@ export const createInquiry = async (req, res) => {
       } catch (e) {}
     }
 
+    let validProductId = null;
+    if (productId) {
+      try {
+        const prodExists = await prisma.product.findUnique({ where: { id: productId }, select: { id: true } });
+        if (prodExists) validProductId = prodExists.id;
+      } catch (e) {}
+    }
+
     const effectiveName = clientName || registeredUser?.name || req.user?.name || 'Registered Client';
     const effectiveEmail = clientEmail || registeredUser?.email || (clientContact?.includes('@') ? clientContact : null);
     const effectivePhone = clientPhone || registeredUser?.phone || (!clientContact?.includes('@') ? clientContact : null);
@@ -51,13 +59,13 @@ export const createInquiry = async (req, res) => {
 
     const inquiry = await prisma.inquiry.create({
       data: {
-        userId: effectiveUserId || registeredUser?.id || null,
+        userId: registeredUser?.id || null,
         clientName: effectiveName,
         clientContact: effectiveContact,
         clientEmail: effectiveEmail || null,
         clientPhone: effectivePhone || null,
         userMeta: effectiveUserMeta,
-        productId: productId || null,
+        productId: validProductId,
         productSlug: productSlug || null,
         productName: productName.trim(),
         productImage: productImage || null,
@@ -71,7 +79,7 @@ export const createInquiry = async (req, res) => {
     });
 
     await logActivity({
-      adminUserId: effectiveUserId || registeredUser?.id || 'visitor',
+      adminUserId: registeredUser?.id || effectiveUserId || 'visitor',
       adminEmail: effectiveEmail || effectiveContact,
       action: 'INQUIRY_CREATED',
       entityType: 'INQUIRY',
@@ -115,6 +123,11 @@ export const getMyInquiries = async (req, res) => {
 
     const inquiries = await prisma.inquiry.findMany({
       where: whereClause,
+      include: {
+        product: {
+          select: { id: true, name: true, slug: true, images: true, estimatedPrice: true }
+        }
+      },
       orderBy: { createdAt: 'desc' }
     });
 
@@ -128,21 +141,22 @@ export const getMyInquiries = async (req, res) => {
 export const getAllInquiries = async (req, res) => {
   try {
     const inquiries = await prisma.inquiry.findMany({
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, phone: true, role: true, createdAt: true }
+        },
+        product: {
+          select: { id: true, name: true, slug: true, images: true, estimatedPrice: true }
+        }
+      },
       orderBy: { createdAt: 'desc' }
     });
 
-    const userIds = [...new Set(inquiries.map(i => i.userId).filter(Boolean))];
-    const users = await prisma.user.findMany({
-      where: { id: { in: userIds } },
-      select: { id: true, name: true, email: true, phone: true, role: true, createdAt: true }
-    });
-    const userMap = {};
-    users.forEach(u => { userMap[u.id] = u; });
-
     const enriched = inquiries.map(inq => {
-      const matchedUser = inq.userId ? userMap[inq.userId] : null;
       let meta = {};
       try { meta = JSON.parse(inq.userMeta || '{}'); } catch (e) {}
+
+      const matchedUser = inq.user;
 
       return {
         ...inq,

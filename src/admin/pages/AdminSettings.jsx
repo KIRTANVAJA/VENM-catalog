@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { getSettings, fetchLiveSettings, saveSettingsSection } from '../../data/settings';
-import { Settings, MessageCircle, Share2, Search, CheckCircle2, Copy, Save } from 'lucide-react';
+import { Settings, MessageCircle, Share2, Search, CheckCircle2, Copy, Save, AlertTriangle } from 'lucide-react';
 
 const AdminSettings = () => {
   const location = useLocation();
   const [settings, setSettingsState] = useState(getSettings());
   const [toastMessage, setToastMessage] = useState(null);
+  const [isErrorToast, setIsErrorToast] = useState(false);
 
   useEffect(() => {
     fetchLiveSettings().then((live) => {
@@ -25,22 +26,31 @@ const AdminSettings = () => {
   const activeTab = getActiveTab();
 
   const handleSave = async (sectionKey, data) => {
-    await saveSettingsSection(sectionKey, data);
-    setToastMessage(`${sectionKey.toUpperCase()} SETTINGS PERSISTED IN DATABASE`);
-    setTimeout(() => setToastMessage(null), 2500);
+    try {
+      await saveSettingsSection(sectionKey, data);
+      setToastMessage(`${sectionKey.toUpperCase()} SETTINGS PERSISTED IN DATABASE`);
+      setIsErrorToast(false);
+    } catch (err) {
+      setToastMessage(`SAVE FAILED: ${err.message || 'DATABASE ERROR'}`);
+      setIsErrorToast(true);
+    }
+    setTimeout(() => setToastMessage(null), 3000);
   };
 
   const handleCopyVariable = (varName) => {
     navigator.clipboard.writeText(varName);
     setToastMessage(`COPIED VARIABLE ${varName}`);
+    setIsErrorToast(false);
     setTimeout(() => setToastMessage(null), 1500);
   };
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-16 animate-fadeIn font-sans">
       {toastMessage && (
-        <div className="fixed top-6 right-6 z-50 bg-lime-400 text-neutral-900 px-6 py-3 font-extrabold text-xs tracking-widest uppercase shadow-xl flex items-center gap-2 border border-lime-500">
-          <CheckCircle2 className="w-5 h-5 text-neutral-900" />
+        <div className={`fixed top-6 right-6 z-50 px-6 py-3 font-extrabold text-xs tracking-widest uppercase shadow-xl flex items-center gap-2 border ${
+          isErrorToast ? 'bg-red-600 text-white border-red-700' : 'bg-lime-400 text-neutral-900 border-lime-500'
+        }`}>
+          {isErrorToast ? <AlertTriangle className="w-5 h-5 text-white" /> : <CheckCircle2 className="w-5 h-5 text-neutral-900" />}
           <span>{toastMessage}</span>
         </div>
       )}
