@@ -93,7 +93,18 @@ export function getCloudinaryConfig() {
  */
 export function isCloudinaryConfigured() {
   const { cloudName, apiKey, apiSecret } = getCloudinaryConfig();
-  return Boolean(cloudName && apiKey && apiSecret);
+  if (!cloudName || !apiKey || !apiSecret) return false;
+  const placeholderSecrets = [
+    'cloudinary_api_secret',
+    'your_api_secret',
+    'your-api-secret',
+    'api_secret',
+    'secret'
+  ];
+  if (placeholderSecrets.includes(apiSecret.toLowerCase())) {
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -126,11 +137,21 @@ syncCloudinarySdkConfig();
  */
 export function generateSignedUploadParams(customFolder = null) {
   const config = getCloudinaryConfig();
-  if (!config.cloudName || !config.apiKey || !config.apiSecret) {
+  const isSecretPlaceholder = config.apiSecret && [
+    'cloudinary_api_secret',
+    'your_api_secret',
+    'your-api-secret',
+    'api_secret',
+    'secret'
+  ].includes(config.apiSecret.toLowerCase());
+
+  if (!config.cloudName || !config.apiKey || !config.apiSecret || isSecretPlaceholder) {
     const missing = [];
     if (!config.cloudName) missing.push('CLOUDINARY_CLOUD_NAME');
     if (!config.apiKey) missing.push('CLOUDINARY_API_KEY');
-    if (!config.apiSecret) missing.push('CLOUDINARY_API_SECRET');
+    if (!config.apiSecret || isSecretPlaceholder) {
+      missing.push('CLOUDINARY_API_SECRET' + (isSecretPlaceholder ? ' (currently set to variable name "CLOUDINARY_API_SECRET", not the real secret)' : ''));
+    }
     throw new Error(
       `Cloudinary credentials not configured. Please set ${missing.join(', ')} in environment variables.`
     );

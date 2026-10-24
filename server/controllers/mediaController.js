@@ -2,6 +2,7 @@ import prisma from '../config/db.js';
 import { logActivity } from '../utils/activityLogger.js';
 import {
   isCloudinaryConfigured,
+  getCloudinaryConfig,
   generateSignedUploadParams,
   safeDeleteCloudinaryAssetIfUnused,
   getCloudinaryDiagnostics
@@ -9,14 +10,28 @@ import {
 
 export const getUploadSignature = async (req, res) => {
   try {
-    if (!isCloudinaryConfigured()) {
-      console.warn('[CLOUDINARY DIAGNOSTIC] Upload signature requested but Cloudinary is unconfigured.', {
+    const config = getCloudinaryConfig();
+    const isSecretPlaceholder = config.apiSecret && [
+      'cloudinary_api_secret',
+      'your_api_secret',
+      'your-api-secret',
+      'api_secret',
+      'secret'
+    ].includes(config.apiSecret.toLowerCase());
+
+    if (!isCloudinaryConfigured() || isSecretPlaceholder) {
+      console.warn('[CLOUDINARY DIAGNOSTIC] Upload signature requested but Cloudinary is unconfigured or placeholder detected.', {
         nodeEnv: process.env.NODE_ENV,
-        vercelEnv: process.env.VERCEL_ENV
+        vercelEnv: process.env.VERCEL_ENV,
+        isSecretPlaceholder
       });
+      const message = isSecretPlaceholder
+        ? 'In your Vercel Environment Variables, the value of CLOUDINARY_API_SECRET is currently set to the text "CLOUDINARY_API_SECRET" (the variable name itself) instead of your actual Cloudinary API secret. Please copy the 27-character secret from Cloudinary Console > Settings > Access Keys and update CLOUDINARY_API_SECRET in Vercel.'
+        : 'Cloudinary credentials are not configured. Please add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to your environment variables.';
       return res.status(200).json({
         configured: false,
-        message: 'Cloudinary credentials are not configured. Please add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to your environment variables.'
+        isSecretPlaceholder: Boolean(isSecretPlaceholder),
+        message
       });
     }
 
