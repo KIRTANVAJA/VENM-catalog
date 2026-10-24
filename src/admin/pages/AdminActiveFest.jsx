@@ -11,7 +11,8 @@ import {
   apiUpdateSettings,
   apiUpdateHomepageSection,
   apiGetProducts,
-  apiUpdateProduct
+  apiUpdateProduct,
+  apiUploadImageToCloudinary
 } from '../../services/api';
 import {
   Flame,
@@ -189,16 +190,20 @@ const AdminActiveFest = () => {
     showToast('UPDATED MAIN COVER PHOTO');
   };
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target.result;
-      handleAddPhoto(dataUrl);
-    };
-    reader.readAsDataURL(file);
+    try {
+      showToast('UPLOADING PHOTO TO CLOUDINARY...');
+      const uploadRes = await apiUploadImageToCloudinary(file, 'venm-catalog/festivals');
+      if (uploadRes?.secure_url) {
+        handleAddPhoto(uploadRes.secure_url);
+        showToast('PHOTO UPLOADED TO CLOUDINARY');
+      }
+    } catch (err) {
+      showToast('UPLOAD FAILED: ' + (err.message || 'Error'));
+    }
   };
 
   // ----------------------------------------------------

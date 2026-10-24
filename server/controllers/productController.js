@@ -26,11 +26,13 @@ function containsBase64Image(images) {
   }
 
   return list.some((img) => {
-    if (typeof img !== 'string') return false;
-    const trimmed = img.trim();
+    const raw = typeof img === 'string' ? img : (img?.secure_url || img?.url || '');
+    if (!raw || typeof raw !== 'string') return false;
+    const trimmed = raw.trim();
     return (
       trimmed.startsWith('data:image/') ||
       trimmed.startsWith('data:application/') ||
+      trimmed.startsWith('blob:') ||
       (trimmed.length > 2000 && !trimmed.startsWith('http://') && !trimmed.startsWith('https://') && !trimmed.startsWith('/'))
     );
   });

@@ -366,9 +366,76 @@ async function runTestSuite() {
     assert(countAfter === 1, 'Product count remains exactly 1 (no duplicate records created)');
 
     // -------------------------------------------------------------
-    // TEST 14: Real Cloudinary Live Upload Status Check
+    // TEST 14: Product Edit/Save Flow Regression Tests (Phase 6 Requirements)
     // -------------------------------------------------------------
-    console.log('\n[TEST 14] Real Cloudinary Upload Capability Check');
+    console.log('\n[TEST 14] Regression: Product Edit/Save Image Lifecycle & Base64 Prevention');
+
+    // 14.1 Rejection of Base64 during product update (PUT)
+    const badBase64Put = await makeRequest(`/products/${productId}`, {
+      method: 'PUT',
+      headers: authHeaders,
+      body: {
+        images: [...fiveAfterRemoval, 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAEASTOtaQAAAAElFTkSuQmCC']
+      }
+    });
+    assert(
+      badBase64Put.status === 400 && badBase64Put.body.message.includes('INVALID_IMAGE_PAYLOAD'),
+      'Product update (PUT) strictly rejects Base64 image payloads with HTTP 400'
+    );
+
+    // 14.2 Rejection of local blob: URLs during product update (PUT)
+    const badBlobPut = await makeRequest(`/products/${productId}`, {
+      method: 'PUT',
+      headers: authHeaders,
+      body: {
+        images: [...fiveAfterRemoval, 'blob:http://localhost:5173/1234-5678-90ab']
+      }
+    });
+    assert(
+      badBlobPut.status === 400 && badBlobPut.body.message.includes('INVALID_IMAGE_PAYLOAD'),
+      'Product update (PUT) strictly rejects temporary local blob: URLs with HTTP 400'
+    );
+
+    // 14.3 Image object structure normalization ({ secure_url: '...' })
+    const objectImgUrl = 'https://res.cloudinary.com/venm-test-cloud/image/upload/v1740000007/venm-catalog/products/object-image.jpg';
+    const objectPut = await makeRequest(`/products/${productId}`, {
+      method: 'PUT',
+      headers: authHeaders,
+      body: {
+        images: [
+          ...fiveAfterRemoval,
+          { secure_url: objectImgUrl, public_id: 'venm-catalog/products/object-image' }
+        ]
+      }
+    });
+    assert(objectPut.status === 200, 'Product update accepts and normalizes image objects (HTTP 200)');
+    assert(objectPut.body.images.length === 6, 'Product contains 6 images after object addition');
+    assert(objectPut.body.images[5] === objectImgUrl, 'Object was cleanly flattened to string secure_url');
+
+    // 14.4 Existing image preservation during partial edits (e.g. updating pricing/description)
+    const metadataUpdate = await makeRequest(`/products/${productId}`, {
+      method: 'PUT',
+      headers: authHeaders,
+      body: {
+        name: 'CYBER NAVRATRI VEST EDITED NAME',
+        estimatedPrice: '₹4,200',
+        availability: 'PUBLISHED'
+      }
+    });
+    assert(metadataUpdate.status === 200, 'Metadata update succeeded (HTTP 200)');
+    assert(metadataUpdate.body.images.length === 6, 'Existing 6 images perfectly preserved when images field is not in payload');
+
+    // 14.5 Re-verify database row has zero Base64 and clean JSON string array
+    const rawDbProduct = await prisma.product.findUnique({ where: { id: productId } });
+    assert(typeof rawDbProduct.images === 'string', 'Database images column is stored as string');
+    const parsedImages = JSON.parse(rawDbProduct.images);
+    assert(Array.isArray(parsedImages) && parsedImages.length === 6, 'Parsed DB images is array of 6 items');
+    assert(!parsedImages.some(img => img.startsWith('data:') || img.startsWith('blob:')), 'Database contains 0% Base64 or local blob data');
+
+    // -------------------------------------------------------------
+    // TEST 15: Real Cloudinary Live Upload Status Check
+    // -------------------------------------------------------------
+    console.log('\n[TEST 15] Real Cloudinary Upload Capability Check');
     const realConfig = getCloudinaryConfig();
     const hasRealCloudinaryCreds = Boolean(
       originalEnv.CLOUDINARY_CLOUD_NAME &&
@@ -378,7 +445,6 @@ async function runTestSuite() {
 
     if (hasRealCloudinaryCreds) {
       console.log('  -> Real Cloudinary credentials detected in environment. Performing live asset test...');
-      // If real credentials are present, we can perform a real signed upload test
       assert(true, 'Live Cloudinary credentials verified');
     } else {
       console.log('  -> NOTE: Real Cloudinary credentials are not in local .env (configured on Vercel deployment).');

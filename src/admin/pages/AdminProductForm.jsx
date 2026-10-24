@@ -87,13 +87,30 @@ const AdminProductForm = ({ mode = 'create' }) => {
       apiGetProductBySlug(id)
         .then((data) => {
           if (data) {
+            const rawImages = Array.isArray(data.images)
+              ? data.images
+              : (typeof data.images === 'string' && data.images.startsWith('[') ? JSON.parse(data.images) : (data.images ? [data.images] : []));
+
+            const normalizedImages = rawImages
+              .map((img) => (typeof img === 'string' ? img : (img?.secure_url || img?.url || '')))
+              .filter(Boolean);
+
             setFormData({
               ...data,
               details: Array.isArray(data.details) ? data.details : (typeof data.details === 'string' && data.details.startsWith('[') ? JSON.parse(data.details) : []),
-              images: Array.isArray(data.images) ? data.images : (typeof data.images === 'string' && data.images.startsWith('[') ? JSON.parse(data.images) : []),
+              images: normalizedImages,
               sizes: Array.isArray(data.sizes) ? data.sizes : (typeof data.sizes === 'string' && data.sizes.startsWith('[') ? JSON.parse(data.sizes) : []),
               tags: Array.isArray(data.tags) ? data.tags : (typeof data.tags === 'string' && data.tags.startsWith('[') ? JSON.parse(data.tags) : [])
             });
+
+            // Detect any legacy Base64 images in product record
+            const legacyBase64Images = normalizedImages.filter(img => typeof img === 'string' && img.startsWith('data:image/'));
+            if (legacyBase64Images.length > 0) {
+              setUploadErrors((prev) => [
+                ...prev,
+                `NOTICE: This product contains ${legacyBase64Images.length} legacy embedded image(s). Please upload new Cloudinary photos to replace them before saving.`
+              ]);
+            }
           }
         })
         .catch(() => {
@@ -302,11 +319,28 @@ const AdminProductForm = ({ mode = 'create' }) => {
       return;
     }
 
+    // NORMALIZE & VALIDATE IMAGES: Strictly ensure only clean URLs (Cloudinary HTTPS or /assets/) are submitted
+    const cleanImages = (formData.images || [])
+      .map((img) => (typeof img === 'string' ? img.trim() : (img?.secure_url || img?.url || '').trim()))
+      .filter(Boolean);
+
+    // Block any Base64 or local blob: data from ever reaching the server payload
+    const invalidImage = cleanImages.find(
+      (img) => img.startsWith('data:image/') || img.startsWith('blob:') || (img.length > 2000 && !img.startsWith('http://') && !img.startsWith('https://') && !img.startsWith('/'))
+    );
+
+    if (invalidImage) {
+      setIsErrorToast(true);
+      setToastMessage('SAVE BLOCKED: DIRECT BASE64 / LOCAL BLOB IMAGES ARE NOT PERMITTED. PLEASE UPLOAD TO CLOUDINARY OR REMOVE THEM.');
+      return;
+    }
+
     if (isSaving) return;
 
     setIsSaving(true);
     const finalData = {
       ...formData,
+      images: cleanImages,
       availability: statusOverride || formData.availability
     };
 
@@ -831,7 +865,15 @@ const AdminProductForm = ({ mode = 'create' }) => {
                   onClick={() => {
                     const input = document.getElementById('new-img-input');
                     if (input && input.value.trim()) {
-                      const cleanVal = sanitizeImageUrl(input.value.trim());
+                      const val = input.value.trim();
+                      if (val.startsWith('data:image/') || val.startsWith('blob:') || (val.length > 2000 && !val.startsWith('http://') && !val.startsWith('https://') && !val.startsWith('/'))) {
+                        setUploadErrors((prev) => [
+                          ...prev,
+                          'DIRECT BASE64 / LOCAL BLOB DATA CANNOT BE ADDED AS A PATH. Please use the "Choose Images" button to upload the image directly to Cloudinary.'
+                        ]);
+                        return;
+                      }
+                      const cleanVal = sanitizeImageUrl(val);
                       setFormData({ ...formData, images: [...(formData.images || []), cleanVal] });
                       input.value = '';
                     }

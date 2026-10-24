@@ -6,14 +6,19 @@
  */
 
 export function sanitizeImageUrl(inputUrl) {
-  if (!inputUrl || typeof inputUrl !== 'string') {
+  if (!inputUrl) {
     return '/assets/campaign/HOMEPAGE_2.webp';
   }
 
-  let clean = inputUrl.trim();
+  const raw = typeof inputUrl === 'string' ? inputUrl : (inputUrl?.secure_url || inputUrl?.url || '');
+  if (!raw || typeof raw !== 'string') {
+    return '/assets/campaign/HOMEPAGE_2.webp';
+  }
 
-  // If already a Data URL or external HTTP/HTTPS URL, preserve directly
-  if (clean.startsWith('data:image/') || clean.startsWith('http://') || clean.startsWith('https://')) {
+  let clean = raw.trim();
+
+  // If already an external HTTP/HTTPS URL, preserve directly
+  if (clean.startsWith('http://') || clean.startsWith('https://')) {
     return clean;
   }
 
