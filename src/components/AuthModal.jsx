@@ -252,7 +252,7 @@ const AuthModal = () => {
                     {currentUser?.name || 'VENM USER'}
                   </h3>
                   <span className="inline-block px-2 py-0.5 text-[9px] font-mono font-bold uppercase bg-lime-400 text-neutral-900">
-                    {currentUser?.role === 'ADMIN' ? 'STUDIO ADMIN' : 'REGISTERED CLIENT'}
+                    REGISTERED CLIENT
                   </span>
                 </div>
               </div>
@@ -285,20 +285,6 @@ const AuthModal = () => {
                 <User className="w-4 h-4" />
                 <span>MY PROFILE & INQUIRIES</span>
               </button>
-
-              {isAdmin && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    closeLoginModal();
-                    navigate('/admin/dashboard');
-                  }}
-                  className="w-full btn-venm-secondary py-3 text-xs font-bold tracking-widest uppercase flex items-center justify-center gap-2"
-                >
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>GO TO ADMIN PANEL</span>
-                </button>
-              )}
 
               <button
                 type="button"

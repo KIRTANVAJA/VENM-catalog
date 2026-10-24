@@ -85,11 +85,7 @@ const Login = () => {
       setTimeout(() => {
         setLoading(false);
         setShowGooglePrompt(false);
-        if (res?.user?.role === 'ADMIN') {
-          navigate('/admin/dashboard');
-        } else {
-          navigate('/');
-        }
+        navigate('/');
       }, 500);
     } catch (err) {
       setLoading(false);
@@ -108,11 +104,7 @@ const Login = () => {
       setSuccessMsg('LOGIN SUCCESSFUL!');
       setTimeout(() => {
         setLoading(false);
-        if (res?.user?.role === 'ADMIN') {
-          navigate('/admin/dashboard');
-        } else {
-          navigate('/');
-        }
+        navigate('/');
       }, 500);
     } catch (err) {
       setLoading(false);
@@ -204,7 +196,7 @@ const Login = () => {
                     {currentUser?.name || 'VENM USER'}
                   </h3>
                   <span className="inline-block px-2 py-0.5 text-[9px] font-mono font-bold uppercase bg-lime-400 text-neutral-900">
-                    {currentUser?.role === 'ADMIN' ? 'STUDIO ADMIN' : 'REGISTERED CLIENT'}
+                    REGISTERED CLIENT
                   </span>
                 </div>
               </div>
@@ -226,15 +218,6 @@ const Login = () => {
             </div>
 
             <div className="space-y-2">
-              {isAdmin && (
-                <Link
-                  to="/admin/dashboard"
-                  className="w-full btn-venm-secondary py-3 text-xs font-bold tracking-widest uppercase flex items-center justify-center gap-2 text-center"
-                >
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>OPEN ADMIN PANEL</span>
-                </Link>
-              )}
 
               <button
                 type="button"

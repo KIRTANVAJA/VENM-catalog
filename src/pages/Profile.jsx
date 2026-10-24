@@ -144,7 +144,7 @@ const Profile = () => {
                   {currentUser?.name || 'VALUED CLIENT'}
                 </h1>
                 <span className="px-2.5 py-0.5 bg-lime-400 text-neutral-900 font-mono text-[9px] font-bold uppercase tracking-widest">
-                  {currentUser?.role === 'ADMIN' ? '★ STUDIO ADMIN' : 'REGISTERED CLIENT'}
+                  REGISTERED CLIENT
                 </span>
               </div>
 
@@ -166,15 +166,6 @@ const Profile = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            {isAdmin && (
-              <Link
-                to="/admin/dashboard"
-                className="btn-venm-secondary text-xs px-4 py-2.5 font-bold tracking-wider uppercase flex items-center gap-1.5"
-              >
-                <ShieldCheck className="w-4 h-4" />
-                <span>ADMIN PANEL</span>
-              </Link>
-            )}
 
             <button
               type="button"
