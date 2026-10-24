@@ -9,20 +9,45 @@ import {
 export const getUploadSignature = async (req, res) => {
   try {
     if (!isCloudinaryConfigured()) {
+      console.warn('[CLOUDINARY DIAGNOSTIC] Upload signature requested but Cloudinary is unconfigured.', {
+        nodeEnv: process.env.NODE_ENV,
+        vercelEnv: process.env.VERCEL_ENV
+      });
       return res.status(200).json({
         configured: false,
         message: 'Cloudinary credentials are not configured. Please add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to your environment variables.'
       });
     }
 
-    const folder = req.query.folder || req.body?.folder || 'venm-catalog/products';
+    const requestedFolder = req.query.folder || req.body?.folder || 'venm-catalog/products';
+    const folder = typeof requestedFolder === 'string' ? requestedFolder.trim() : 'venm-catalog/products';
     const params = generateSignedUploadParams(folder);
+
+    // Safe diagnostic logging (strictly NO secrets logged)
+    const isCloudNameSuspicious = params.cloudName === params.apiKey || /^\d+$/.test(params.cloudName);
+    console.log('[CLOUDINARY DIAGNOSTIC] Upload signature generated successfully:', {
+      cloudName: params.cloudName,
+      isCloudNameSuspicious,
+      apiKeyPrefix: params.apiKey ? `${params.apiKey.slice(0, 4)}...` : null,
+      folder: params.folder,
+      timestamp: params.timestamp,
+      signaturePrefix: params.signature ? `${params.signature.slice(0, 6)}...` : null,
+      environment: process.env.VERCEL_ENV || process.env.NODE_ENV || 'development'
+    });
+
+    if (isCloudNameSuspicious) {
+      console.warn('[CLOUDINARY WARNING] CLOUDINARY_CLOUD_NAME appears to be identical to CLOUDINARY_API_KEY or purely numeric. In Cloudinary, the cloud name is an account name/alias (e.g. "venm-store" or "dxyz123"), distinct from the 15-digit API key.');
+    }
 
     res.json({
       configured: true,
-      ...params
+      ...params,
+      ...(isCloudNameSuspicious ? {
+        warning: 'CLOUDINARY_CLOUD_NAME is identical to or formatted like CLOUDINARY_API_KEY. Please verify in your Cloudinary Dashboard under Settings > Access Keys that CLOUDINARY_CLOUD_NAME contains your account cloud name, not your 15-digit API key.'
+      } : {})
     });
   } catch (error) {
+    console.error('[CLOUDINARY DIAGNOSTIC] Failed to generate signature:', error.message);
     res.status(500).json({
       configured: false,
       message: 'FAILED TO GENERATE UPLOAD SIGNATURE',

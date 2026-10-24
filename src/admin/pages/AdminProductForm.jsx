@@ -5,8 +5,7 @@ import {
   apiCreateProduct,
   apiUpdateProduct,
   apiDeleteProduct,
-  apiGetUploadSignature,
-  apiDirectCloudinaryUpload
+  apiUploadImageToCloudinary
 } from '../../services/api';
 import { getAdminProducts } from '../../data/adminMock';
 import {
@@ -23,6 +22,7 @@ import {
   ArrowLeftSquare,
   ArrowRightSquare,
   Loader2,
+  RefreshCw,
   Info
 } from 'lucide-react';
 import ImageAdjusterModal from '../components/ImageAdjusterModal';
@@ -143,9 +143,70 @@ const AdminProductForm = ({ mode = 'create' }) => {
    * uploads directly to Cloudinary without routing through Vercel serverless function,
    * tracks live progress, and prevents Base64 explosion.
    */
+  const uploadSingleFile = async (fileId, file) => {
+    if (!file) return null;
+
+    setUploadQueue((prev) => (prev[fileId] ? {
+      ...prev,
+      [fileId]: { ...prev[fileId], status: 'uploading', progress: 0, error: null }
+    } : prev));
+
+    try {
+      // Direct browser-to-Cloudinary upload with fresh server-signed signature & timestamp
+      const uploadRes = await apiUploadImageToCloudinary(file, 'venm-catalog/products', (percent) => {
+        setUploadQueue((prev) => (prev[fileId] ? {
+          ...prev,
+          [fileId]: { ...prev[fileId], progress: percent }
+        } : prev));
+      });
+
+      if (uploadRes?.secure_url) {
+        setUploadQueue((prev) => (prev[fileId] ? {
+          ...prev,
+          [fileId]: { ...prev[fileId], progress: 100, status: 'completed' }
+        } : prev));
+
+        // Append persistent HTTPS URL to product images
+        setFormData((prev) => ({
+          ...prev,
+          images: [...(prev.images || []), uploadRes.secure_url]
+        }));
+
+        // Clean up finished item from queue after a brief moment
+        setTimeout(() => {
+          setUploadQueue((prev) => {
+            const next = { ...prev };
+            delete next[fileId];
+            return next;
+          });
+        }, 2500);
+
+        return uploadRes.secure_url;
+      } else {
+        throw new Error('Cloudinary did not return a secure URL.');
+      }
+    } catch (err) {
+      console.error(`[IMAGE UPLOAD] Error uploading ${file.name}:`, err);
+      setUploadQueue((prev) => (prev[fileId] ? {
+        ...prev,
+        [fileId]: { ...prev[fileId], status: 'error', error: err.message || 'Upload failed' }
+      } : prev));
+      setUploadErrors((prev) => [...prev, `Upload failed for "${file.name}": ${err.message}`]);
+      return null;
+    }
+  };
+
+  const handleDismissQueueItem = (fileId) => {
+    setUploadQueue((prev) => {
+      const next = { ...prev };
+      delete next[fileId];
+      return next;
+    });
+  };
+
   const handleFilesSelected = async (fileList) => {
-    if (!fileList || fileList.length === 0) return;
-    const files = Array.from(fileList);
+    const files = Array.from(fileList || []);
+    if (files.length === 0) return;
 
     const validationErrors = [];
     const validFiles = [];
@@ -168,24 +229,12 @@ const AdminProductForm = ({ mode = 'create' }) => {
 
     if (validFiles.length === 0) return;
 
-    // Retrieve signed upload parameters from backend
-    let sigData;
-    try {
-      sigData = await apiGetUploadSignature('venm-catalog/products');
-    } catch (err) {
-      setUploadErrors((prev) => [...prev, `Failed to retrieve upload signature from backend: ${err.message}`]);
-      return;
+    // Reset file input value so same files can be re-selected if desired
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
 
-    if (!sigData || !sigData.configured) {
-      setUploadErrors((prev) => [
-        ...prev,
-        sigData?.message || 'Cloudinary credentials are not configured in environment variables. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET.'
-      ]);
-      return;
-    }
-
-    // Process valid files directly to Cloudinary
+    // Process valid files directly to Cloudinary: each file gets its own queue item & fresh signature
     for (const file of validFiles) {
       const fileId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
@@ -193,6 +242,7 @@ const AdminProductForm = ({ mode = 'create' }) => {
         ...prev,
         [fileId]: {
           id: fileId,
+          file, // Retain original File for retries
           name: file.name,
           size: (file.size / 1024).toFixed(0) + ' KB',
           progress: 0,
@@ -201,50 +251,8 @@ const AdminProductForm = ({ mode = 'create' }) => {
         }
       }));
 
-      try {
-        const uploadRes = await apiDirectCloudinaryUpload(file, sigData, (percent) => {
-          setUploadQueue((prev) => (prev[fileId] ? {
-            ...prev,
-            [fileId]: { ...prev[fileId], progress: percent }
-          } : prev));
-        });
-
-        if (uploadRes?.secure_url) {
-          setUploadQueue((prev) => (prev[fileId] ? {
-            ...prev,
-            [fileId]: { ...prev[fileId], progress: 100, status: 'completed' }
-          } : prev));
-
-          // Append persistent HTTPS URL to product images
-          setFormData((prev) => ({
-            ...prev,
-            images: [...(prev.images || []), uploadRes.secure_url]
-          }));
-
-          // Clean up finished item from queue after a brief moment
-          setTimeout(() => {
-            setUploadQueue((prev) => {
-              const next = { ...prev };
-              delete next[fileId];
-              return next;
-            });
-          }, 2500);
-        } else {
-          throw new Error('Cloudinary did not return a secure URL.');
-        }
-      } catch (err) {
-        console.error(`[IMAGE UPLOAD] Error uploading ${file.name}:`, err);
-        setUploadQueue((prev) => (prev[fileId] ? {
-          ...prev,
-          [fileId]: { ...prev[fileId], status: 'error', error: err.message || 'Upload failed' }
-        } : prev));
-        setUploadErrors((prev) => [...prev, `Upload failed for "${file.name}": ${err.message}`]);
-      }
-    }
-
-    // Reset file input value so same files can be re-selected if desired
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      // Upload with fresh signature
+      await uploadSingleFile(fileId, file);
     }
   };
 
@@ -279,9 +287,18 @@ const AdminProductForm = ({ mode = 'create' }) => {
   const handleSubmit = async (e, statusOverride = null) => {
     if (e) e.preventDefault();
 
-    if (isUploading) {
+    const hasActiveUploads = Object.values(uploadQueue).some((item) => item.status === 'uploading');
+    const hasFailedUploads = Object.values(uploadQueue).some((item) => item.status === 'error');
+
+    if (hasActiveUploads) {
       setIsErrorToast(true);
       setToastMessage('UPLOADS IN PROGRESS: PLEASE WAIT FOR IMAGES TO FINISH');
+      return;
+    }
+
+    if (hasFailedUploads) {
+      setIsErrorToast(true);
+      setToastMessage('SOME UPLOADS FAILED: RETRY OR DISMISS FAILED IMAGES BEFORE SAVING');
       return;
     }
 
@@ -549,6 +566,12 @@ const AdminProductForm = ({ mode = 'create' }) => {
                       </span>
                     </div>
 
+                    {item.error && (
+                      <p className="text-[10px] text-red-300 font-mono break-words">
+                        Error: {item.error}
+                      </p>
+                    )}
+
                     <div className="w-full bg-neutral-900 h-2 overflow-hidden border border-neutral-700">
                       <div
                         className={`h-full transition-all duration-300 ${
@@ -561,6 +584,27 @@ const AdminProductForm = ({ mode = 'create' }) => {
                         style={{ width: `${item.progress}%` }}
                       />
                     </div>
+
+                    {item.status === 'error' && (
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => uploadSingleFile(item.id, item.file)}
+                          className="px-2 py-0.5 bg-lime-400 text-neutral-900 font-bold text-[10px] uppercase hover:bg-lime-300 flex items-center gap-1 border border-neutral-900 shadow-xs"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          <span>RETRY UPLOAD</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDismissQueueItem(item.id)}
+                          className="px-2 py-0.5 bg-neutral-700 text-neutral-200 font-bold text-[10px] uppercase hover:bg-neutral-600 flex items-center gap-1"
+                        >
+                          <X className="w-3 h-3" />
+                          <span>DISMISS</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

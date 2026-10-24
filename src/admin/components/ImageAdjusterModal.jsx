@@ -13,7 +13,7 @@ import {
   RefreshCw,
   AlertTriangle
 } from 'lucide-react';
-import { apiGetUploadSignature, apiDirectCloudinaryUpload } from '../../services/api';
+import { apiUploadImageToCloudinary } from '../../services/api';
 
 const ASPECT_RATIOS = [
   { label: '3:4 (Garment Look)', value: '3:4', w: 3, h: 4 },
@@ -128,19 +128,10 @@ const ImageAdjusterModal = ({ isOpen, imageUrl, onSave, onClose, defaultAspect =
         );
       });
 
-      // Get secure signed upload params
-      const sigData = await apiGetUploadSignature('venm-catalog/products');
-      if (!sigData || !sigData.configured) {
-        throw new Error(
-          sigData?.message ||
-            'Cloudinary credentials are not configured. Cannot upload cropped image.'
-        );
-      }
-
-      // Direct upload from browser to Cloudinary
-      const uploadResult = await apiDirectCloudinaryUpload(
+      // Direct upload from browser to Cloudinary with fresh server signature
+      const uploadResult = await apiUploadImageToCloudinary(
         blob,
-        sigData,
+        'venm-catalog/products',
         (percent) => {
           setUploadProgress(percent);
         }

@@ -4,8 +4,7 @@ import {
   apiGetMedia,
   apiCreateMedia,
   apiDeleteMedia,
-  apiGetUploadSignature,
-  apiDirectCloudinaryUpload
+  apiUploadImageToCloudinary
 } from '../../services/api';
 import { Upload, Search, Trash2, Eye, CheckCircle2, X, AlertTriangle, Loader2 } from 'lucide-react';
 import { BRAND_ASSETS } from '../../config/assets';
@@ -53,23 +52,20 @@ const AdminMediaLibrary = () => {
     setUploadProgress(0);
 
     try {
-      // 1. Get signed upload credentials
-      let sigData;
-      try {
-        sigData = await apiGetUploadSignature('venm-catalog/media');
-      } catch (e) {
-        sigData = { configured: false };
-      }
-
       let persistentUrl = BRAND_ASSETS.FALLBACK_CAMPAIGN;
       let assetSize = `${Math.round(file.size / 1024)} KB`;
 
-      if (sigData && sigData.configured) {
-        // Direct Cloudinary upload
-        const result = await apiDirectCloudinaryUpload(file, sigData, (p) => {
+      try {
+        const result = await apiUploadImageToCloudinary(file, 'venm-catalog/media', (p) => {
           setUploadProgress(p);
         });
         persistentUrl = result.secure_url;
+      } catch (uploadErr) {
+        if (uploadErr.message?.includes('not configured')) {
+          console.warn('[MEDIA UPLOAD] Cloudinary not configured, fallback asset used:', uploadErr.message);
+        } else {
+          throw uploadErr;
+        }
       }
 
       const newMediaObj = {

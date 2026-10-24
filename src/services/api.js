@@ -454,7 +454,7 @@ export function apiDirectCloudinaryUpload(fileOrBlob, signatureData, onProgress)
     const formData = new FormData();
     formData.append('file', fileOrBlob);
     formData.append('api_key', signatureData.apiKey);
-    formData.append('timestamp', signatureData.timestamp);
+    formData.append('timestamp', String(signatureData.timestamp));
     formData.append('signature', signatureData.signature);
     if (signatureData.folder) {
       formData.append('folder', signatureData.folder);
@@ -507,6 +507,36 @@ export function apiDirectCloudinaryUpload(fileOrBlob, signatureData, onProgress)
 
     xhr.send(formData);
   });
+}
+
+/**
+ * Unified, reliable upload pipeline for all Admin components:
+ * 1. Fetches a fresh, backend-signed upload signature specifically for this file
+ * 2. Uploads the image directly from browser to Cloudinary via signed POST
+ * 3. Returns the persistent Cloudinary secure_url and metadata
+ *
+ * Guarantees that:
+ * - Every upload operation obtains a brand-new signature with current timestamp
+ * - No signatures or timestamps are reused across multiple files or retries
+ * - The binary never routes through Vercel serverless function (no 4.5MB payload limit)
+ *
+ * @param {File|Blob} fileOrBlob - The image file or canvas blob to upload.
+ * @param {string} [folder='venm-catalog/products'] - The destination Cloudinary folder.
+ * @param {Function} [onProgress] - Optional progress callback receiving percent (0-100).
+ * @returns {Promise<{ secure_url: string, public_id: string, width: number, height: number, bytes: number, format: string }>}
+ */
+export async function apiUploadImageToCloudinary(fileOrBlob, folder = 'venm-catalog/products', onProgress) {
+  // 1. Retrieve fresh upload signature specifically for this image upload
+  const sigData = await apiGetUploadSignature(folder);
+  if (!sigData || !sigData.configured) {
+    throw new Error(
+      sigData?.message ||
+      'Cloudinary credentials are not configured. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in environment variables.'
+    );
+  }
+
+  // 2. Perform direct upload with fresh matching signature & timestamp
+  return apiDirectCloudinaryUpload(fileOrBlob, sigData, onProgress);
 }
 
 // ----------------------------------------------------
