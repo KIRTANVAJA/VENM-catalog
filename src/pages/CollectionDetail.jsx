@@ -8,21 +8,40 @@ import { normalizeImagePath } from '../utils/imageUtils';
 import { BRAND_ASSETS } from '../config/assets';
 import { ChevronRight, Filter, Sparkles, Image as ImageIcon } from 'lucide-react';
 
+function loadStoredCollection(slug) {
+  if (typeof window === 'undefined') return null;
+  try {
+    if (slug === 'active-fest') {
+      const storedFest = localStorage.getItem('venm_active_fest');
+      if (storedFest) return JSON.parse(storedFest);
+    }
+    const raw = localStorage.getItem('venm_cached_collections');
+    if (raw) {
+      const list = JSON.parse(raw);
+      if (Array.isArray(list)) {
+        return list.find((c) => c.slug === slug || c.id === slug) || null;
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+
 const CollectionDetail = () => {
   const { slug } = useParams();
   const { isAuthenticated, openLoginModal } = useAuth();
 
   const isFestiveSlug = slug === 'active-fest';
 
-  const [collection, setCollection] = useState(null);
-  const [allProducts, setAllProducts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const initialCol = loadStoredCollection(slug);
+  const [collection, setCollection] = useState(initialCol);
+  const [allProducts, setAllProducts] = useState(() => initialCol?.products || []);
+  const [isLoading, setIsLoading] = useState(!initialCol);
   const [activeCategory, setActiveCategory] = useState('All');
   const [activeInquiryProduct, setActiveInquiryProduct] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
-    setIsLoading(true);
+    if (!initialCol) setIsLoading(true);
 
     async function loadCollectionDetail() {
       try {
@@ -35,7 +54,7 @@ const CollectionDetail = () => {
             id: 'active-fest',
             name: af?.name || 'ACTIVE FESTIVAL EDIT',
             slug: 'active-fest',
-            coverImage: af?.coverImage || '/assets/campaign/HOMEPAGE_2.webp',
+            coverImage: af?.coverImage || BRAND_ASSETS.FALLBACK_CAMPAIGN,
             tagline: af?.announcement || 'CURRENT ACTIVE FESTIVAL CAPSULE',
             description: af?.description || 'Exclusive festival reference collection and bespoke silhouettes.',
             season: af?.season || 'FESTIVE 2026',
@@ -94,6 +113,22 @@ const CollectionDetail = () => {
     loadCollectionDetail();
     return () => { isMounted = false; };
   }, [slug, isFestiveSlug]);
+
+  if (!collection && isLoading) {
+    return (
+      <div className="min-h-screen bg-white text-neutral-900 py-16 px-4 sm:px-8 max-w-7xl mx-auto space-y-8 animate-pulse font-sans">
+        <div className="h-4 w-40 bg-neutral-200"></div>
+        <div className="h-10 w-72 bg-neutral-200"></div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-7 space-y-4">
+            <div className="h-4 w-full bg-neutral-200"></div>
+            <div className="h-4 w-3/4 bg-neutral-200"></div>
+          </div>
+          <div className="lg:col-span-5 h-64 bg-neutral-200"></div>
+        </div>
+      </div>
+    );
+  }
 
   if (!collection) {
     return (
@@ -163,6 +198,9 @@ const CollectionDetail = () => {
                 src={normalizeImagePath(collection.coverImage)}
                 alt={`${collection.name} Cover Visual`}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                loading="eager"
+                fetchPriority="high"
+                decoding="async"
                 onError={(e) => {
                   if (e.currentTarget.src !== BRAND_ASSETS.FALLBACK_CAMPAIGN) {
                     e.currentTarget.src = BRAND_ASSETS.FALLBACK_CAMPAIGN;

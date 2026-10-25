@@ -10,6 +10,6 @@ export const BRAND_ASSETS = {
 
   // Valid asset fallbacks
   FALLBACK_PRODUCT: '/assets/products/Denim Jacket.jpg',
-  FALLBACK_CAMPAIGN: '/assets/campaign/HOMEPAGE_2.webp',
+  FALLBACK_CAMPAIGN: '/assets/campaign/HOMEPAGE_2.jpg',
   FALLBACK_COLLECTION: '/assets/collections/denim.jpg'
 };

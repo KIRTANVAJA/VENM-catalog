@@ -21,6 +21,7 @@ const CollectionCard = ({ collection }) => {
             isLocked ? 'filter grayscale opacity-50' : 'opacity-85 group-hover:opacity-95'
           }`}
           loading="lazy"
+          decoding="async"
           onError={(e) => {
             if (e.currentTarget.src !== BRAND_ASSETS.FALLBACK_CAMPAIGN) {
               e.currentTarget.src = BRAND_ASSETS.FALLBACK_CAMPAIGN;

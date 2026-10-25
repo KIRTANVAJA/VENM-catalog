@@ -4,11 +4,15 @@ import {
   createMedia,
   deleteMedia,
   getUploadSignature,
-  getCloudinaryDiagnosticStatus
+  getCloudinaryDiagnosticStatus,
+  uploadLocalMedia
 } from '../controllers/mediaController.js';
 import { protectAdmin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+// Direct Local Media Upload (fallback when Cloudinary is unconfigured or for offline storage)
+router.post('/upload-local', protectAdmin, uploadLocalMedia);
 
 // Upload signature generation & diagnostic (Admin protected)
 router.get('/upload-signature', protectAdmin, getUploadSignature);

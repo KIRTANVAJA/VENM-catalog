@@ -4,6 +4,7 @@ import { getProductBySlug, getProductsByCollection, formatReferencePrice, getRef
 import { apiGetProductBySlug, apiGetProducts, apiTrackWhatsAppClick, apiRecordProductView } from '../services/api';
 import { formatWhatsAppUrl, getSettings } from '../data/settings';
 import { BRAND_ASSETS } from '../config/assets';
+import { normalizeImagePath } from '../utils/imageUtils';
 import ProductCard from '../components/ProductCard';
 import InquiryModal from '../components/InquiryModal';
 import { useAuth } from '../context/AuthContext';
@@ -214,9 +215,15 @@ const ProductDetail = () => {
                     onClick={() => setLightboxIndex(idx)}
                   >
                     <img
-                      src={img}
+                      src={normalizeImagePath(img, BRAND_ASSETS.FALLBACK_PRODUCT)}
                       alt={`${product.name} - View ${idx + 1}`}
                       className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.02]"
+                      loading={idx === 0 ? 'eager' : 'lazy'}
+                      fetchPriority={idx === 0 ? 'high' : 'auto'}
+                      decoding="async"
+                      onError={(e) => {
+                        e.currentTarget.src = BRAND_ASSETS.FALLBACK_PRODUCT;
+                      }}
                     />
                   </div>
                 ))}

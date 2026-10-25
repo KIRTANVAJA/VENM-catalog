@@ -1,4 +1,4 @@
-import { BRAND_ASSETS } from '../config/assets';
+import { BRAND_ASSETS } from '../config/assets.js';
 
 /**
  * Normalizes an image URL or file path for reliable web browser rendering.

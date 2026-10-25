@@ -44,9 +44,23 @@ export function getStoredAdminToken() {
   return null;
 }
 
+const apiMemoryCache = new Map();
+const CACHE_TTL_MS = 15000; // 15 seconds memory cache for lightning-fast section navigation
+
 async function request(endpoint, options = {}) {
   let url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
-  
+  const method = (options.method || 'GET').toUpperCase();
+
+  // If a mutation is made, instantly bust the cache
+  if (method !== 'GET') {
+    apiMemoryCache.clear();
+  } else if (!options.skipCache) {
+    const cached = apiMemoryCache.get(url);
+    if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
+      return cached.data;
+    }
+  }
+
   const token = getStoredAdminToken();
 
   const headers = {
@@ -56,7 +70,6 @@ async function request(endpoint, options = {}) {
   };
 
   const config = {
-    cache: 'no-store',
     ...options,
     headers,
     credentials: 'include' // Automatic HTTP cookie sending for admin auth
@@ -110,6 +123,13 @@ async function request(endpoint, options = {}) {
       }
       const errorDetail = data?.error ? `${data?.message || 'ERROR'}: ${data.error}` : (data?.message || `API ERROR (${res.status})`);
       throw new Error(errorDetail);
+    }
+
+    if (method === 'GET' && !options.skipCache) {
+      apiMemoryCache.set(url, {
+        data,
+        timestamp: Date.now()
+      });
     }
 
     return data;
@@ -292,6 +312,7 @@ export function apiGetProductBySlug(slug) {
 }
 
 export function clearClientCatalogCache() {
+  apiMemoryCache.clear();
   if (typeof window === 'undefined') return;
   try {
     const keysToRemove = [];
@@ -572,19 +593,52 @@ export function apiDirectCloudinaryUpload(fileOrBlob, signatureData, onProgress)
  * @param {Function} [onProgress] - Optional progress callback receiving percent (0-100).
  * @returns {Promise<{ secure_url: string, public_id: string, width: number, height: number, bytes: number, format: string }>}
  */
+export function fileToBase64(fileOrBlob) {
+  return new Promise((resolve, reject) => {
+    if (typeof fileOrBlob === 'string') return resolve(fileOrBlob);
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (error) => reject(error);
+    reader.readAsDataURL(fileOrBlob);
+  });
+}
+
+export async function apiUploadLocalImage(fileOrBlob, folder = 'collections', onProgress) {
+  if (onProgress) onProgress(25);
+  const base64Data = await fileToBase64(fileOrBlob);
+  if (onProgress) onProgress(60);
+
+  const res = await request('/media/upload-local', {
+    method: 'POST',
+    body: JSON.stringify({
+      data: base64Data,
+      filename: fileOrBlob.name || 'collection_cover.jpg',
+      folder
+    })
+  });
+
+  if (onProgress) onProgress(100);
+  return res;
+}
+
 export async function apiUploadImageToCloudinary(fileOrBlob, folder = 'venm-catalog/products', onProgress) {
-  // 1. Retrieve fresh upload signature specifically for this image upload
-  const sigData = await apiGetUploadSignature(folder);
-  if (!sigData || !sigData.configured) {
-    throw new Error(
-      sigData?.message ||
-      'Cloudinary credentials are not configured. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in environment variables.'
-    );
+  // 1. Try Cloudinary if configured and valid
+  try {
+    const sigData = await apiGetUploadSignature(folder).catch(() => null);
+    if (sigData && sigData.configured && !sigData.isSecretPlaceholder) {
+      return await apiDirectCloudinaryUpload(fileOrBlob, sigData, onProgress);
+    }
+  } catch (err) {
+    console.warn('[UPLOAD] Cloudinary upload unavailable, falling back to local storage:', err.message);
   }
 
-  // 2. Perform direct upload with fresh matching signature & timestamp
-  return apiDirectCloudinaryUpload(fileOrBlob, sigData, onProgress);
+  // 2. Seamless local asset upload fallback
+  console.log('[UPLOAD] Saving image directly to server local assets...');
+  return apiUploadLocalImage(fileOrBlob, folder, onProgress);
 }
+
+export const apiUploadImage = apiUploadImageToCloudinary;
+
 
 // ----------------------------------------------------
 // SETTINGS API

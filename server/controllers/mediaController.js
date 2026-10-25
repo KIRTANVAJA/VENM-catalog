@@ -1,3 +1,6 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import prisma from '../config/db.js';
 import { logActivity } from '../utils/activityLogger.js';
 import {
@@ -7,6 +10,85 @@ import {
   safeDeleteCloudinaryAssetIfUnused,
   getCloudinaryDiagnostics
 } from '../config/cloudinary.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export const uploadLocalMedia = async (req, res) => {
+  try {
+    const { data, filename, folder = 'collections' } = req.body;
+    if (!data || typeof data !== 'string') {
+      return res.status(400).json({ message: 'No image data provided. Expected Base64 string.' });
+    }
+
+    // Parse data URL: e.g. "data:image/jpeg;base64,...."
+    let base64String = data;
+    let mimeType = 'image/jpeg';
+    let extension = 'jpg';
+
+    const matches = data.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+    if (matches) {
+      mimeType = matches[1];
+      base64String = matches[2];
+      const subtype = mimeType.split('/')[1] || 'jpg';
+      extension = subtype === 'jpeg' ? 'jpg' : subtype.replace(/[^a-zA-Z0-9]/g, '');
+    }
+
+    const buffer = Buffer.from(base64String, 'base64');
+    if (buffer.length > 20 * 1024 * 1024) {
+      return res.status(400).json({ message: 'File size exceeds 20MB limit.' });
+    }
+
+    // Sanitize destination folder: e.g. 'collections', 'products', 'campaign'
+    let rawFolder = (folder || 'collections').toLowerCase();
+    if (rawFolder.includes('collection')) rawFolder = 'collections';
+    else if (rawFolder.includes('product')) rawFolder = 'products';
+    else if (rawFolder.includes('fest') || rawFolder.includes('campaign')) rawFolder = 'campaign';
+    const safeFolder = rawFolder.replace(/[^a-zA-Z0-9_-]/g, '') || 'collections';
+
+    const targetDir = path.join(__dirname, `../../public/assets/${safeFolder}`);
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
+    // Generate safe clean filename
+    const rawName = (filename || 'upload').replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeName = `${rawName}_${Date.now()}.${extension}`;
+    const filePath = path.join(targetDir, safeName);
+
+    await fs.promises.writeFile(filePath, buffer);
+
+    const publicUrl = `/assets/${safeFolder}/${safeName}`;
+
+    try {
+      await prisma.media.create({
+        data: {
+          name: filename || safeName,
+          url: publicUrl,
+          type: mimeType,
+          size: `${(buffer.length / 1024).toFixed(1)} KB`
+        }
+      });
+    } catch (e) {
+      // Non-fatal if media table registry has a duplicate or error
+    }
+
+    console.log(`[LOCAL UPLOAD SUCCESS] Stored image at: ${publicUrl}`);
+
+    res.status(201).json({
+      success: true,
+      secure_url: publicUrl,
+      url: publicUrl,
+      public_id: safeName,
+      bytes: buffer.length,
+      format: extension
+    });
+  } catch (error) {
+    console.error('[LOCAL UPLOAD ERROR]', error);
+    res.status(500).json({ message: 'LOCAL UPLOAD FAILED', error: error.message });
+  }
+};
+
 
 export const getUploadSignature = async (req, res) => {
   try {

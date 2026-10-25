@@ -62,8 +62,12 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-// Static uploads / public directory serving
-app.use('/assets', express.static(path.join(__dirname, '../public/assets')));
+// Static uploads / public directory serving with 7-day browser caching for fast image loads
+app.use('/assets', express.static(path.join(__dirname, '../public/assets'), {
+  maxAge: '7d',
+  etag: true,
+  lastModified: true
+}));
 
 // Health Check & Database Diagnostics
 app.get('/api/health', async (req, res) => {

@@ -183,8 +183,21 @@ export const updateCollection = async (req, res) => {
       dataToUpdate.coverImage = normalizeImagePath(dataToUpdate.coverImage);
     }
 
+    const targetCol = await prisma.collection.findFirst({
+      where: {
+        OR: [
+          { id },
+          { slug: id }
+        ]
+      }
+    });
+
+    if (!targetCol) {
+      return res.status(404).json({ message: 'COLLECTION NOT FOUND TO UPDATE' });
+    }
+
     const updated = await prisma.collection.update({
-      where: { id },
+      where: { id: targetCol.id },
       data: dataToUpdate
     });
 
