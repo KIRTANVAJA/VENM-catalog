@@ -46,16 +46,7 @@ const Home = () => {
         if (e.detail.active_fest) setActiveFest(e.detail.active_fest);
       }
     };
-
-    const handleCollectionsUpdated = () => {
-      if (isMounted) {
-        loadData();
-      }
-    };
-
     window.addEventListener('venm_settings_updated', handleSettingsUpdated);
-    window.addEventListener('venm_collections_updated', handleCollectionsUpdated);
-    window.addEventListener('venm_catalog_updated', handleCollectionsUpdated);
 
     async function loadData() {
       try {
@@ -137,8 +128,6 @@ const Home = () => {
     return () => {
       isMounted = false;
       window.removeEventListener('venm_settings_updated', handleSettingsUpdated);
-      window.removeEventListener('venm_collections_updated', handleCollectionsUpdated);
-      window.removeEventListener('venm_catalog_updated', handleCollectionsUpdated);
     };
   }, []);
 
@@ -151,7 +140,7 @@ const Home = () => {
   const heroTitle = heroSec?.content?.title || heroSec?.content?.heading || `${settings?.general?.brandName || 'VENM'} REFERENCE CATALOG`;
   const heroSubtitle = heroSec?.content?.subtitle || heroSec?.content?.subheading || settings?.general?.tagline || "FIND A LOOK. TELL US WHAT YOU NEED. WE'LL WORK FROM THERE.";
   const heroDesc = heroSec?.content?.description || "A FASHION REFERENCE CATALOG & BESPOKE CUSTOM REQUEST PLATFORM SHOWCASING WHAT VENM CAN CREATE, CUSTOMIZE, STYLE, SOURCE AND WORK ON.";
-  const heroImg = heroSec?.content?.heroImage || BRAND_ASSETS.FALLBACK_CAMPAIGN;
+  const heroImg = heroSec?.content?.heroImage || "/assets/campaign/HOMEPAGE_2.webp";
 
   return (
     <div className="min-h-screen bg-white text-neutral-900 space-y-20 pb-20 font-sans">
@@ -163,13 +152,9 @@ const Home = () => {
           {/* Hero Background Image */}
           <div className="absolute inset-0 z-0 opacity-20">
             <img
-              src={normalizeImagePath(heroImg, BRAND_ASSETS.FALLBACK_CAMPAIGN)}
+              src={heroImg}
               alt="VENM Hero Banner"
               className="w-full h-full object-cover object-center"
-              loading="eager"
-              fetchPriority="high"
-              decoding="async"
-              onError={(e) => { e.currentTarget.src = BRAND_ASSETS.FALLBACK_CAMPAIGN; }}
             />
           </div>
 
@@ -477,12 +462,10 @@ const Home = () => {
 
               <div className="lg:col-span-6 relative aspect-[4/3] overflow-hidden border border-neutral-200 bg-neutral-100 group shadow-sm">
                 <img
-                  src={normalizeImagePath(featuredColSec?.content?.coverImage || activeFest?.coverImage || navratriEdit?.coverImage || BRAND_ASSETS.FALLBACK_CAMPAIGN)}
+                  src={normalizeImagePath(featuredColSec?.content?.coverImage || activeFest?.coverImage || navratriEdit?.coverImage || "/assets/campaign/HOMEPAGE_2.webp")}
                   alt="Featured Collection Cover"
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  loading="lazy"
-                  decoding="async"
-                  onError={(e) => { e.currentTarget.src = BRAND_ASSETS.FALLBACK_CAMPAIGN; }}
+                  onError={(e) => { e.currentTarget.src = "/assets/campaign/HOMEPAGE_2.webp"; }}
                 />
               </div>
             </div>

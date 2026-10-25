@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
 import { BRAND_ASSETS } from '../config/assets';
-import { normalizeImagePath } from '../utils/imageUtils';
 import { formatReferencePrice, getReferenceStatusCTA } from '../data/catalog';
 import { getSettings } from '../data/settings';
 
@@ -47,8 +46,8 @@ const ProductCard = ({ product, onQuickInquire, activeFestName }) => {
     );
   })();
 
-  const mainImage = normalizeImagePath(product.images?.[0] || BRAND_ASSETS.FALLBACK_PRODUCT, BRAND_ASSETS.FALLBACK_PRODUCT);
-  const secondaryImage = normalizeImagePath(product.images?.[1] || mainImage, mainImage);
+  const mainImage = product.images?.[0] || BRAND_ASSETS.FALLBACK_PRODUCT;
+  const secondaryImage = product.images?.[1] || mainImage;
   const priceDisplay = formatReferencePrice(product);
   const statusCTA = getReferenceStatusCTA(product);
   const referenceIdStr = `REF ID: ${product.id || product.slug}`;
@@ -78,7 +77,6 @@ const ProductCard = ({ product, onQuickInquire, activeFestName }) => {
             alt={product.name}
             className="w-full h-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105 group-hover:opacity-0"
             loading="lazy"
-            decoding="async"
             onError={(e) => { e.target.src = BRAND_ASSETS.FALLBACK_PRODUCT; }}
           />
           <img
@@ -86,7 +84,6 @@ const ProductCard = ({ product, onQuickInquire, activeFestName }) => {
             alt={`${product.name} preview`}
             className="w-full h-full object-cover object-center absolute inset-0 transition-transform duration-500 ease-out opacity-0 group-hover:opacity-100 group-hover:scale-105"
             loading="lazy"
-            decoding="async"
             onError={(e) => { e.target.src = mainImage; }}
           />
         </Link>

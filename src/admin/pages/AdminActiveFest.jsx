@@ -12,8 +12,7 @@ import {
   apiUpdateHomepageSection,
   apiGetProducts,
   apiUpdateProduct,
-  apiUploadImageToCloudinary,
-  clearClientCatalogCache
+  apiUploadImageToCloudinary
 } from '../../services/api';
 import {
   Flame,
@@ -344,21 +343,6 @@ const AdminActiveFest = () => {
           ctaLink: '/collection/active-fest'
         }
       }).catch(() => {});
-
-      // 5. Sync corresponding Collection in Collection table so "CURATED COLLECTIONS" on Home page updates!
-      const targetCol = allCollections.find(
-        (c) => c.slug === 'active-fest' || c.id === 'diwali' || c.slug === cleanSlug || c.id === 'navratri' || (c.name && c.name.toUpperCase() === cleanTitle.toUpperCase())
-      );
-      if (targetCol) {
-        await apiUpdateCollection(targetCol.id, {
-          name: cleanTitle.toUpperCase(),
-          coverImage: festivalPayload.coverImage,
-          status: 'ACTIVE'
-        }).catch((e) => console.warn('Could not sync festival collection:', e));
-      }
-
-      // Clear client catalog cache and trigger live storefront update
-      clearClientCatalogCache();
 
       showToast(`SAVED! TITLE, PHOTOS & ${assignedProductIds.length} PRODUCTS ARE LIVE`);
     } catch (err) {

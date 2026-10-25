@@ -106,7 +106,7 @@ async function runTests() {
 
     const diwaliCol = allCols.find((c) => c.slug === 'diwali' || c.id === 'diwali');
     assert(!!diwaliCol, 'Diwali collection exists in collections API');
-    assert(diwaliCol.name === 'DIWALI EDIT' || diwaliCol.name === 'DIWALI COLLECTION', 'Diwali collection name is DIWALI EDIT or DIWALI COLLECTION');
+    assert(diwaliCol.name === 'DIWALI EDIT', 'Diwali collection name is DIWALI EDIT');
     assert(diwaliCol.status === 'ACTIVE' || diwaliCol.isActive === true, 'Diwali collection is ACTIVE');
 
     const indoCol = allCols.find((c) => c.slug === 'indo-western');

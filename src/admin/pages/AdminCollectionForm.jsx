@@ -85,18 +85,17 @@ const AdminCollectionForm = ({ mode = 'create' }) => {
         setUploadProgress(percent);
       });
 
-      const finalUrl = uploadRes?.secure_url || uploadRes?.url;
-      if (finalUrl) {
+      if (uploadRes?.secure_url) {
         setFormData((prev) => ({
           ...prev,
-          coverImage: finalUrl
+          coverImage: uploadRes.secure_url
         }));
-        setToastMessage(finalUrl.startsWith('http') ? 'COVER PHOTO UPLOADED TO CLOUDINARY' : 'COVER PHOTO SAVED TO LOCAL ASSETS');
+        setToastMessage('COVER PHOTO UPLOADED TO CLOUDINARY');
       } else {
-        throw new Error(uploadRes?.message || 'Server did not return a valid image URL.');
+        throw new Error('Cloudinary did not return a secure URL.');
       }
     } catch (err) {
-      console.warn('[COLLECTION UPLOAD] Upload error:', err.message);
+      console.warn('[COLLECTION UPLOAD] Cloudinary upload error:', err.message);
       setUploadError(`Upload failed: ${err.message}`);
     } finally {
       setIsUploading(false);
@@ -121,7 +120,7 @@ const AdminCollectionForm = ({ mode = 'create' }) => {
         result = await apiCreateCollection(cleanedData);
         setToastMessage(`COLLECTION CREATED IN DATABASE (ID: ${result.id})`);
       } else {
-        result = await apiUpdateCollection(cleanedData.id || id, cleanedData);
+        result = await apiUpdateCollection(cleanedData.id, cleanedData);
         setToastMessage(`COLLECTION UPDATED IN DATABASE (ID: ${result.id})`);
       }
       if (result) {
