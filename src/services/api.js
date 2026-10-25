@@ -56,6 +56,7 @@ async function request(endpoint, options = {}) {
   };
 
   const config = {
+    cache: 'no-store',
     ...options,
     headers,
     credentials: 'include' // Automatic HTTP cookie sending for admin auth
@@ -290,10 +291,34 @@ export function apiGetProductBySlug(slug) {
   return request(`/products/${slug}`);
 }
 
+export function clearClientCatalogCache() {
+  if (typeof window === 'undefined') return;
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (
+        key.startsWith('venm_cached_product_') ||
+        key.startsWith('venm_cached_collection_') ||
+        key === 'venm_cached_collections' ||
+        key === 'venm_cached_featured_prods'
+      )) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+    window.dispatchEvent(new CustomEvent('venm_collections_updated'));
+    window.dispatchEvent(new CustomEvent('venm_catalog_updated'));
+  } catch (e) {}
+}
+
 export function apiCreateProduct(data) {
   return request('/products', {
     method: 'POST',
     body: JSON.stringify(data)
+  }).then((res) => {
+    clearClientCatalogCache();
+    return res;
   });
 }
 
@@ -301,17 +326,26 @@ export function apiUpdateProduct(id, data) {
   return request(`/products/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data)
+  }).then((res) => {
+    clearClientCatalogCache();
+    return res;
   });
 }
 
 export function apiDeleteProduct(id) {
-  return request(`/products/${id}`, { method: 'DELETE' });
+  return request(`/products/${id}`, { method: 'DELETE' }).then((res) => {
+    clearClientCatalogCache();
+    return res;
+  });
 }
 
 export function apiUpdateProductStatus(id, availability) {
   return request(`/products/${id}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ availability })
+  }).then((res) => {
+    clearClientCatalogCache();
+    return res;
   });
 }
 
@@ -330,6 +364,9 @@ export function apiCreateCollection(data) {
   return request('/collections', {
     method: 'POST',
     body: JSON.stringify(data)
+  }).then((res) => {
+    clearClientCatalogCache();
+    return res;
   });
 }
 
@@ -337,11 +374,17 @@ export function apiUpdateCollection(id, data) {
   return request(`/collections/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data)
+  }).then((res) => {
+    clearClientCatalogCache();
+    return res;
   });
 }
 
 export function apiDeleteCollection(id) {
-  return request(`/collections/${id}`, { method: 'DELETE' });
+  return request(`/collections/${id}`, { method: 'DELETE' }).then((res) => {
+    clearClientCatalogCache();
+    return res;
+  });
 }
 
 // ----------------------------------------------------

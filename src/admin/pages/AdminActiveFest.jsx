@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   apiGetCampaigns,
@@ -71,6 +71,8 @@ const AdminActiveFest = () => {
 
   const [adjusterImage, setAdjusterImage] = useState(null);
   const [adjusterIndex, setAdjusterIndex] = useState(null);
+  const [isPhotoDragOver, setIsPhotoDragOver] = useState(false);
+  const photoFileInputRef = useRef(null);
 
   const handleAdjusterSave = (adjustedUrl) => {
     if (adjusterIndex !== null && adjusterIndex >= 0) {
@@ -190,10 +192,12 @@ const AdminActiveFest = () => {
     showToast('UPDATED MAIN COVER PHOTO');
   };
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0];
+  const processFestFile = async (file) => {
     if (!file) return;
-
+    if (!file.type.startsWith('image/')) {
+      showToast('ONLY IMAGE FILES (JPG, PNG, WEBP, AVIF) ARE SUPPORTED');
+      return;
+    }
     try {
       showToast('UPLOADING PHOTO TO CLOUDINARY...');
       const uploadRes = await apiUploadImageToCloudinary(file, 'venm-catalog/festivals');
@@ -203,7 +207,14 @@ const AdminActiveFest = () => {
       }
     } catch (err) {
       showToast('UPLOAD FAILED: ' + (err.message || 'Error'));
+    } finally {
+      if (photoFileInputRef.current) photoFileInputRef.current.value = '';
     }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (file) processFestFile(file);
   };
 
   // ----------------------------------------------------
@@ -274,25 +285,22 @@ const AdminActiveFest = () => {
       }
 
       // 2. Update Products in DB:
-      // A. For assigned products: mark isNavratriEdit: true and collectionSlug: 'active-fest'
+      // Mark assigned products with the festive flag WITHOUT stripping their permanent collection assignments!
       const assignedSet = new Set(assignedProductIds);
       const updatePromises = [];
 
       for (const prod of allProducts) {
         if (assignedSet.has(prod.id)) {
-          // Should be marked as festive
-          if (!prod.isNavratriEdit || prod.collectionSlug !== 'active-fest') {
+          if (!prod.isNavratriEdit) {
             updatePromises.push(
               apiUpdateProduct(prod.id, {
-                isNavratriEdit: true,
-                collectionSlug: 'active-fest',
-                collectionName: cleanTitle.toUpperCase()
+                isNavratriEdit: true
               }).catch((e) => console.warn(`Failed to mark product ${prod.id} festive:`, e))
             );
           }
         } else {
-          // Unassigned product: if it was marked as festive, unmark it
-          if (prod.isNavratriEdit || prod.collectionSlug === 'active-fest' || prod.collectionSlug === 'navratri') {
+          // If product was previously marked festive but unassigned from this active festival, unmark festive flag
+          if (prod.isNavratriEdit) {
             updatePromises.push(
               apiUpdateProduct(prod.id, {
                 isNavratriEdit: false
@@ -320,23 +328,7 @@ const AdminActiveFest = () => {
         if (created?.id) setActiveCampaignId(created.id);
       }
 
-      // 4. Sync Collection table in DB
-      const existingCol = allCollections.find((c) => c.slug === 'active-fest' || c.slug === cleanSlug || c.slug === 'navratri');
-      const colPayload = {
-        name: cleanTitle.toUpperCase(),
-        slug: 'active-fest',
-        coverImage: festivalPayload.coverImage,
-        status: 'ACTIVE',
-        featured: true
-      };
-
-      if (existingCol) {
-        await apiUpdateCollection(existingCol.id, colPayload).catch(() => {});
-      } else {
-        await apiCreateCollection(colPayload).catch(() => {});
-      }
-
-      // 5. Update Homepage featured_collection spotlight section in DB
+      // 4. Update Homepage featured_collection spotlight section in DB
       await apiUpdateHomepageSection({
         sectionKey: 'featured_collection',
         name: 'FEATURED COLLECTION SPOTLIGHT',
@@ -612,12 +604,50 @@ const AdminActiveFest = () => {
             + ADD MORE PHOTOS TO THIS FESTIVAL:
           </span>
 
+          {/* Drag & Drop Photo Uploader */}
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setIsPhotoDragOver(true);
+            }}
+            onDragLeave={() => setIsPhotoDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsPhotoDragOver(false);
+              const file = e.dataTransfer?.files?.[0];
+              if (file) processFestFile(file);
+            }}
+            onClick={() => photoFileInputRef.current?.click()}
+            className={`p-6 border-2 border-dashed text-center cursor-pointer transition-all ${
+              isPhotoDragOver
+                ? 'border-lime-500 bg-lime-400/10 scale-[1.008]'
+                : 'border-neutral-300 bg-white hover:bg-neutral-50 hover:border-neutral-900'
+            }`}
+          >
+            <input
+              type="file"
+              ref={photoFileInputRef}
+              accept="image/*"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <div className="flex flex-col items-center justify-center gap-2">
+              <Upload className="w-6 h-6 text-neutral-800" />
+              <p className="text-xs font-bold text-neutral-900 uppercase tracking-wider">
+                {isPhotoDragOver ? 'DROP PHOTO TO UPLOAD TO FESTIVAL' : 'DRAG & DROP PHOTO HERE OR CLICK TO CHOOSE FROM DEVICE'}
+              </p>
+              <p className="text-[11px] font-mono text-neutral-500">
+                Uploads directly to Cloudinary and attaches to this festival
+              </p>
+            </div>
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-3">
             <input
               type="text"
               value={newPhotoUrl}
               onChange={(e) => setNewPhotoUrl(e.target.value)}
-              placeholder="Paste photo URL (e.g. /assets/campaign/nas8.jpg or https://...)"
+              placeholder="Or paste photo URL (e.g. /assets/campaign/nas8.jpg or https://...)"
               className="flex-1 bg-white border border-neutral-300 px-3.5 py-2.5 text-neutral-900 font-mono outline-none focus:border-neutral-900"
             />
             <button
@@ -628,17 +658,6 @@ const AdminActiveFest = () => {
               <Plus className="w-4 h-4" />
               <span>ADD BY URL</span>
             </button>
-
-            <label className="btn-venm-secondary px-5 py-2.5 text-xs font-bold tracking-wider uppercase cursor-pointer flex items-center justify-center gap-1.5">
-              <Upload className="w-4 h-4" />
-              <span>UPLOAD FROM PC</span>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-            </label>
           </div>
 
           {/* Quick Studio Photo Chips */}

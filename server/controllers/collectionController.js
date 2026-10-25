@@ -4,15 +4,23 @@ import { logActivity } from '../utils/activityLogger.js';
 export const getCollections = async (req, res) => {
   try {
     const collections = await prisma.collection.findMany({
-      include: {
-        products: true
-      },
       orderBy: { displayOrder: 'asc' }
     });
-    const formatted = collections.map((c) => ({
-      ...c,
-      isActive: c.status === 'ACTIVE',
-      productCount: c.products ? c.products.length : 0
+    const formatted = await Promise.all(collections.map(async (c) => {
+      const productCount = await prisma.product.count({
+        where: {
+          OR: [
+            { collectionId: c.id },
+            { collectionSlug: c.slug }
+          ],
+          availability: { not: 'DRAFT' }
+        }
+      });
+      return {
+        ...c,
+        isActive: c.status === 'ACTIVE',
+        productCount
+      };
     }));
     res.json(formatted);
   } catch (error) {
@@ -25,7 +33,13 @@ export const getCollectionBySlug = async (req, res) => {
     const { slug } = req.params;
     const collection = await prisma.collection.findFirst({
       where: {
-        OR: [{ slug }, { id: slug }]
+        OR: [
+          { slug },
+          { id: slug },
+          { slug: slug.toLowerCase() },
+          { name: { equals: slug, mode: 'insensitive' } },
+          { name: { equals: `${slug} edit`, mode: 'insensitive' } }
+        ]
       }
     });
 
@@ -34,7 +48,17 @@ export const getCollectionBySlug = async (req, res) => {
     }
 
     const products = await prisma.product.findMany({
-      where: { collectionSlug: collection.slug }
+      where: {
+        OR: [
+          { collectionId: collection.id },
+          { collectionSlug: collection.slug },
+          { collectionSlug: slug }
+        ]
+      },
+      orderBy: [
+        { isFeatured: 'desc' },
+        { createdAt: 'desc' }
+      ]
     });
 
     const formattedProducts = products.map((p) => ({
@@ -56,6 +80,42 @@ export const getCollectionBySlug = async (req, res) => {
   }
 };
 
+export function normalizeImagePath(img) {
+  if (!img || typeof img !== 'string') return '/assets/campaign/HOMEPAGE_2.webp';
+  let cleaned = img.trim();
+
+  // Strip wrapping quotes (single, double, escaped quotes)
+  cleaned = cleaned.replace(/^["'\\]+|["'\\]+$/g, '').trim();
+  cleaned = cleaned.replace(/^["']+|["']+$/g, '').trim();
+
+  if (!cleaned) return '/assets/campaign/HOMEPAGE_2.webp';
+
+  // Convert Windows backslashes to forward slashes
+  cleaned = cleaned.replace(/\\/g, '/');
+
+  // If already an absolute URL (HTTP/HTTPS/Data URI/protocol-relative), return as-is
+  if (/^(https?:\/\/|data:image\/|\/\/)/i.test(cleaned)) {
+    return cleaned;
+  }
+
+  // If user pasted a local file path containing /public/ (e.g. D:/projects/venm/public/assets/...),
+  // extract the web path served relative to public root
+  const publicIndex = cleaned.toLowerCase().indexOf('/public/');
+  if (publicIndex !== -1) {
+    cleaned = cleaned.slice(publicIndex + 7);
+  }
+
+  // Strip drive letter if present (e.g. D:/assets/... -> /assets/...)
+  cleaned = cleaned.replace(/^[a-zA-Z]:\/?/, '/');
+
+  // Ensure path starts with a leading slash for root-relative web asset resolution
+  if (!cleaned.startsWith('/')) {
+    cleaned = '/' + cleaned;
+  }
+
+  return cleaned;
+}
+
 export const createCollection = async (req, res) => {
   try {
     const { name, slug, tagline, description, coverImage, season, status, featured, isActive } = req.body;
@@ -65,6 +125,7 @@ export const createCollection = async (req, res) => {
     }
 
     const resolvedStatus = status || (isActive === false ? 'COMING_SOON' : 'ACTIVE');
+    const resolvedCoverImage = normalizeImagePath(coverImage);
 
     const created = await prisma.collection.create({
       data: {
@@ -72,7 +133,7 @@ export const createCollection = async (req, res) => {
         slug: slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
         tagline: tagline || '',
         description: description || '',
-        coverImage: coverImage || '/assets/campaign/HOMEPAGE_2.webp',
+        coverImage: resolvedCoverImage,
         season: season || 'FESTIVE 2026',
         status: resolvedStatus,
         featured: Boolean(featured)
@@ -118,10 +179,25 @@ export const updateCollection = async (req, res) => {
       dataToUpdate.featured = Boolean(dataToUpdate.featured);
     }
 
+    if (dataToUpdate.coverImage) {
+      dataToUpdate.coverImage = normalizeImagePath(dataToUpdate.coverImage);
+    }
+
     const updated = await prisma.collection.update({
       where: { id },
       data: dataToUpdate
     });
+
+    // Cascade name or slug changes to all products linked to this collection
+    if (dataToUpdate.name || dataToUpdate.slug) {
+      await prisma.product.updateMany({
+        where: { collectionId: updated.id },
+        data: {
+          ...(dataToUpdate.name ? { collectionName: updated.name } : {}),
+          ...(dataToUpdate.slug ? { collectionSlug: updated.slug } : {})
+        }
+      });
+    }
 
     await logActivity({
       adminUserId: req.user?.id || 'admin-1',
@@ -134,7 +210,12 @@ export const updateCollection = async (req, res) => {
     });
 
     const productCount = await prisma.product.count({
-      where: { collectionSlug: updated.slug }
+      where: {
+        OR: [
+          { collectionId: updated.id },
+          { collectionSlug: updated.slug }
+        ]
+      }
     });
 
     res.json({

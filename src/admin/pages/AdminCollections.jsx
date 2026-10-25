@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { apiGetCollections, apiDeleteCollection, apiUpdateCollection } from '../../services/api';
 import { BRAND_ASSETS } from '../../config/assets';
+import { normalizeImagePath } from '../../utils/imageUtils';
 import { Plus, Edit, Trash2, Eye, Sparkles, Layers } from 'lucide-react';
 
 const AdminCollections = () => {
@@ -20,6 +21,12 @@ const AdminCollections = () => {
 
   useEffect(() => {
     loadCollections();
+
+    const handleCollectionsUpdated = () => {
+      loadCollections();
+    };
+    window.addEventListener('venm_collections_updated', handleCollectionsUpdated);
+    return () => window.removeEventListener('venm_collections_updated', handleCollectionsUpdated);
   }, []);
 
   const handleToggleActive = async (col) => {
@@ -68,10 +75,14 @@ const AdminCollections = () => {
               {/* Cover Photo */}
               <div className="relative h-48 bg-neutral-100 overflow-hidden group border-b border-neutral-200">
                 <img
-                  src={col.coverImage || BRAND_ASSETS.FALLBACK_CAMPAIGN}
+                  src={normalizeImagePath(col.coverImage, BRAND_ASSETS.FALLBACK_CAMPAIGN)}
                   alt={col.name}
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  onError={(e) => { e.target.src = BRAND_ASSETS.FALLBACK_CAMPAIGN; }}
+                  onError={(e) => {
+                    if (e.currentTarget.src !== BRAND_ASSETS.FALLBACK_CAMPAIGN) {
+                      e.currentTarget.src = BRAND_ASSETS.FALLBACK_CAMPAIGN;
+                    }
+                  }}
                 />
                 <div className="absolute top-3 left-3 flex items-center gap-2">
                   <span className={`px-2.5 py-1 text-[9px] font-mono tracking-widest uppercase font-bold border ${

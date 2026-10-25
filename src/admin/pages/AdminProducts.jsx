@@ -5,7 +5,8 @@ import {
   apiGetProducts,
   apiDeleteProduct,
   apiUpdateProduct,
-  apiCreateProduct
+  apiCreateProduct,
+  apiGetCollections
 } from '../../services/api';
 import { getAdminProducts } from '../../data/adminMock';
 import {
@@ -21,8 +22,9 @@ import {
 } from 'lucide-react';
 
 const AdminProducts = () => {
-  const [products, setProducts] = useState(getAdminProducts());
-  const [loading, setLoading] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [collections, setCollections] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [collectionFilter, setCollectionFilter] = useState('ALL');
@@ -31,13 +33,18 @@ const AdminProducts = () => {
   const loadProducts = async () => {
     setLoading(true);
     try {
-      const data = await apiGetProducts({ status: 'ALL' });
-      if (Array.isArray(data)) {
-        setProducts(data);
+      const [prodsData, colsData] = await Promise.all([
+        apiGetProducts({ status: 'ALL' }),
+        apiGetCollections().catch(() => [])
+      ]);
+      if (Array.isArray(prodsData)) {
+        setProducts(prodsData);
+      }
+      if (Array.isArray(colsData)) {
+        setCollections(colsData);
       }
     } catch (err) {
-      // Fallback to local admin mock
-      setProducts(getAdminProducts());
+      console.warn('[ADMIN PRODUCTS] Fetch failed:', err.message);
     } finally {
       setLoading(false);
     }
@@ -90,7 +97,9 @@ const AdminProducts = () => {
                           (p.category || '').toLowerCase().includes(search.toLowerCase()) ||
                           (p.slug || '').toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'ALL' || p.availability === statusFilter;
-    const matchesCollection = collectionFilter === 'ALL' || p.collectionSlug === collectionFilter;
+    const matchesCollection = collectionFilter === 'ALL' ||
+                              p.collectionId === collectionFilter ||
+                              p.collectionSlug === collectionFilter;
     return matchesSearch && matchesStatus && matchesCollection;
   });
 
@@ -151,14 +160,11 @@ const AdminProducts = () => {
               className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 text-xs text-neutral-900 px-3 py-2 outline-none font-mono"
             >
               <option value="ALL">COLLECTION: ALL</option>
-              <option value="navratri">NAVRATRI EDIT</option>
-              <option value="diwali">DIWALI EDIT</option>
-              <option value="ethnic">CONTEMPORARY ETHNIC</option>
-              <option value="indo-western">INDO-WESTERN</option>
-              <option value="denim">RAW DENIM</option>
-              <option value="street">STREETWEAR</option>
-              <option value="y2k">Y2K KINETIC</option>
-              <option value="accessories">ACCESSORIES</option>
+              {collections.map((col) => (
+                <option key={col.id} value={col.id}>
+                  {col.name}
+                </option>
+              ))}
             </select>
           </div>
         </div>

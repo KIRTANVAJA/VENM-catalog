@@ -2,24 +2,30 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
 import { BRAND_ASSETS } from '../config/assets';
+import { normalizeImagePath } from '../utils/imageUtils';
 
 const CollectionCard = ({ collection }) => {
   if (!collection) return null;
 
   const isLocked = collection.status === 'COMING_SOON' || collection.isActive === false;
+  const imageSrc = normalizeImagePath(collection.coverImage);
 
   return (
     <div className="group relative bg-white border border-neutral-200 overflow-hidden h-96 flex flex-col justify-end transition-all duration-300 hover:border-neutral-900">
       {/* Background Image */}
       <div className="absolute inset-0 overflow-hidden bg-neutral-100">
         <img
-          src={collection.coverImage}
+          src={imageSrc}
           alt={collection.name}
           className={`w-full h-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105 ${
             isLocked ? 'filter grayscale opacity-50' : 'opacity-85 group-hover:opacity-95'
           }`}
           loading="lazy"
-          onError={(e) => { e.target.src = BRAND_ASSETS.FALLBACK_CAMPAIGN; }}
+          onError={(e) => {
+            if (e.currentTarget.src !== BRAND_ASSETS.FALLBACK_CAMPAIGN) {
+              e.currentTarget.src = BRAND_ASSETS.FALLBACK_CAMPAIGN;
+            }
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
       </div>

@@ -59,8 +59,8 @@ const Footer = () => {
                 <Link to="/collections" className="hover:text-black transition-colors">ALL COLLECTIONS</Link>
               </li>
               <li>
-                <Link to="/collection/navratri" className="text-neutral-900 hover:text-black font-semibold transition-colors">
-                  NAVRATRI EDIT
+                <Link to={`/collection/${settings?.active_fest?.slug || 'active-fest'}`} className="text-neutral-900 hover:text-black font-semibold transition-colors">
+                  {activeCampName}
                 </Link>
               </li>
               <li>

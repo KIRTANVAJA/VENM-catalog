@@ -22,7 +22,7 @@ const Collections = () => {
     async function loadCollections() {
       try {
         const live = await apiGetCollections();
-        if (isMounted && live && live.length > 0) {
+        if (isMounted && Array.isArray(live)) {
           setCollections(live);
           try {
             localStorage.setItem('venm_cached_collections', JSON.stringify(live));
@@ -33,7 +33,16 @@ const Collections = () => {
       }
     }
     loadCollections();
-    return () => { isMounted = false; };
+
+    const handleCollectionsUpdated = () => {
+      loadCollections();
+    };
+    window.addEventListener('venm_collections_updated', handleCollectionsUpdated);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('venm_collections_updated', handleCollectionsUpdated);
+    };
   }, []);
 
   const filteredCollections = collections.filter((c) => {

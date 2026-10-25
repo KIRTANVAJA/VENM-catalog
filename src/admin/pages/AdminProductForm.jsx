@@ -5,7 +5,8 @@ import {
   apiCreateProduct,
   apiUpdateProduct,
   apiDeleteProduct,
-  apiUploadImageToCloudinary
+  apiUploadImageToCloudinary,
+  apiGetCollections
 } from '../../services/api';
 import { getAdminProducts } from '../../data/adminMock';
 import {
@@ -40,8 +41,9 @@ const AdminProductForm = ({ mode = 'create' }) => {
     id: '',
     name: '',
     slug: '',
-    collectionSlug: 'navratri',
-    collectionName: 'NAVRATRI EDIT',
+    collectionId: '',
+    collectionSlug: 'diwali',
+    collectionName: 'DIWALI EDIT',
     category: 'Outerwear',
     description: '',
     details: ['100% Cotton Loopback Fleece', 'Custom VENM Anodized Hardware'],
@@ -53,6 +55,8 @@ const AdminProductForm = ({ mode = 'create' }) => {
     tags: ['NavratriEdit', 'Outerwear'],
     garmentCare: 'Dry clean only.'
   });
+
+  const [availableCollections, setAvailableCollections] = useState([]);
 
   const [toastMessage, setToastMessage] = useState(null);
   const [isErrorToast, setIsErrorToast] = useState(false);
@@ -83,6 +87,16 @@ const AdminProductForm = ({ mode = 'create' }) => {
   };
 
   useEffect(() => {
+    apiGetCollections()
+      .then((cols) => {
+        if (Array.isArray(cols) && cols.length > 0) {
+          setAvailableCollections(cols);
+        }
+      })
+      .catch((err) => console.warn('[PRODUCT FORM] Failed to load collections:', err));
+  }, []);
+
+  useEffect(() => {
     if (mode === 'edit' && id) {
       apiGetProductBySlug(id)
         .then((data) => {
@@ -97,6 +111,9 @@ const AdminProductForm = ({ mode = 'create' }) => {
 
             setFormData({
               ...data,
+              collectionId: data.collectionId || '',
+              collectionSlug: data.collectionSlug || '',
+              collectionName: data.collectionName || '',
               details: Array.isArray(data.details) ? data.details : (typeof data.details === 'string' && data.details.startsWith('[') ? JSON.parse(data.details) : []),
               images: normalizedImages,
               sizes: Array.isArray(data.sizes) ? data.sizes : (typeof data.sizes === 'string' && data.sizes.startsWith('[') ? JSON.parse(data.sizes) : []),
@@ -483,25 +500,37 @@ const AdminProductForm = ({ mode = 'create' }) => {
             <div className="space-y-1.5">
               <label className="text-[10px] font-mono text-neutral-500 tracking-widest uppercase">COLLECTION</label>
               <select
-                value={formData.collectionSlug}
+                value={formData.collectionId || formData.collectionSlug}
                 onChange={(e) => {
-                  const selName = e.target.options[e.target.selectedIndex].text;
+                  const selVal = e.target.value;
+                  const foundCol = availableCollections.find((c) => c.id === selVal || c.slug === selVal);
                   setFormData({
                     ...formData,
-                    collectionSlug: e.target.value,
-                    collectionName: selName
+                    collectionId: foundCol ? foundCol.id : selVal,
+                    collectionSlug: foundCol ? foundCol.slug : selVal,
+                    collectionName: foundCol ? foundCol.name : e.target.options[e.target.selectedIndex].text
                   });
                 }}
-                className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 px-4 py-2.5 text-xs text-neutral-900 outline-none font-mono uppercase"
+                className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 px-4 py-2.5 text-xs text-neutral-900 outline-none font-mono uppercase font-bold"
               >
-                <option value="navratri">NAVRATRI EDIT</option>
-                <option value="diwali">DIWALI EDIT</option>
-                <option value="ethnic">CONTEMPORARY ETHNIC</option>
-                <option value="indo-western">INDO-WESTERN</option>
-                <option value="denim">RAW DENIM</option>
-                <option value="street">STREETWEAR</option>
-                <option value="y2k">Y2K KINETIC</option>
-                <option value="accessories">ACCESSORIES</option>
+                {availableCollections.length > 0 ? (
+                  availableCollections.map((col) => (
+                    <option key={col.id} value={col.id}>
+                      {col.name} {col.status === 'COMING_SOON' ? '(COMING SOON)' : ''}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="diwali">DIWALI EDIT</option>
+                    <option value="indo-western">INDO-WESTERN</option>
+                    <option value="street">STREETWEAR</option>
+                    <option value="y2k">Y2K KINETIC</option>
+                    <option value="accessories">ACCESSORIES</option>
+                    <option value="ethnic">CONTEMPORARY ETHNIC</option>
+                    <option value="denim">RAW DENIM</option>
+                    <option value="navratri">NAVRATRI EDIT</option>
+                  </>
+                )}
               </select>
             </div>
 

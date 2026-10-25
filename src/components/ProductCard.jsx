@@ -1,11 +1,50 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
 import { BRAND_ASSETS } from '../config/assets';
 import { formatReferencePrice, getReferenceStatusCTA } from '../data/catalog';
+import { getSettings } from '../data/settings';
 
-const ProductCard = ({ product, onQuickInquire }) => {
+const ProductCard = ({ product, onQuickInquire, activeFestName }) => {
   if (!product) return null;
+
+  const [settings, setSettings] = useState(() => getSettings());
+
+  useEffect(() => {
+    const handleSettingsUpdated = (e) => {
+      if (e.detail) {
+        setSettings({ ...e.detail });
+      }
+    };
+    window.addEventListener('venm_settings_updated', handleSettingsUpdated);
+    return () => window.removeEventListener('venm_settings_updated', handleSettingsUpdated);
+  }, []);
+
+  const activeFest = settings?.active_fest;
+  const festName = (
+    activeFestName ||
+    activeFest?.name ||
+    activeFest?.navLabel ||
+    (product.collectionSlug === 'navratri' ? 'NAVRATRI EDIT' : (product.collectionName || 'ACTIVE FEST'))
+  ).toUpperCase();
+
+  // Determine whether this product is featured in the active festival edit
+  const isFestiveProduct = (() => {
+    if (activeFest?.assignedProductIds && Array.isArray(activeFest.assignedProductIds) && activeFest.assignedProductIds.length > 0) {
+      if (activeFest.assignedProductIds.includes(product.id) || activeFest.assignedProductIds.includes(product._id)) {
+        return true;
+      }
+      if (activeFest.slug && (product.collectionSlug === activeFest.slug || product.collectionId === activeFest.slug)) {
+        return true;
+      }
+      return false;
+    }
+    return Boolean(
+      product.isNavratriEdit ||
+      product.isFestive ||
+      (activeFest?.slug && (product.collectionSlug === activeFest.slug || product.collectionId === activeFest.slug))
+    );
+  })();
 
   const mainImage = product.images?.[0] || BRAND_ASSETS.FALLBACK_PRODUCT;
   const secondaryImage = product.images?.[1] || mainImage;
@@ -16,12 +55,12 @@ const ProductCard = ({ product, onQuickInquire }) => {
   return (
     <div className="group relative bg-white border border-neutral-200 overflow-hidden flex flex-col justify-between h-full transition-all duration-300 hover:border-neutral-900">
       <div>
-        {/* Simple Minimal Badge (Navratri Edit or Paused/Coming Soon) */}
+        {/* Dynamic Active Fest Badge or Status CTA */}
         <div className="absolute top-3 left-3 z-10 flex flex-col gap-1">
-          {product.isNavratriEdit && (
+          {isFestiveProduct && (
             <span className="bg-neutral-900 text-lime-400 border border-lime-400/40 text-[9px] font-mono font-bold tracking-widest px-2.5 py-1 uppercase flex items-center gap-1.5 shadow-sm">
               <span className="w-1.5 h-1.5 rounded-full bg-lime-400"></span>
-              <span>NAVRATRI EDIT</span>
+              <span>{festName}</span>
             </span>
           )}
           {!statusCTA.isRequestable && (

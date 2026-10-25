@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getProductBySlug, getProductsByCollection, formatReferencePrice, getReferenceStatusCTA } from '../data/catalog';
 import { apiGetProductBySlug, apiGetProducts, apiTrackWhatsAppClick, apiRecordProductView } from '../services/api';
-import { formatWhatsAppUrl } from '../data/settings';
+import { formatWhatsAppUrl, getSettings } from '../data/settings';
 import { BRAND_ASSETS } from '../config/assets';
 import ProductCard from '../components/ProductCard';
 import InquiryModal from '../components/InquiryModal';
@@ -48,6 +48,40 @@ const ProductDetail = () => {
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
   const [quickInquireProduct, setQuickInquireProduct] = useState(null);
   const [lightboxIndex, setLightboxIndex] = useState(null);
+  const [settings, setSettings] = useState(() => getSettings());
+
+  useEffect(() => {
+    const handleSettingsUpdated = (e) => {
+      if (e.detail) setSettings({ ...e.detail });
+    };
+    window.addEventListener('venm_settings_updated', handleSettingsUpdated);
+    return () => window.removeEventListener('venm_settings_updated', handleSettingsUpdated);
+  }, []);
+
+  const activeFest = settings?.active_fest;
+  const festName = (
+    activeFest?.name ||
+    activeFest?.navLabel ||
+    (product?.collectionSlug === 'navratri' ? 'NAVRATRI EDIT' : (product?.collectionName || 'ACTIVE FEST'))
+  ).toUpperCase();
+
+  const isFestiveProduct = (() => {
+    if (!product) return false;
+    if (activeFest?.assignedProductIds && Array.isArray(activeFest.assignedProductIds) && activeFest.assignedProductIds.length > 0) {
+      if (activeFest.assignedProductIds.includes(product.id) || activeFest.assignedProductIds.includes(product._id)) {
+        return true;
+      }
+      if (activeFest.slug && (product.collectionSlug === activeFest.slug || product.collectionId === activeFest.slug)) {
+        return true;
+      }
+      return false;
+    }
+    return Boolean(
+      product.isNavratriEdit ||
+      product.isFestive ||
+      (activeFest?.slug && (product.collectionSlug === activeFest.slug || product.collectionId === activeFest.slug))
+    );
+  })();
 
   const galleryScrollRef = useRef(null);
 
@@ -77,7 +111,7 @@ const ProductDetail = () => {
           });
 
           // Fetch related products
-          const rels = await apiGetProducts({ collection: liveProduct.collectionSlug });
+          const rels = await apiGetProducts({ collection: liveProduct.collectionId || liveProduct.collectionSlug });
           if (isMounted && rels && rels.length > 0) {
             setRelatedProducts(rels.filter((p) => p.id !== liveProduct.id).slice(0, 3));
           }
@@ -190,9 +224,10 @@ const ProductDetail = () => {
 
               {/* Badges Overlay */}
               <div className="absolute top-4 left-4 flex flex-wrap gap-2 pointer-events-none z-10">
-                {product.isNavratriEdit && (
-                  <span className="bg-black text-white text-[10px] font-mono tracking-widest px-3 py-1 uppercase shadow-sm">
-                    ACTIVE FEST EDIT
+                {isFestiveProduct && (
+                  <span className="bg-neutral-900 text-lime-400 border border-lime-400/40 text-[10px] font-mono font-bold tracking-widest px-3 py-1 uppercase flex items-center gap-1.5 shadow-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-lime-400"></span>
+                    <span>{festName}</span>
                   </span>
                 )}
                 <span className="bg-white/90 text-neutral-900 border border-neutral-300 text-[10px] font-mono tracking-widest px-3 py-1 uppercase font-bold shadow-sm">

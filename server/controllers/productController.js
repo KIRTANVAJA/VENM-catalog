@@ -45,15 +45,34 @@ export const getProducts = async (req, res) => {
     const conditions = [];
 
     if (collection && collection !== 'ALL') {
-      if (collection === 'navratri') {
+      const foundCol = await prisma.collection.findFirst({
+        where: {
+          OR: [
+            { slug: collection },
+            { id: collection },
+            { slug: collection.toLowerCase() },
+            { name: { equals: collection, mode: 'insensitive' } },
+            { name: { equals: `${collection} edit`, mode: 'insensitive' } }
+          ]
+        }
+      });
+
+      if (foundCol) {
         conditions.push({
           OR: [
-            { collectionSlug: 'navratri' },
-            { isNavratriEdit: true }
+            { collectionId: foundCol.id },
+            { collectionSlug: foundCol.slug },
+            { collectionSlug: collection },
+            { collectionId: collection }
           ]
         });
       } else {
-        conditions.push({ collectionSlug: collection });
+        conditions.push({
+          OR: [
+            { collectionSlug: collection },
+            { collectionId: collection }
+          ]
+        });
       }
     }
 
@@ -86,6 +105,9 @@ export const getProducts = async (req, res) => {
 
     const products = await prisma.product.findMany({
       where: whereClause,
+      include: {
+        collection: true
+      },
       orderBy: [
         { isFeatured: 'desc' },
         { createdAt: 'desc' }
@@ -142,9 +164,11 @@ export const createProduct = async (req, res) => {
       slug,
       description,
       details,
+      collectionId,
       collectionSlug,
       collectionName,
       category,
+      categoryId,
       images,
       sizes,
       availability,
@@ -178,15 +202,48 @@ export const createProduct = async (req, res) => {
       finalSlug = `${finalSlug}-${Date.now().toString().slice(-4)}`;
     }
 
+    // Resolve Collection foreign key & metadata
+    let resolvedCollectionId = collectionId || null;
+    let resolvedCollectionSlug = collectionSlug || null;
+    let resolvedCollectionName = collectionName || null;
+
+    if (resolvedCollectionId) {
+      const col = await prisma.collection.findUnique({ where: { id: resolvedCollectionId } });
+      if (col) {
+        resolvedCollectionId = col.id;
+        resolvedCollectionSlug = col.slug;
+        resolvedCollectionName = col.name;
+      }
+    } else if (resolvedCollectionSlug) {
+      const col = await prisma.collection.findFirst({
+        where: {
+          OR: [
+            { slug: resolvedCollectionSlug },
+            { id: resolvedCollectionSlug },
+            { slug: resolvedCollectionSlug.toLowerCase() },
+            { name: { equals: resolvedCollectionSlug, mode: 'insensitive' } },
+            { name: { equals: `${resolvedCollectionSlug} edit`, mode: 'insensitive' } }
+          ]
+        }
+      });
+      if (col) {
+        resolvedCollectionId = col.id;
+        resolvedCollectionSlug = col.slug;
+        resolvedCollectionName = col.name;
+      }
+    }
+
     const created = await prisma.product.create({
       data: {
         name,
         slug: finalSlug,
         description: description || '',
         details: JSON.stringify(details || []),
-        collectionSlug: collectionSlug || 'navratri',
-        collectionName: collectionName || 'NAVRATRI EDIT',
+        collectionId: resolvedCollectionId,
+        collectionSlug: resolvedCollectionSlug,
+        collectionName: resolvedCollectionName,
         category: category || 'Outerwear',
+        categoryId: categoryId || null,
         images: JSON.stringify(sanitizeImageArray(images || [])),
         sizes: JSON.stringify(sizes || ['S', 'M', 'L', 'XL', 'Custom']),
         availability: availability || 'REQUESTABLE',
@@ -201,6 +258,9 @@ export const createProduct = async (req, res) => {
         isNavratriEdit: Boolean(isNavratriEdit),
         tags: JSON.stringify(tags || []),
         garmentCare: garmentCare || ''
+      },
+      include: {
+        collection: true
       }
     });
 
@@ -257,7 +317,43 @@ export const updateProduct = async (req, res) => {
     delete dataToUpdate.createdAt;
     delete dataToUpdate.updatedAt;
 
-    if (!dataToUpdate.collectionId) delete dataToUpdate.collectionId;
+    // Resolve & synchronize Collection relationship
+    if (body.collectionId !== undefined || body.collectionSlug !== undefined) {
+      let resolvedColId = body.collectionId;
+      let resolvedColSlug = body.collectionSlug;
+      let resolvedColName = body.collectionName;
+
+      if (resolvedColId) {
+        const col = await prisma.collection.findUnique({ where: { id: resolvedColId } });
+        if (col) {
+          resolvedColId = col.id;
+          resolvedColSlug = col.slug;
+          resolvedColName = col.name;
+        }
+      } else if (resolvedColSlug) {
+        const col = await prisma.collection.findFirst({
+          where: {
+            OR: [
+              { slug: resolvedColSlug },
+              { id: resolvedColSlug },
+              { slug: resolvedColSlug.toLowerCase() },
+              { name: { equals: resolvedColSlug, mode: 'insensitive' } },
+              { name: { equals: `${resolvedColSlug} edit`, mode: 'insensitive' } }
+            ]
+          }
+        });
+        if (col) {
+          resolvedColId = col.id;
+          resolvedColSlug = col.slug;
+          resolvedColName = col.name;
+        }
+      }
+
+      dataToUpdate.collectionId = resolvedColId || null;
+      if (resolvedColSlug) dataToUpdate.collectionSlug = resolvedColSlug;
+      if (resolvedColName) dataToUpdate.collectionName = resolvedColName;
+    }
+
     if (!dataToUpdate.categoryId) delete dataToUpdate.categoryId;
 
     if (body.details && typeof body.details !== 'string') dataToUpdate.details = JSON.stringify(body.details);

@@ -9,6 +9,7 @@ import EditorialGrid from '../components/EditorialGrid';
 import InquiryModal from '../components/InquiryModal';
 import { CoverflowCarousel } from '@/components/ui/coverflow-carousel';
 import { useAuth } from '../context/AuthContext';
+import { normalizeImagePath } from '../utils/imageUtils';
 import { ArrowUpRight, ChevronRight, Flame, Layers, LayoutGrid } from 'lucide-react';
 
 function loadStoredData(key, fallback) {
@@ -189,10 +190,10 @@ const Home = () => {
               </Link>
 
               <Link
-                to={heroSec?.content?.secondaryCtaLink || "/collection/navratri"}
+                to={heroSec?.content?.secondaryCtaLink || (activeFest?.slug ? `/collection/${activeFest.slug}` : "/collection/diwali")}
                 className="w-full sm:w-auto btn-venm-secondary px-8 py-4 text-xs font-semibold tracking-[0.18em] flex items-center justify-center gap-2 uppercase"
               >
-                <span>{heroSec?.content?.secondaryCtaText || "NAVRATRI EDIT"}</span>
+                <span>{heroSec?.content?.secondaryCtaText || activeFest?.name || "DIWALI EDIT"}</span>
               </Link>
             </div>
           </div>
@@ -425,7 +426,7 @@ const Home = () => {
       {/* ---------------------------------------------------- */}
       {/* 4. FEATURED COLLECTION SPOTLIGHT (CMS CONTROLLED) */}
       {/* ---------------------------------------------------- */}
-      {featuredColSec?.enabled !== false && navratriEdit && (
+      {featuredColSec?.enabled !== false && (activeFest || navratriEdit) && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-neutral-50 p-8 sm:p-12 border border-neutral-200">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
@@ -461,7 +462,7 @@ const Home = () => {
 
               <div className="lg:col-span-6 relative aspect-[4/3] overflow-hidden border border-neutral-200 bg-neutral-100 group shadow-sm">
                 <img
-                  src={featuredColSec?.content?.coverImage || activeFest?.coverImage || navratriEdit?.coverImage || "/assets/campaign/HOMEPAGE_2.webp"}
+                  src={normalizeImagePath(featuredColSec?.content?.coverImage || activeFest?.coverImage || navratriEdit?.coverImage || "/assets/campaign/HOMEPAGE_2.webp")}
                   alt="Featured Collection Cover"
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   onError={(e) => { e.currentTarget.src = "/assets/campaign/HOMEPAGE_2.webp"; }}
