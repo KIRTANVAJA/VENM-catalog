@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
 import { BRAND_ASSETS } from '../config/assets';
+import { getSettings } from '../data/settings';
 
 const EditorialGrid = () => {
   return (
@@ -76,7 +77,7 @@ const EditorialGrid = () => {
               <div className="pt-4 border-t border-neutral-200 flex items-center justify-between">
                 <span className="text-[10px] font-mono text-neutral-500">VENM DESIGN STUDIO</span>
                 <Link
-                  to="/collection/navratri"
+                  to={getSettings()?.active_fest?.slug ? `/collection/${getSettings().active_fest.slug}` : "/collections"}
                   className="text-xs font-semibold tracking-widest text-neutral-900 hover:text-black flex items-center gap-1.5 transition-colors uppercase"
                 >
                   <span>EXPLORE EDIT</span>

@@ -4,7 +4,7 @@ import { BRAND_ASSETS } from '../config/assets';
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error) {
@@ -13,10 +13,21 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('[VENM SYSTEM ERROR]', error, errorInfo);
+    this.setState({ error, errorInfo });
   }
 
   handleReload = () => {
     window.location.reload();
+  };
+
+  handleResetCacheAndReload = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+    } catch (e) {}
+    window.location.href = '/';
   };
 
   render() {
@@ -41,17 +52,31 @@ class ErrorBoundary extends React.Component {
               </p>
             </div>
 
-            <button
-              onClick={this.handleReload}
-              className="w-full py-3.5 px-6 bg-lime-400 hover:bg-lime-300 text-black font-mono text-xs uppercase tracking-widest font-bold transition-all duration-200"
-            >
-              REFRESH APPLICATION
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={this.handleReload}
+                className="w-full py-3.5 px-6 bg-lime-400 hover:bg-lime-300 text-black font-mono text-xs uppercase tracking-widest font-bold transition-all duration-200"
+              >
+                REFRESH APPLICATION
+              </button>
+              <button
+                onClick={this.handleResetCacheAndReload}
+                className="w-full py-2.5 px-6 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-700 font-mono text-[10px] uppercase tracking-widest font-semibold transition-all duration-200"
+              >
+                RESET CACHE & RELOAD
+              </button>
+            </div>
 
-            {import.meta.env?.DEV && this.state.error && (
-              <div className="text-left bg-neutral-900 p-3 text-[10px] font-mono text-red-400 overflow-x-auto border border-neutral-800">
-                {this.state.error.toString()}
-              </div>
+            {this.state.error && (
+              <details className="text-left bg-neutral-900/90 p-3 text-[10px] font-mono text-red-400 overflow-x-auto border border-neutral-800 max-h-48 text-left">
+                <summary className="cursor-pointer text-neutral-400 hover:text-white font-mono text-[10px] uppercase tracking-wider mb-2">
+                  VIEW ERROR DETAILS
+                </summary>
+                <p className="font-bold text-red-400 mb-1">{this.state.error.toString()}</p>
+                {this.state.errorInfo?.componentStack && (
+                  <pre className="text-neutral-500 text-[9px] whitespace-pre-wrap">{this.state.errorInfo.componentStack}</pre>
+                )}
+              </details>
             )}
           </div>
         </div>

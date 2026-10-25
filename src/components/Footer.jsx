@@ -76,7 +76,7 @@ const Footer = () => {
             </h4>
             <ul className="space-y-2.5 text-xs font-medium tracking-wider">
               <li>
-                <Link to="/collection/navratri" className="hover:text-black transition-colors">NAVRATRI EDIT</Link>
+                <Link to={`/collection/${settings?.active_fest?.slug || 'active-fest'}`} className="hover:text-black transition-colors">{activeCampName}</Link>
               </li>
               <li>
                 <Link to="/collection/indo-western" className="hover:text-black transition-colors">INDO-WESTERN</Link>
@@ -103,7 +103,7 @@ const Footer = () => {
             </p>
             <div className="flex flex-col gap-2.5">
               <a
-                href={`https://wa.me/${((settings?.whatsapp?.number || settings?.whatsapp?.rawNumber || '917434096095').replace(/[^0-9]/g, '')).replace(/^919664984749$|^9664984749$/, '917434096095') || '917434096095'}?text=Hello%20VENM%20Studio`}
+                href={`https://wa.me/${(String(settings?.whatsapp?.number || settings?.whatsapp?.rawNumber || '917434096095').replace(/[^0-9]/g, '')).replace(/^919664984749$|^9664984749$/, '917434096095') || '917434096095'}?text=Hello%20VENM%20Studio`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-xs font-semibold text-neutral-900 hover:text-black transition-colors group"

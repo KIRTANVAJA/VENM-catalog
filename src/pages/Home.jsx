@@ -16,7 +16,16 @@ function loadStoredData(key, fallback) {
   if (typeof window === 'undefined') return fallback;
   try {
     const raw = localStorage.getItem(key);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(fallback)) {
+        return Array.isArray(parsed) ? parsed : fallback;
+      }
+      if (fallback && typeof fallback === 'object') {
+        return (parsed && typeof parsed === 'object') ? parsed : fallback;
+      }
+      return parsed;
+    }
   } catch (e) {}
   return fallback;
 }
@@ -32,6 +41,9 @@ const Home = () => {
   const [cmsSections, setCmsSections] = useState(() => loadStoredData('venm_homepage_cms', {}));
   const [activeInquiryProduct, setActiveInquiryProduct] = useState(null);
   const [referenceViewMode, setReferenceViewMode] = useState('coverflow');
+
+  const safeFeaturedProducts = Array.isArray(featuredProducts) ? featuredProducts.filter(Boolean) : [];
+  const safeCollections = Array.isArray(collections) ? collections.filter(Boolean) : [];
 
   const handleInquire = (product) => {
     setActiveInquiryProduct(product);
@@ -105,17 +117,16 @@ const Home = () => {
           } catch (e) {}
         }
 
-        // 4. Fetch navratri / active campaign collection
+        // 4. Fetch active campaign collection
         try {
-          const [liveNavratri, liveSettings] = await Promise.all([
-            apiGetCollectionBySlug('navratri').catch(() => null),
-            apiGetSettings().catch(() => ({}))
-          ]);
-          if (isMounted && liveNavratri) {
-            setNavratriEdit(liveNavratri);
-          }
+          const liveSettings = await apiGetSettings().catch(() => ({}));
           if (isMounted && liveSettings?.active_fest) {
             setActiveFest(liveSettings.active_fest);
+          }
+          const targetSlug = liveSettings?.active_fest?.slug || 'active-fest';
+          const liveFest = await apiGetCollectionBySlug(targetSlug).catch(() => null);
+          if (isMounted && liveFest) {
+            setNavratriEdit(liveFest);
           }
         } catch (e) {}
       } catch (err) {
@@ -190,10 +201,10 @@ const Home = () => {
               </Link>
 
               <Link
-                to={heroSec?.content?.secondaryCtaLink || (activeFest?.slug ? `/collection/${activeFest.slug}` : "/collection/diwali")}
+                to={heroSec?.content?.secondaryCtaLink || (activeFest?.slug ? `/collection/${activeFest.slug}` : "/collections")}
                 className="w-full sm:w-auto btn-venm-secondary px-8 py-4 text-xs font-semibold tracking-[0.18em] flex items-center justify-center gap-2 uppercase"
               >
-                <span>{heroSec?.content?.secondaryCtaText || activeFest?.name || "DIWALI EDIT"}</span>
+                <span>{activeFest?.name || heroSec?.content?.secondaryCtaText || "EXPLORE FESTIVE"}</span>
               </Link>
             </div>
           </div>
@@ -314,22 +325,32 @@ const Home = () => {
             </div>
             <CoverflowCarousel
               slides={
-                featuredProducts && featuredProducts.length > 0
-                  ? featuredProducts.map((product) => ({
-                      src: product.images?.[0] || product.image || "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=640&h=640&fit=crop&q=80",
-                      alt: product.name || "Style Reference",
-                      title: product.name,
-                      subtitle: product.collectionName || product.category || "VENM REFERENCE",
-                      meta: [
-                        { label: "Category", value: product.category || "Outerwear" },
-                        { label: "Pricing", value: product.estimatedPrice || (product.minPrice ? `From ₹${product.minPrice}` : "On Request") },
-                        { label: "Availability", value: product.availability || "Requestable" },
-                      ],
-                      product,
-                      slug: product.slug || product.id,
-                      onViewDetails: () => navigate(`/product/${product.slug || product.id}`),
-                      onInquire: () => handleInquire(product),
-                    }))
+                safeFeaturedProducts.length > 0
+                  ? safeFeaturedProducts.map((product) => {
+                      const imgList = Array.isArray(product.images)
+                        ? product.images
+                        : (typeof product.images === 'string' && product.images.trim().startsWith('[')
+                            ? (() => { try { return JSON.parse(product.images); } catch(e) { return []; } })()
+                            : (product.image ? [product.image] : (typeof product.images === 'string' && product.images.trim() ? [product.images.trim()] : [])));
+                      const displayImg = imgList[0] || product.image || BRAND_ASSETS.FALLBACK_PRODUCT;
+                      const priceVal = formatReferencePrice(product);
+
+                      return {
+                        src: displayImg,
+                        alt: product.name || "Style Reference",
+                        title: product.name || "VENM REFERENCE",
+                        subtitle: product.collectionName || product.category || "VENM REFERENCE",
+                        meta: [
+                          { label: "Category", value: String(product.category || "Outerwear") },
+                          { label: "Pricing", value: String(priceVal) },
+                          { label: "Availability", value: String(product.availability || "Requestable") },
+                        ],
+                        product,
+                        slug: product.slug || product.id,
+                        onViewDetails: () => navigate(`/product/${product.slug || product.id}`),
+                        onInquire: () => handleInquire(product),
+                      };
+                    })
                   : [
                       {
                         src: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=640&h=640&fit=crop&q=80",
@@ -412,9 +433,9 @@ const Home = () => {
         ) : (
           /* Product Grid */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredProducts.map((product) => (
+            {safeFeaturedProducts.map((product) => (
               <ProductCard
-                key={product.id}
+                key={product.id || product.slug}
                 product={product}
                 onQuickInquire={(p) => handleInquire(p)}
               />
@@ -451,7 +472,7 @@ const Home = () => {
 
                 <div className="pt-2">
                   <Link
-                    to={featuredColSec?.content?.ctaLink || (activeFest?.slug ? `/collection/${activeFest.slug}` : "/collection/navratri")}
+                    to={featuredColSec?.content?.ctaLink || (activeFest?.slug ? `/collection/${activeFest.slug}` : "/collections")}
                     className="inline-flex btn-venm-primary px-6 py-3.5 text-xs font-bold tracking-widest items-center gap-2 uppercase"
                   >
                     <span>{featuredColSec?.content?.ctaText || `EXPLORE ${featuredColSec?.content?.title || activeFest?.name || 'EDIT'} REFERENCES`}</span>
@@ -538,8 +559,8 @@ const Home = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {collections.map((col) => (
-            <CollectionCard key={col.id} collection={col} />
+          {safeCollections.map((col) => (
+            <CollectionCard key={col.id || col.slug} collection={col} />
           ))}
         </div>
       </section>

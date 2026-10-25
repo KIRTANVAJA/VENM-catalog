@@ -43,7 +43,7 @@ const Navbar = () => {
       ? `${settings.general.brandName} // ${settings.general.tagline}` 
       : 'VENM × ACTIVE FEST: THE FESTIVE EDIT IS NOW LIVE');
 
-  const whatsappRaw = ((settings?.whatsapp?.number || settings?.whatsapp?.rawNumber || '917434096095').replace(/[^0-9]/g, '')).replace(/^919664984749$|^9664984749$/, '917434096095') || '917434096095';
+  const whatsappRaw = ((String(settings?.whatsapp?.number || settings?.whatsapp?.rawNumber || '917434096095')).replace(/[^0-9]/g, '')).replace(/^919664984749$|^9664984749$/, '917434096095') || '917434096095';
 
   const navLinks = [
     { name: 'HOME', path: '/' },

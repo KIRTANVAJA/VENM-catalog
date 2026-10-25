@@ -510,21 +510,37 @@ export function formatReferencePrice(product) {
   if (mode === 'CUSTOM_QUOTE') {
     return 'Price on Request';
   }
-  if (mode === 'PRICE_RANGE' && (product.minPrice || product.estimatedPrice?.includes('–'))) {
+  const estStr = product.estimatedPrice != null ? String(product.estimatedPrice).trim() : '';
+
+  if (mode === 'PRICE_RANGE' && (product.minPrice || estStr.includes('–') || estStr.includes('-'))) {
     if (product.minPrice && product.maxPrice) {
       const minStr = String(product.minPrice).startsWith('₹') ? product.minPrice : `₹${product.minPrice}`;
       const maxStr = String(product.maxPrice).startsWith('₹') ? product.maxPrice : `₹${product.maxPrice}`;
       return `Estimated: ${minStr} – ${maxStr}`;
     }
-    return product.estimatedPrice.startsWith('Estimated') ? product.estimatedPrice : `Estimated price: ${product.estimatedPrice}`;
-  }
-  if (product.estimatedPrice) {
-    if (product.estimatedPrice.toLowerCase().includes('estimated') || product.estimatedPrice.toLowerCase().includes('from') || product.estimatedPrice.toLowerCase().includes('request')) {
-      return product.estimatedPrice;
+    if (estStr) {
+      return estStr.toLowerCase().startsWith('estimated') ? estStr : `Estimated price: ${estStr}`;
     }
-    const priceStr = String(product.estimatedPrice).startsWith('₹') ? product.estimatedPrice : `₹${product.estimatedPrice}`;
+    if (product.minPrice) {
+      const minStr = String(product.minPrice).startsWith('₹') ? product.minPrice : `₹${product.minPrice}`;
+      return `Estimated from ${minStr}`;
+    }
+  }
+
+  if (estStr) {
+    const estLower = estStr.toLowerCase();
+    if (estLower.includes('estimated') || estLower.includes('from') || estLower.includes('request')) {
+      return estStr;
+    }
+    const priceStr = estStr.startsWith('₹') ? estStr : `₹${estStr}`;
     return `Estimated from ${priceStr}`;
   }
+
+  if (product.minPrice) {
+    const minStr = String(product.minPrice).startsWith('₹') ? product.minPrice : `₹${product.minPrice}`;
+    return `Estimated from ${minStr}`;
+  }
+
   return 'Price on Request';
 }
 

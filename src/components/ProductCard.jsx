@@ -46,8 +46,14 @@ const ProductCard = ({ product, onQuickInquire, activeFestName }) => {
     );
   })();
 
-  const mainImage = product.images?.[0] || BRAND_ASSETS.FALLBACK_PRODUCT;
-  const secondaryImage = product.images?.[1] || mainImage;
+  const imagesList = Array.isArray(product.images)
+    ? product.images
+    : (typeof product.images === 'string' && product.images.trim().startsWith('[')
+        ? (() => { try { return JSON.parse(product.images); } catch(e) { return []; } })()
+        : (product.image ? [product.image] : (typeof product.images === 'string' && product.images.trim() ? [product.images.trim()] : [])));
+
+  const mainImage = imagesList[0] || BRAND_ASSETS.FALLBACK_PRODUCT;
+  const secondaryImage = imagesList[1] || mainImage;
   const priceDisplay = formatReferencePrice(product);
   const statusCTA = getReferenceStatusCTA(product);
   const referenceIdStr = `REF ID: ${product.id || product.slug}`;

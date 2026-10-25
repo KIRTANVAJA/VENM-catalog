@@ -63,7 +63,8 @@ export function CoverflowCarousel({
   className,
   cardClassName,
 }: CoverflowCarouselProps) {
-  const count = slides.length;
+  const safeSlides = Array.isArray(slides) ? slides : [];
+  const count = safeSlides.length;
 
   const frameRef = React.useRef<HTMLDivElement>(null);
   const cardRefs = React.useRef<(HTMLDivElement | null)[]>([]);
@@ -86,7 +87,7 @@ export function CoverflowCarousel({
 
   /** Nearest whole card, folded back into 0..count-1. */
   const indexAt = React.useCallback(
-    (pos: number) => ((Math.round(pos) % count) + count) % count,
+    (pos: number) => (count > 0 ? ((Math.round(pos) % count) + count) % count : 0),
     [count],
   );
 
@@ -162,7 +163,7 @@ export function CoverflowCarousel({
   const goTo = React.useCallback(
     (index: number) => {
       // Take the shorter way round rather than unwinding the whole ring.
-      const target = loop
+      const target = (loop && count > 0)
         ? index + Math.round((targetRef.current - index) / count) * count
         : index;
       settle(clamp(target));
@@ -245,7 +246,11 @@ export function CoverflowCarousel({
     [],
   );
 
-  const active = slides[selected];
+  const active = safeSlides[selected] || safeSlides[0] || null;
+
+  if (count === 0) {
+    return null;
+  }
 
   return (
     <div
@@ -287,7 +292,7 @@ export function CoverflowCarousel({
               transformStyle: "preserve-3d",
             }}
           >
-            {slides.map((slide, index) => (
+            {safeSlides.map((slide, index) => (
               <div
                 key={index}
                 ref={(node) => {
