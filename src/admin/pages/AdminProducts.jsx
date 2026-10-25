@@ -9,6 +9,7 @@ import {
   apiGetCollections
 } from '../../services/api';
 import { getAdminProducts } from '../../data/adminMock';
+import { formatReferencePrice } from '../../utils/priceUtils';
 import {
   Plus,
   Search,
@@ -186,8 +187,13 @@ const AdminProducts = () => {
           </thead>
           <tbody className="divide-y divide-neutral-200">
             {filteredProducts.map((p) => {
-              const imgUrl = Array.isArray(p.images) ? p.images[0] : (typeof p.images === 'string' && p.images.startsWith('[') ? JSON.parse(p.images)[0] : p.images) || BRAND_ASSETS.FALLBACK_PRODUCT;
-              const estPrice = p.estimatedPrice || (p.minPrice ? `₹${p.minPrice} – ₹${p.maxPrice}` : 'Price on Request');
+              const imgList = Array.isArray(p.images)
+                ? p.images
+                : (typeof p.images === 'string' && p.images.trim().startsWith('[')
+                    ? (() => { try { return JSON.parse(p.images); } catch(e) { return []; } })()
+                    : (p.image ? [p.image] : (typeof p.images === 'string' && p.images.trim() ? [p.images.trim()] : [])));
+              const imgUrl = imgList[0] || BRAND_ASSETS.FALLBACK_PRODUCT;
+              const estPrice = formatReferencePrice(p);
               return (
                 <tr key={p.id} className="hover:bg-neutral-50 transition-colors">
                   <td className="py-3 px-4">

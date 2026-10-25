@@ -37,7 +37,8 @@ const ProductDetail = () => {
   const [product, setProduct] = useState(() => loadStoredProduct(slug));
   const [relatedProducts, setRelatedProducts] = useState(() => {
     const initProd = loadStoredProduct(slug);
-    return getProductsByCollection(initProd?.collectionSlug)
+    const prods = getProductsByCollection(initProd?.collectionSlug);
+    return (Array.isArray(prods) ? prods : [])
       .filter((p) => p.id !== initProd?.id)
       .slice(0, 3);
   });

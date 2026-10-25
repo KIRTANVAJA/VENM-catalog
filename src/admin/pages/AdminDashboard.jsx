@@ -8,6 +8,7 @@ import {
   API_BASE_URL
 } from '../../services/api';
 import { BRAND_ASSETS } from '../../config/assets';
+import { formatReferencePrice } from '../../utils/priceUtils';
 import {
   Package,
   Layers,
@@ -805,7 +806,7 @@ const AdminDashboard = () => {
 
                     <div className="flex items-center justify-between text-[10px] font-mono opacity-80">
                       <span>{product.category || 'Outerwear'} • {product.collectionName || 'Catalog'}</span>
-                      <span>{product.estimatedPrice || 'Price on Request'}</span>
+                      <span>{formatReferencePrice(product)}</span>
                     </div>
 
                     {/* Progress Bar */}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getFeaturedProducts, getAllCollections, getCollectionBySlug } from '../data/catalog';
+import { getFeaturedProducts, getAllCollections, getCollectionBySlug, formatReferencePrice } from '../data/catalog';
 import { apiGetProducts, apiGetCollections, apiGetCollectionBySlug, apiGetHomepageSections, apiGetSettings } from '../services/api';
 import { getSettings, fetchLiveSettings } from '../data/settings';
 import ProductCard from '../components/ProductCard';
@@ -363,8 +363,8 @@ const Home = () => {
                           { label: "Availability", value: "Requestable" },
                         ],
                         slug: "garba-cyber-vest-jac1",
-                        onViewDetails: () => navigate(`/collection/navratri`),
-                        onInquire: () => handleInquire({ name: "GARBA CYBER VEST", collectionName: "NAVRATRI EDIT", estimatedPrice: "From ₹2,200" }),
+                        onViewDetails: () => navigate(activeFest?.slug ? `/collection/${activeFest.slug}` : "/collections"),
+                        onInquire: () => handleInquire({ name: "GARBA CYBER VEST", collectionName: activeFest?.name || "ACTIVE FEST", estimatedPrice: "From ₹2,200" }),
                       },
                       {
                         src: "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=640&h=640&fit=crop&q=80",

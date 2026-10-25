@@ -14,6 +14,7 @@ import {
   apiUpdateProduct,
   apiUploadImageToCloudinary
 } from '../../services/api';
+import { formatReferencePrice } from '../../utils/priceUtils';
 import {
   Flame,
   Save,
@@ -737,10 +738,10 @@ const AdminActiveFest = () => {
               >
                 <option value="">-- Choose a product to add to fest ({availableToAdd.length} available) --</option>
                 {availableToAdd.map((p) => {
-                  const priceStr = p.estimatedPrice || (p.minPrice ? `₹${p.minPrice}` : '');
+                  const priceStr = formatReferencePrice(p);
                   return (
                     <option key={p.id} value={p.id}>
-                      {p.name} {p.category ? `[${p.category}]` : ''} {priceStr ? `— ${priceStr}` : ''}
+                      {p.name} {p.category ? `[${p.category}]` : ''} {priceStr !== 'Price on Request' ? `— ${priceStr}` : ''}
                     </option>
                   );
                 })}
@@ -818,7 +819,7 @@ const AdminActiveFest = () => {
                 const img = Array.isArray(product.images) && product.images.length > 0
                   ? product.images[0]
                   : (product.image || '/assets/campaign/HOMEPAGE_2.webp');
-                const price = product.estimatedPrice || (product.minPrice ? `₹${product.minPrice}` : 'REQUEST QUOTE');
+                const price = formatReferencePrice(product);
 
                 return (
                   <div

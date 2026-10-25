@@ -109,9 +109,10 @@ const CollectionDetail = () => {
     );
   }
 
-  const categories = ['All', ...new Set(allProducts.map((p) => p.category).filter(Boolean))];
+  const safeAllProducts = Array.isArray(allProducts) ? allProducts.filter(Boolean) : [];
+  const categories = ['All', ...new Set(safeAllProducts.map((p) => p.category).filter(Boolean))];
 
-  const filteredProducts = allProducts.filter(
+  const filteredProducts = safeAllProducts.filter(
     (p) => activeCategory === 'All' || p.category === activeCategory
   );
 

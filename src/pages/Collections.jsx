@@ -45,7 +45,8 @@ const Collections = () => {
     };
   }, []);
 
-  const filteredCollections = collections.filter((c) => {
+  const safeCollections = Array.isArray(collections) ? collections.filter(Boolean) : [];
+  const filteredCollections = safeCollections.filter((c) => {
     const isActive = c.isActive !== undefined ? c.isActive : c.status === 'ACTIVE';
     if (filter === 'active') return isActive;
     if (filter === 'upcoming') return !isActive;
