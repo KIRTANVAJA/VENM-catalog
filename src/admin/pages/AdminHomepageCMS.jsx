@@ -1,30 +1,36 @@
-import React, { useState, useEffect } from 'react';
-import { apiGetHomepageSections, apiUpdateHomepageSection } from '../../services/api';
-import { Save, Eye, CheckCircle2, Layers, EyeOff, FileText, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { apiGetHomepageSections, apiUpdateHomepageSection, apiUploadImageToCloudinary } from '../../services/api';
+import { Save, Eye, CheckCircle2, Layers, EyeOff, FileText, Image as ImageIcon, Upload, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { normalizeImagePath } from '../../utils/imageUtils';
 
 const AdminHomepageCMS = () => {
   const [sections, setSections] = useState([]);
   const [activeEditingId, setActiveEditingId] = useState('hero');
   const [loading, setLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState(null);
-
-  const loadSections = async () => {
-    try {
-      setLoading(true);
-      const data = await apiGetHomepageSections();
-      if (Array.isArray(data) && data.length > 0) {
-        setSections(data.map((s) => ({ ...s, sectionKey: s.sectionKey || s.id })));
-      }
-    } catch (err) {
-      console.warn('[CMS] Failed to fetch homepage sections:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const heroFileInputRef = useRef(null);
+  const featuredColFileInputRef = useRef(null);
+  const storyFileInputRef = useRef(null);
 
   useEffect(() => {
+    let isMounted = true;
+    async function loadSections() {
+      try {
+        const data = await apiGetHomepageSections();
+        if (isMounted && Array.isArray(data) && data.length > 0) {
+          setSections(data.map((s) => ({ ...s, sectionKey: s.sectionKey || s.id })));
+        }
+      } catch (err) {
+        console.warn('[CMS] Failed to fetch homepage sections:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
     loadSections();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const activeSection = sections.find((s) => (s.sectionKey || s.id) === activeEditingId) || sections[0];
@@ -67,21 +73,72 @@ const AdminHomepageCMS = () => {
     setSections(sections.map((s) => (s.sectionKey || s.id) === currentKey ? { ...s, content: newContent } : s));
   };
 
+  const handleFileUpload = async (field, file) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setToastMessage('ONLY IMAGE FILES (JPG, PNG, WEBP, AVIF) ARE SUPPORTED');
+      setTimeout(() => setToastMessage(null), 3000);
+      return;
+    }
+
+    setToastMessage('PROCESSING & ATTACHING IMAGE...');
+    try {
+      // 1. Attempt Cloudinary upload first if configured
+      let uploadUrl = null;
+      try {
+        const res = await apiUploadImageToCloudinary(file, 'venm-catalog/campaign');
+        if (res?.secure_url) uploadUrl = res.secure_url;
+      } catch (cloudErr) {
+        console.info('[CMS UPLOAD] Cloudinary upload skipped, falling back to local file:', cloudErr.message);
+      }
+
+      // 2. If Cloudinary not configured, use FileReader Data URL
+      if (!uploadUrl) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const dataUrl = e.target.result;
+          handleContentChange(field, dataUrl);
+          setToastMessage(`IMAGE "${file.name}" ATTACHED SUCCESSFULLY`);
+          setTimeout(() => setToastMessage(null), 2500);
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      handleContentChange(field, uploadUrl);
+      setToastMessage('IMAGE UPLOADED & ATTACHED');
+      setTimeout(() => setToastMessage(null), 2500);
+    } catch (err) {
+      setToastMessage('UPLOAD ERROR: ' + (err.message || 'FAILED'));
+      setTimeout(() => setToastMessage(null), 3000);
+    }
+  };
+
   const handleSaveSection = async () => {
     if (!activeSection) return;
     const sKey = activeSection.sectionKey || activeSection.id;
 
+    // Clean and normalize all image URLs before saving
+    const cleanedContent = { ...activeSection.content };
+    if (cleanedContent.heroImage) {
+      cleanedContent.heroImage = normalizeImagePath(cleanedContent.heroImage);
+    }
+    if (cleanedContent.coverImage) {
+      cleanedContent.coverImage = normalizeImagePath(cleanedContent.coverImage);
+    }
+
     try {
       const updated = await apiUpdateHomepageSection({
         sectionKey: sKey,
-        content: activeSection.content,
+        content: cleanedContent,
         enabled: activeSection.enabled,
         displayOrder: activeSection.displayOrder
       });
       try {
         const stored = JSON.parse(localStorage.getItem('venm_homepage_cms') || '{}');
-        stored[sKey] = updated || { ...activeSection };
+        stored[sKey] = updated || { ...activeSection, content: cleanedContent };
         localStorage.setItem('venm_homepage_cms', JSON.stringify(stored));
+        window.dispatchEvent(new CustomEvent('venm_settings_updated', { detail: { homepage_cms: stored } }));
       } catch (e) {}
       setToastMessage(`SAVED "${activeSection.name || sKey.toUpperCase()}" CONTENT`);
       setTimeout(() => setToastMessage(null), 2500);
@@ -242,14 +299,106 @@ const AdminHomepageCMS = () => {
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-neutral-800 font-bold text-[11px] uppercase block">HERO COVER IMAGE PATH</label>
-                <input
-                  type="text"
-                  value={activeSection.content.heroImage || ''}
-                  onChange={(e) => handleContentChange('heroImage', e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-300 px-4 py-2 text-neutral-900 font-mono text-xs outline-none focus:border-neutral-900"
-                />
+              <div className="space-y-3 p-4 bg-neutral-100 border border-neutral-300">
+                <div className="flex items-center justify-between">
+                  <label className="text-neutral-900 font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4 text-neutral-800" />
+                    HERO COVER IMAGE (BACKGROUND BANNER)
+                  </label>
+                  <span className="text-[10px] font-mono font-bold text-neutral-500 uppercase">
+                    LIVE HOMEPAGE BANNER
+                  </span>
+                </div>
+
+                {/* Banner Live Preview */}
+                <div className="relative w-full h-48 bg-neutral-900 border border-neutral-300 overflow-hidden group">
+                  <img
+                    src={normalizeImagePath(activeSection.content.heroImage || '/assets/campaign/IMG_0628.jpg')}
+                    alt="Hero Banner Preview"
+                    className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = '/assets/campaign/HOMEPAGE_2.webp';
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-neutral-950/20 pointer-events-none" />
+                  <div className="absolute bottom-2 left-2 bg-neutral-900/90 text-lime-400 font-mono text-[10px] px-2.5 py-1 border border-white/20 font-bold uppercase tracking-wider">
+                    CURRENT BANNER: {activeSection.content.heroImage || '/assets/campaign/IMG_0628.jpg'}
+                  </div>
+                </div>
+
+                {/* File Upload Area */}
+                <div
+                  onClick={() => heroFileInputRef.current?.click()}
+                  className="border-2 border-dashed border-neutral-400 bg-white hover:bg-neutral-50 p-4 text-center cursor-pointer transition-colors"
+                >
+                  <input
+                    type="file"
+                    ref={heroFileInputRef}
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload('heroImage', file);
+                    }}
+                    className="hidden"
+                  />
+                  <div className="flex flex-col items-center justify-center gap-1">
+                    <Upload className="w-5 h-5 text-neutral-700" />
+                    <span className="text-xs font-bold text-neutral-900 uppercase">
+                      CHOOSE BANNER IMAGE FROM DEVICE OR DRAG & DROP HERE
+                    </span>
+                    <span className="text-[10px] font-mono text-neutral-500">
+                      Supports JPG, PNG, WEBP, AVIF directly from your computer
+                    </span>
+                  </div>
+                </div>
+
+                {/* Direct Path Input with Auto-Sanitization */}
+                <div className="space-y-1">
+                  <label className="text-neutral-700 font-bold text-[10px] uppercase block">
+                    IMAGE PATH / URL (AUTOMATICALLY CLEANS WINDOWS PATHS & QUOTES)
+                  </label>
+                  <input
+                    type="text"
+                    value={activeSection.content.heroImage || ''}
+                    placeholder="/assets/campaign/IMG_0628.jpg"
+                    onChange={(e) => handleContentChange('heroImage', normalizeImagePath(e.target.value))}
+                    className="w-full bg-white border border-neutral-300 px-3 py-2 text-neutral-900 font-mono text-xs outline-none focus:border-neutral-900"
+                  />
+                </div>
+
+                {/* Quick-Select Studio Campaign Looks */}
+                <div className="pt-1 space-y-1.5">
+                  <span className="text-[10px] font-mono font-bold text-neutral-600 uppercase block">
+                    ⚡ QUICK-SELECT FROM STUDIO CAMPAIGN LOOKS:
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { name: 'VENM Editorial Shoot (Steps)', path: '/assets/campaign/IMG_0628.jpg' },
+                      { name: 'Navratri Campaign 2026', path: '/assets/campaign/HOMEPAGE_2.webp' },
+                      { name: 'Cyber Chunri Kimono', path: '/assets/campaign/nas1.webp' },
+                      { name: 'Kinetic Festive Kurta', path: '/assets/campaign/nas5.webp' },
+                      { name: 'VENM Brand Banner', path: '/assets/campaign/banner.png' },
+                    ].map((sample, idx) => {
+                      const currentVal = activeSection.content.heroImage || '';
+                      const isSelected = currentVal === sample.path || currentVal.includes(sample.name);
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleContentChange('heroImage', sample.path)}
+                          className={`text-[10px] font-mono px-2.5 py-1 border transition-all ${
+                            isSelected
+                              ? 'bg-neutral-900 text-lime-400 border-neutral-900 font-bold shadow-sm'
+                              : 'bg-white hover:bg-neutral-900 hover:text-white text-neutral-800 border-neutral-300 font-medium'
+                          }`}
+                        >
+                          {isSelected ? '✓ ' : '+ '}{sample.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4 pt-2">
@@ -329,14 +478,67 @@ const AdminHomepageCMS = () => {
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-neutral-800 font-bold text-[11px] uppercase block">COVER IMAGE PATH</label>
-                <input
-                  type="text"
-                  value={activeSection.content.coverImage || ''}
-                  onChange={(e) => handleContentChange('coverImage', e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-300 px-4 py-2 text-neutral-900 font-mono outline-none focus:border-neutral-900"
-                />
+              <div className="space-y-3 p-4 bg-neutral-100 border border-neutral-300">
+                <div className="flex items-center justify-between">
+                  <label className="text-neutral-900 font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4 text-neutral-800" />
+                    FEATURED SPOTLIGHT COVER IMAGE
+                  </label>
+                  <span className="text-[10px] font-mono font-bold text-neutral-500 uppercase">
+                    COLLECTION PREVIEW
+                  </span>
+                </div>
+
+                <div className="relative w-full h-40 bg-neutral-900 border border-neutral-300 overflow-hidden group">
+                  <img
+                    src={normalizeImagePath(activeSection.content.coverImage || '/assets/campaign/HOMEPAGE_2.webp')}
+                    alt="Featured Collection Preview"
+                    className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = '/assets/campaign/HOMEPAGE_2.webp';
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-neutral-950/20 pointer-events-none" />
+                  <div className="absolute bottom-2 left-2 bg-neutral-900/90 text-lime-400 font-mono text-[10px] px-2.5 py-1 border border-white/20 font-bold uppercase tracking-wider">
+                    COVER: {activeSection.content.coverImage || '/assets/campaign/HOMEPAGE_2.webp'}
+                  </div>
+                </div>
+
+                <div
+                  onClick={() => featuredColFileInputRef.current?.click()}
+                  className="border-2 border-dashed border-neutral-400 bg-white hover:bg-neutral-50 p-3 text-center cursor-pointer transition-colors"
+                >
+                  <input
+                    type="file"
+                    ref={featuredColFileInputRef}
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload('coverImage', file);
+                    }}
+                    className="hidden"
+                  />
+                  <div className="flex flex-col items-center justify-center gap-1">
+                    <Upload className="w-4 h-4 text-neutral-700" />
+                    <span className="text-xs font-bold text-neutral-900 uppercase">
+                      CHOOSE COVER PHOTO FROM DEVICE
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-neutral-700 font-bold text-[10px] uppercase block">
+                    COVER IMAGE PATH (AUTO-NORMALIZED)
+                  </label>
+                  <input
+                    type="text"
+                    value={activeSection.content.coverImage || ''}
+                    placeholder="/assets/campaign/HOMEPAGE_2.webp"
+                    onChange={(e) => handleContentChange('coverImage', normalizeImagePath(e.target.value))}
+                    className="w-full bg-white border border-neutral-300 px-3 py-2 text-neutral-900 font-mono text-xs outline-none focus:border-neutral-900"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4 pt-2">
@@ -544,14 +746,67 @@ const AdminHomepageCMS = () => {
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-neutral-800 font-bold text-[11px] uppercase block">STORY COVER IMAGE</label>
-                <input
-                  type="text"
-                  value={activeSection.content.coverImage || ''}
-                  onChange={(e) => handleContentChange('coverImage', e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-300 px-4 py-2 text-neutral-900 font-mono outline-none focus:border-neutral-900"
-                />
+              <div className="space-y-3 p-4 bg-neutral-100 border border-neutral-300">
+                <div className="flex items-center justify-between">
+                  <label className="text-neutral-900 font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4 text-neutral-800" />
+                    MANIFESTO STORY COVER IMAGE
+                  </label>
+                  <span className="text-[10px] font-mono font-bold text-neutral-500 uppercase">
+                    STORY IMAGE
+                  </span>
+                </div>
+
+                <div className="relative w-full h-40 bg-neutral-900 border border-neutral-300 overflow-hidden group">
+                  <img
+                    src={normalizeImagePath(activeSection.content.coverImage || '/assets/campaign/HOMEPAGE_2.webp')}
+                    alt="Story Cover Preview"
+                    className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = '/assets/campaign/HOMEPAGE_2.webp';
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-neutral-950/20 pointer-events-none" />
+                  <div className="absolute bottom-2 left-2 bg-neutral-900/90 text-lime-400 font-mono text-[10px] px-2.5 py-1 border border-white/20 font-bold uppercase tracking-wider">
+                    STORY COVER: {activeSection.content.coverImage || '/assets/campaign/HOMEPAGE_2.webp'}
+                  </div>
+                </div>
+
+                <div
+                  onClick={() => storyFileInputRef.current?.click()}
+                  className="border-2 border-dashed border-neutral-400 bg-white hover:bg-neutral-50 p-3 text-center cursor-pointer transition-colors"
+                >
+                  <input
+                    type="file"
+                    ref={storyFileInputRef}
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload('coverImage', file);
+                    }}
+                    className="hidden"
+                  />
+                  <div className="flex flex-col items-center justify-center gap-1">
+                    <Upload className="w-4 h-4 text-neutral-700" />
+                    <span className="text-xs font-bold text-neutral-900 uppercase">
+                      CHOOSE STORY PHOTO FROM DEVICE
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-neutral-700 font-bold text-[10px] uppercase block">
+                    STORY IMAGE PATH (AUTO-NORMALIZED)
+                  </label>
+                  <input
+                    type="text"
+                    value={activeSection.content.coverImage || ''}
+                    placeholder="/assets/campaign/HOMEPAGE_2.webp"
+                    onChange={(e) => handleContentChange('coverImage', normalizeImagePath(e.target.value))}
+                    className="w-full bg-white border border-neutral-300 px-3 py-2 text-neutral-900 font-mono text-xs outline-none focus:border-neutral-900"
+                  />
+                </div>
               </div>
 
               <div className="space-y-1">

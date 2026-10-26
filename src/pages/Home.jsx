@@ -151,7 +151,8 @@ const Home = () => {
   const heroTitle = heroSec?.content?.title || heroSec?.content?.heading || `${settings?.general?.brandName || 'VENM'} REFERENCE CATALOG`;
   const heroSubtitle = heroSec?.content?.subtitle || heroSec?.content?.subheading || settings?.general?.tagline || "FIND A LOOK. TELL US WHAT YOU NEED. WE'LL WORK FROM THERE.";
   const heroDesc = heroSec?.content?.description || "A FASHION REFERENCE CATALOG & BESPOKE CUSTOM REQUEST PLATFORM SHOWCASING WHAT VENM CAN CREATE, CUSTOMIZE, STYLE, SOURCE AND WORK ON.";
-  const heroImg = heroSec?.content?.heroImage || "/assets/campaign/HOMEPAGE_2.webp";
+  const rawHeroImg = heroSec?.content?.heroImage || "/assets/campaign/HOMEPAGE_2.webp";
+  const heroImg = normalizeImagePath(rawHeroImg, "/assets/campaign/HOMEPAGE_2.webp");
 
   return (
     <div className="min-h-screen bg-white text-neutral-900 space-y-20 pb-20 font-sans">
@@ -161,12 +162,18 @@ const Home = () => {
       {heroSec?.enabled !== false && (
         <section className="relative min-h-[82vh] flex items-center justify-center overflow-hidden pt-8 pb-16 px-4 sm:px-6 lg:px-8 border-b border-neutral-200 bg-neutral-50">
           {/* Hero Background Image */}
-          <div className="absolute inset-0 z-0 opacity-20">
+          <div className="absolute inset-0 z-0 overflow-hidden">
             <img
               src={heroImg}
-              alt="VENM Hero Banner"
-              className="w-full h-full object-cover object-center"
+              alt=""
+              role="presentation"
+              className="w-full h-full object-cover object-center opacity-30 sm:opacity-40 transition-opacity duration-700"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = "/assets/campaign/HOMEPAGE_2.webp";
+              }}
             />
+            <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/40 to-white/80 pointer-events-none" />
           </div>
 
           {/* Hero Content */}

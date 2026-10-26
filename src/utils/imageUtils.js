@@ -1,4 +1,4 @@
-import { BRAND_ASSETS } from '../config/assets';
+import { BRAND_ASSETS } from '../config/assets.js';
 
 /**
  * Normalizes an image URL or file path for reliable web browser rendering.
@@ -30,11 +30,24 @@ export function normalizeImagePath(src, fallback = BRAND_ASSETS.FALLBACK_CAMPAIG
     return cleaned;
   }
 
-  // If user pasted a local file path containing /public/ (e.g. D:/projects/venm/public/assets/...),
-  // extract the web path served relative to public root
-  const publicIndex = cleaned.toLowerCase().indexOf('/public/');
-  if (publicIndex !== -1) {
-    cleaned = cleaned.slice(publicIndex + 7); // keep starting from '/assets/...'
+  // If the path contains an '/assets/' directory anywhere, resolve from '/assets/...'
+  const assetsIndex = cleaned.toLowerCase().indexOf('/assets/');
+  if (assetsIndex !== -1) {
+    cleaned = cleaned.slice(assetsIndex);
+  } else {
+    // If user pasted a local file path containing /public/ (e.g. D:/projects/venm/public/assets/...),
+    // extract the web path served relative to public root
+    const publicIndex = cleaned.toLowerCase().indexOf('/public/');
+    if (publicIndex !== -1) {
+      cleaned = cleaned.slice(publicIndex + 7); // keep starting from '/assets/...'
+    } else if (/^[a-zA-Z]:/i.test(cleaned) || (cleaned.includes('/') && !cleaned.startsWith('/assets/'))) {
+      // If user pasted an arbitrary local filesystem path (e.g. D:/shoot/IMG_0628.jpg)
+      // Extract the filename and resolve to the campaign assets public folder
+      const filename = cleaned.split('/').filter(Boolean).pop();
+      if (filename) {
+        cleaned = `/assets/campaign/${filename}`;
+      }
+    }
   }
 
   // If user pasted a path with drive letter like D:/assets/..., strip the drive letter

@@ -1,5 +1,6 @@
 import prisma from '../config/db.js';
 import { logActivity } from '../utils/activityLogger.js';
+import { sanitizeImageUrl } from '../utils/pathSanitizer.js';
 
 const DEFAULT_SECTIONS = [
   {
@@ -134,6 +135,13 @@ export const getHomepageSections = async (req, res) => {
         if (!merged.subheading && merged.subtitle) merged.subheading = merged.subtitle;
       }
 
+      if (merged.heroImage) {
+        merged.heroImage = sanitizeImageUrl(merged.heroImage, 'campaign');
+      }
+      if (merged.coverImage) {
+        merged.coverImage = sanitizeImageUrl(merged.coverImage, 'campaign');
+      }
+
       return {
         ...s,
         content: merged
@@ -178,6 +186,13 @@ export const updateHomepageSections = async (req, res) => {
       if (!mergedContent.heading && mergedContent.title) mergedContent.heading = mergedContent.title;
       if (!mergedContent.subtitle && mergedContent.subheading) mergedContent.subtitle = mergedContent.subheading;
       if (!mergedContent.subheading && mergedContent.subtitle) mergedContent.subheading = mergedContent.subtitle;
+    }
+
+    if (mergedContent.heroImage) {
+      mergedContent.heroImage = sanitizeImageUrl(mergedContent.heroImage, 'campaign');
+    }
+    if (mergedContent.coverImage) {
+      mergedContent.coverImage = sanitizeImageUrl(mergedContent.coverImage, 'campaign');
     }
 
     const updated = await prisma.homepageSection.upsert({
