@@ -18,6 +18,7 @@ const CollectionDetail = () => {
   const [allProducts, setAllProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [activeGender, setActiveGender] = useState('ALL');
   const [activeInquiryProduct, setActiveInquiryProduct] = useState(null);
 
   useEffect(() => {
@@ -112,9 +113,17 @@ const CollectionDetail = () => {
   const safeAllProducts = Array.isArray(allProducts) ? allProducts.filter(Boolean) : [];
   const categories = ['All', ...new Set(safeAllProducts.map((p) => p.category).filter(Boolean))];
 
-  const filteredProducts = safeAllProducts.filter(
-    (p) => activeCategory === 'All' || p.category === activeCategory
-  );
+  const filteredProducts = safeAllProducts.filter((p) => {
+    const matchesCategory = activeCategory === 'All' || p.category === activeCategory;
+    const matchesGender = (() => {
+      if (activeGender === 'ALL') return true;
+      if (activeGender === 'MEN') return p.gender === 'MEN' || p.gender === 'UNISEX';
+      if (activeGender === 'WOMEN') return p.gender === 'WOMEN' || p.gender === 'UNISEX';
+      if (activeGender === 'UNISEX') return p.gender === 'UNISEX';
+      return true;
+    })();
+    return matchesCategory && matchesGender;
+  });
 
   return (
     <div className="min-h-screen bg-white text-neutral-900 space-y-10 pb-24 font-sans">
@@ -154,7 +163,7 @@ const CollectionDetail = () => {
             </p>
 
             <div className="pt-2 text-xs font-mono text-neutral-500 flex items-center gap-4">
-              <span>TOTAL PRODUCTS: <strong className="text-neutral-900">{filteredProducts.length}</strong></span>
+              <span>TOTAL MATCHING LOOKS: <strong className="text-neutral-900">{filteredProducts.length}</strong></span>
             </div>
           </div>
 
@@ -181,19 +190,36 @@ const CollectionDetail = () => {
 
       {/* Main Content Area */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-        {/* Category Filters Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-neutral-200 pb-4">
-          <div className="flex items-center gap-2 text-xs font-mono text-neutral-500">
-            <Filter className="w-4 h-4 text-neutral-800" />
-            <span>FILTER CATEGORY:</span>
+        {/* Category & Gender Filters Bar */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-neutral-200 pb-4">
+          {/* Target Audience / Gender Switcher */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono text-neutral-500 uppercase">AUDIENCE:</span>
+            <div className="flex items-center bg-neutral-100 p-0.5 border border-neutral-200">
+              {['ALL', 'MEN', 'WOMEN', 'UNISEX'].map((g) => (
+                <button
+                  key={g}
+                  onClick={() => setActiveGender(g)}
+                  className={`px-3 py-1 text-[11px] font-mono tracking-wider uppercase transition-colors ${
+                    activeGender === g
+                      ? 'bg-neutral-900 text-white font-bold'
+                      : 'text-neutral-600 hover:text-black'
+                  }`}
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          {/* Category Filter Pills */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-mono text-neutral-500 uppercase">CATEGORY:</span>
             {categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`px-3.5 py-1.5 text-xs font-mono tracking-wider uppercase transition-all ${
+                className={`px-3 py-1 text-xs font-mono tracking-wider uppercase transition-all ${
                   activeCategory === cat
                     ? 'bg-neutral-900 text-white font-bold'
                     : 'bg-neutral-100 text-neutral-600 hover:text-black border border-neutral-200'

@@ -29,6 +29,7 @@ const AdminProducts = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [collectionFilter, setCollectionFilter] = useState('ALL');
+  const [genderFilter, setGenderFilter] = useState('ALL');
   const [deleteModalProduct, setDeleteModalProduct] = useState(null);
 
   const loadProducts = async () => {
@@ -93,6 +94,10 @@ const AdminProducts = () => {
     }
   };
 
+  const unclassifiedCount = products.filter(
+    (p) => !p.gender || p.gender === 'UNCLASSIFIED'
+  ).length;
+
   const filteredProducts = products.filter((p) => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
                           (p.category || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -101,7 +106,19 @@ const AdminProducts = () => {
     const matchesCollection = collectionFilter === 'ALL' ||
                               p.collectionId === collectionFilter ||
                               p.collectionSlug === collectionFilter;
-    return matchesSearch && matchesStatus && matchesCollection;
+
+    const matchesGender = (() => {
+      if (genderFilter === 'ALL') return true;
+      if (genderFilter === 'MEN') return p.gender === 'MEN' || p.gender === 'UNISEX';
+      if (genderFilter === 'WOMEN') return p.gender === 'WOMEN' || p.gender === 'UNISEX';
+      if (genderFilter === 'MEN_STRICT') return p.gender === 'MEN';
+      if (genderFilter === 'WOMEN_STRICT') return p.gender === 'WOMEN';
+      if (genderFilter === 'UNISEX') return p.gender === 'UNISEX';
+      if (genderFilter === 'UNCLASSIFIED') return !p.gender || p.gender === 'UNCLASSIFIED';
+      return true;
+    })();
+
+    return matchesSearch && matchesStatus && matchesCollection && matchesGender;
   });
 
   return (
@@ -125,9 +142,32 @@ const AdminProducts = () => {
         </Link>
       </div>
 
+      {/* Unclassified Products Notice Banner */}
+      {unclassifiedCount > 0 && (
+        <div className="p-4 bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+            <div>
+              <span className="font-bold uppercase tracking-wider block">
+                {unclassifiedCount} REFERENCE(S) REQUIRE TARGET AUDIENCE ASSIGNMENT
+              </span>
+              <span className="text-[11px] text-amber-800 font-sans">
+                Unclassified products will not appear in Men's or Women's frontend sections until assigned.
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => setGenderFilter(genderFilter === 'UNCLASSIFIED' ? 'ALL' : 'UNCLASSIFIED')}
+            className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] tracking-wider uppercase self-start sm:self-auto transition-colors"
+          >
+            {genderFilter === 'UNCLASSIFIED' ? 'SHOW ALL PRODUCTS' : `FILTER UNCLASSIFIED (${unclassifiedCount})`}
+          </button>
+        </div>
+      )}
+
       {/* Filter & Controls Bar */}
       <div className="bg-white p-4 border border-neutral-200 space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="relative">
             <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -141,6 +181,26 @@ const AdminProducts = () => {
 
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-neutral-600 flex-shrink-0" />
+            <select
+              value={genderFilter}
+              onChange={(e) => setGenderFilter(e.target.value)}
+              className={`w-full bg-neutral-50 border text-xs text-neutral-900 px-3 py-2 outline-none font-mono font-bold ${
+                genderFilter === 'UNCLASSIFIED' ? 'border-amber-500 bg-amber-50' : 'border-neutral-300 focus:border-neutral-900'
+              }`}
+            >
+              <option value="ALL">TARGET AUDIENCE: ALL</option>
+              <option value="MEN">MEN (+ UNISEX)</option>
+              <option value="WOMEN">WOMEN (+ UNISEX)</option>
+              <option value="MEN_STRICT">MEN ONLY</option>
+              <option value="WOMEN_STRICT">WOMEN ONLY</option>
+              <option value="UNISEX">UNISEX ONLY</option>
+              <option value="UNCLASSIFIED">
+                UNCLASSIFIED / NEEDS REVIEW {unclassifiedCount > 0 ? `(${unclassifiedCount})` : ''}
+              </option>
+            </select>
+          </div>
+
+          <div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -178,6 +238,8 @@ const AdminProducts = () => {
             <tr className="bg-neutral-100 border-b border-neutral-300 text-neutral-900 font-mono text-[11px] tracking-widest uppercase font-extrabold">
               <th className="py-3 px-4">IMAGE</th>
               <th className="py-3 px-4">REFERENCE</th>
+              <th className="py-3 px-4">CATEGORY</th>
+              <th className="py-3 px-4">GENDER</th>
               <th className="py-3 px-4">ESTIMATED PRICE</th>
               <th className="py-3 px-4">COLLECTION</th>
               <th className="py-3 px-4">STATUS</th>
@@ -209,6 +271,28 @@ const AdminProducts = () => {
                       {p.name}
                     </span>
                     <span className="text-[10px] font-mono text-neutral-700 font-semibold">REFERENCE ID: {p.id}</span>
+                  </td>
+                  <td className="py-3 px-4 font-mono text-neutral-900 font-semibold text-xs uppercase">
+                    {p.category || '—'}
+                  </td>
+                  <td className="py-3 px-4 font-mono">
+                    {p.gender === 'MEN' ? (
+                      <span className="px-2 py-0.5 bg-neutral-900 text-white font-mono text-[10px] font-bold tracking-wider inline-block">
+                        MEN
+                      </span>
+                    ) : p.gender === 'WOMEN' ? (
+                      <span className="px-2 py-0.5 bg-neutral-800 text-neutral-100 font-mono text-[10px] font-bold tracking-wider inline-block">
+                        WOMEN
+                      </span>
+                    ) : p.gender === 'UNISEX' ? (
+                      <span className="px-2 py-0.5 bg-lime-400 text-neutral-950 font-mono text-[10px] font-bold tracking-wider inline-block">
+                        UNISEX
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 font-mono text-[10px] font-bold tracking-wider inline-block">
+                        NEEDS REVIEW
+                      </span>
+                    )}
                   </td>
                   <td className="py-3 px-4 font-mono text-neutral-900 font-bold text-xs">
                     {estPrice}
@@ -287,7 +371,18 @@ const AdminProducts = () => {
                   className="w-16 h-20 object-cover bg-neutral-100 border border-neutral-200"
                 />
                 <div className="space-y-1 flex-1">
-                  <span className="text-[10px] font-mono text-neutral-500 uppercase block font-semibold">{p.collectionName}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-neutral-500 uppercase block font-semibold">{p.collectionName}</span>
+                    {p.gender === 'MEN' ? (
+                      <span className="px-1.5 py-0.5 bg-neutral-900 text-white font-mono text-[9px] font-bold">MEN</span>
+                    ) : p.gender === 'WOMEN' ? (
+                      <span className="px-1.5 py-0.5 bg-neutral-800 text-neutral-100 font-mono text-[9px] font-bold">WOMEN</span>
+                    ) : p.gender === 'UNISEX' ? (
+                      <span className="px-1.5 py-0.5 bg-lime-400 text-neutral-950 font-mono text-[9px] font-bold">UNISEX</span>
+                    ) : (
+                      <span className="px-1.5 py-0.5 bg-amber-100 text-amber-900 font-mono text-[9px] font-bold">REVIEW</span>
+                    )}
+                  </div>
                   <h4 className="text-base font-extrabold text-neutral-900 tracking-wider uppercase">{p.name}</h4>
                   <div className="flex items-center justify-between text-xs text-neutral-600">
                     <span>{p.category}</span>

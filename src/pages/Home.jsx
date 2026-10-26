@@ -41,9 +41,18 @@ const Home = () => {
   const [cmsSections, setCmsSections] = useState(() => loadStoredData('venm_homepage_cms', {}));
   const [activeInquiryProduct, setActiveInquiryProduct] = useState(null);
   const [referenceViewMode, setReferenceViewMode] = useState('coverflow');
+  const [showcaseGender, setShowcaseGender] = useState('ALL');
 
   const safeFeaturedProducts = Array.isArray(featuredProducts) ? featuredProducts.filter(Boolean) : [];
   const safeCollections = Array.isArray(collections) ? collections.filter(Boolean) : [];
+
+  const displayedShowcaseProducts = safeFeaturedProducts.filter((p) => {
+    if (showcaseGender === 'ALL') return true;
+    if (showcaseGender === 'MEN') return p.gender === 'MEN' || p.gender === 'UNISEX';
+    if (showcaseGender === 'WOMEN') return p.gender === 'WOMEN' || p.gender === 'UNISEX';
+    if (showcaseGender === 'UNISEX') return p.gender === 'UNISEX';
+    return true;
+  });
 
   const handleInquire = (product) => {
     setActiveInquiryProduct(product);
@@ -300,7 +309,25 @@ const Home = () => {
             </h2>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Target Audience Switcher */}
+            <div className="inline-flex items-center rounded-none border border-neutral-300 bg-neutral-100 p-0.5 text-xs font-mono">
+              {['ALL', 'MEN', 'WOMEN', 'UNISEX'].map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setShowcaseGender(g)}
+                  className={`px-2.5 py-1 uppercase transition-colors ${
+                    showcaseGender === g
+                      ? 'bg-neutral-900 text-white font-bold shadow-sm'
+                      : 'text-neutral-600 hover:text-neutral-900'
+                  }`}
+                >
+                  {g === 'ALL' ? 'ALL' : g}
+                </button>
+              ))}
+            </div>
+
             {/* View Mode Toggle */}
             <div className="inline-flex items-center rounded-none border border-neutral-300 bg-neutral-100 p-0.5 text-xs font-mono">
               <button
@@ -329,13 +356,21 @@ const Home = () => {
               </button>
             </div>
 
-            <Link
-              to="/collections"
-              className="text-xs font-semibold tracking-widest text-neutral-900 hover:text-black flex items-center gap-1 transition-colors uppercase ml-1"
-            >
-              <span>VIEW ALL</span>
-              <ChevronRight className="w-4 h-4" />
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                to="/men"
+                className="text-xs font-semibold tracking-wider text-neutral-700 hover:text-black flex items-center gap-0.5 uppercase"
+              >
+                <span>MEN</span>
+              </Link>
+              <span className="text-neutral-300 font-mono">/</span>
+              <Link
+                to="/women"
+                className="text-xs font-semibold tracking-wider text-neutral-700 hover:text-black flex items-center gap-0.5 uppercase"
+              >
+                <span>WOMEN</span>
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -344,13 +379,13 @@ const Home = () => {
           <div className="w-full bg-neutral-50/80 border border-neutral-200 py-8 px-2 sm:px-6 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between max-w-xl mx-auto px-4 mb-2 text-center">
               <p className="w-full text-[11px] font-mono tracking-widest text-neutral-500 uppercase">
-                ✦ DRAG HORIZONTALLY OR USE ARROW KEYS TO BROWSE SILHOUETTES ✦
+                ✦ DRAG HORIZONTALLY OR USE ARROW KEYS TO BROWSE SILHOUETTES ({displayedShowcaseProducts.length}) ✦
               </p>
             </div>
             <CoverflowCarousel
               slides={
-                safeFeaturedProducts.length > 0
-                  ? safeFeaturedProducts.map((product) => {
+                displayedShowcaseProducts.length > 0
+                  ? displayedShowcaseProducts.map((product) => {
                       const imgList = Array.isArray(product.images)
                         ? product.images
                         : (typeof product.images === 'string' && product.images.trim().startsWith('[')
@@ -457,7 +492,7 @@ const Home = () => {
         ) : (
           /* Product Grid */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {safeFeaturedProducts.map((product) => (
+            {displayedShowcaseProducts.map((product) => (
               <ProductCard
                 key={product.id || product.slug}
                 product={product}

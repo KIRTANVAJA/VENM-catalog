@@ -44,7 +44,7 @@ const ProductDetail = () => {
   });
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [selectedSize, setSelectedSize] = useState('Custom');
+  const [selectedSize, setSelectedSize] = useState('Custom Measurements (Bespoke)');
   const [requestOption, setRequestOption] = useState('I already have the garment');
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
   const [quickInquireProduct, setQuickInquireProduct] = useState(null);
@@ -99,9 +99,7 @@ const ProductDetail = () => {
           try {
             localStorage.setItem('venm_cached_product_' + slug, JSON.stringify(liveProduct));
           } catch (e) {}
-          if (liveProduct.sizes?.length) {
-            setSelectedSize(liveProduct.sizes[0]);
-          }
+          setSelectedSize('Custom Measurements (Bespoke)');
 
           // Record live product view for admin analytics
           apiRecordProductView({
@@ -317,9 +315,16 @@ const ProductDetail = () => {
           {/* Right: Reference Details & Custom Request Panel */}
           <div className="lg:col-span-5 space-y-8 bg-neutral-50 p-8 border border-neutral-200">
             <div className="space-y-3">
-              <div className="flex items-center justify-between text-xs font-mono text-neutral-500 tracking-widest uppercase">
+              <div className="flex flex-wrap items-center justify-between text-xs font-mono text-neutral-500 tracking-widest uppercase gap-2">
                 <span>{product.collectionName}</span>
-                <span className="font-semibold">{product.category}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">{product.category}</span>
+                  {product.gender && product.gender !== 'UNCLASSIFIED' && (
+                    <span className="px-2 py-0.5 bg-neutral-900 text-lime-400 font-bold text-[10px] tracking-widest">
+                      {product.gender === 'MEN' ? "MEN'S" : product.gender === 'WOMEN' ? "WOMEN'S" : 'UNISEX'}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <h1 className="text-3xl sm:text-4xl font-extrabold tracking-wider text-neutral-900 uppercase leading-tight">
@@ -369,31 +374,32 @@ const ProductDetail = () => {
               </div>
             )}
 
-            {/* Sizing Approach Model */}
+            {/* 100% Bespoke Custom Sizing Model */}
             <div className="space-y-3 border-t border-neutral-200 pt-6">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-mono text-neutral-800 tracking-widest uppercase font-bold">
-                  SIZING APPROACH
+                <label className="text-xs font-mono text-neutral-900 tracking-widest uppercase font-bold flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-lime-500 animate-pulse" />
+                  100% BESPOKE / MADE-TO-MEASURE
                 </label>
-                <span className="text-[10px] font-mono text-lime-700 font-bold bg-lime-100 px-2 py-0.5">CUSTOM SIZING AVAILABLE</span>
+                <span className="text-[10px] font-mono text-black font-bold bg-lime-300 px-2.5 py-0.5 tracking-wider uppercase">
+                  CUSTOM FIT ONLY
+                </span>
               </div>
-              <p className="text-xs text-neutral-600 font-sans">
-                {product.sizingInfo || "Sizes are requirements for your piece, not fixed stock inventory. Final fitting will be discussed."}
-              </p>
-              <div className="flex flex-wrap gap-2 pt-1">
-                {(product.sizes?.length ? product.sizes : ['S', 'M', 'L', 'XL', 'Custom']).map((sz) => (
-                  <button
-                    key={sz}
-                    onClick={() => setSelectedSize(sz)}
-                    className={`min-w-[48px] py-2 px-3 text-xs font-mono tracking-wider transition-all border ${
-                      selectedSize === sz
-                        ? 'bg-black text-white border-black font-bold'
-                        : 'bg-white text-neutral-700 border-neutral-300 hover:border-black'
-                    }`}
-                  >
-                    {sz}
-                  </button>
-                ))}
+              <div className="p-3.5 bg-neutral-50 border border-neutral-200 space-y-2.5">
+                <p className="text-xs text-neutral-800 font-sans leading-relaxed">
+                  {product.sizingInfo || "We do not carry ready-made products. Every piece is handcrafted exclusively to your specific body measurements and fit preferences upon order commitment."}
+                </p>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-1 text-[11px] font-mono text-neutral-600">
+                  <span className="flex items-center gap-1.5 font-bold text-neutral-900">
+                    <span className="text-lime-600">✓</span> Tailored to Exact Measurements
+                  </span>
+                  <span className="flex items-center gap-1.5 font-bold text-neutral-900">
+                    <span className="text-lime-600">✓</span> No Readymade Generic Stock
+                  </span>
+                  <span className="flex items-center gap-1.5 font-bold text-neutral-900">
+                    <span className="text-lime-600">✓</span> Bespoke Fitting Consultation
+                  </span>
+                </div>
               </div>
             </div>
 

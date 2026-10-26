@@ -288,11 +288,9 @@ const Profile = () => {
                               {inq.productPrice}
                             </p>
                           )}
-                          {inq.selectedSize && (
-                            <p className="text-[10px] font-mono text-neutral-500">
-                              SIZE: <strong className="text-neutral-800">{inq.selectedSize}</strong>
-                            </p>
-                          )}
+                          <p className="text-[10px] font-mono text-neutral-500">
+                            FIT: <strong className="text-neutral-800">100% CUSTOM SIZING (MADE-TO-MEASURE)</strong>
+                          </p>
                         </div>
                       </div>
 

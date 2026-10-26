@@ -28,7 +28,7 @@ const InquiryModal = ({ product, selectedSize, isOpen, onClose }) => {
 
   if (!isOpen || !product) return null;
 
-  const activeSize = selectedSize || product.sizes?.[0] || 'Custom';
+  const activeSize = 'Custom Measurement (Made-to-Order)';
   const settings = getSettings();
   const estimatedPriceText = formatReferencePrice(product);
   const whatsappUrl = formatWhatsAppUrl(product, activeSize, requestType, currentUser);
@@ -267,10 +267,12 @@ const InquiryModal = ({ product, selectedSize, isOpen, onClose }) => {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase">CUSTOM REQUIREMENTS / SIZING NOTES</label>
+                <label className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase">
+                  CUSTOM REQUIREMENTS & BODY MEASUREMENTS
+                </label>
                 <textarea
                   rows="3"
-                  placeholder="Tell us about your garment, custom embroidery ideas, or sizing details..."
+                  placeholder="Provide your body measurements (chest, waist, height, shoulders) or custom fit specifications..."
                   value={formData.note}
                   onChange={(e) => setFormData({ ...formData, note: e.target.value })}
                   className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 px-3.5 py-2 text-xs text-neutral-900 placeholder-neutral-400 outline-none resize-none font-sans"

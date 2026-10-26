@@ -19,7 +19,7 @@ export const DEFAULT_SETTINGS = {
     rawNumber: "917434096095",
     enabled: true,
     buttonText: "REQUEST THIS LOOK",
-    defaultTemplate: `Hi VENM! 👋\n\nI'd like to request this look:\n\nReference:\n{{product_name}}\n\nReference ID:\n{{product_id}}\n\nEstimated Price:\n{{estimated_price}}\n\nRequest Option:\n{{request_type}}\n\nI'd like to discuss:\n• Customization\n• Sizing / measurements\n• Garment sourcing / My own garment\n\nReference:\n{{product_url}}\n\nPlease let me know how we can take this forward.\nThank you!`
+    defaultTemplate: `Hi VENM! 👋\n\nI'd like to request this look:\n\nReference:\n{{product_name}}\n\nReference ID:\n{{product_id}}\n\nEstimated Price:\n{{estimated_price}}\n\nSizing:\n100% Custom Measurement (Made-to-Order)\n\nRequest Option:\n{{request_type}}\n\nI'd like to discuss:\n• Customization & Measurements\n• Garment sourcing / My own garment\n\nReference:\n{{product_url}}\n\nPlease let me know how we can take this forward.\nThank you!`
   },
   social: {
     instagram: "https://instagram.com/venm.exe",
@@ -156,7 +156,7 @@ export function formatWhatsAppUrl(product, size = '', requestType = '', user = n
   
   let msg = settings.whatsapp?.defaultTemplate || `Hi VENM! 👋\n\nI'd like to request this look:\n\nReference:\n{{product_name}}\n\nReference ID:\n{{product_id}}\n\nEstimated Price:\n{{estimated_price}}\n\nRequest Option:\n{{request_type}}\n\nI'd like to discuss:\n• Customization\n• Sizing / measurements\n• Garment sourcing / My own garment\n\nReference:\n{{product_url}}\n\nPlease let me know how we can take this forward.\nThank you!`;
   
-  const effectiveSize = size && size.trim() !== '' ? size : 'Custom sizing to be discussed';
+  const effectiveSize = size && size.trim() !== '' ? size : '100% Custom Measurement (Made-to-Order)';
   const effectiveReqType = requestType && requestType.trim() !== '' 
     ? requestType 
     : 'To be discussed (I have garment or need sourcing)';

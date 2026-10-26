@@ -16,6 +16,7 @@ import ProductDetail from './pages/ProductDetail';
 import About from './pages/About';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
+import GenderCatalog from './pages/GenderCatalog';
 
 // Admin Panel Components & Pages
 import AdminLogin from './admin/pages/AdminLogin';
@@ -141,6 +142,38 @@ const App = () => {
             element={
               <PublicLayout>
                 <Home />
+              </PublicLayout>
+            }
+          />
+          <Route
+            path="/men"
+            element={
+              <PublicLayout>
+                <GenderCatalog defaultGender="MEN" />
+              </PublicLayout>
+            }
+          />
+          <Route
+            path="/men/:categorySlug"
+            element={
+              <PublicLayout>
+                <GenderCatalog defaultGender="MEN" />
+              </PublicLayout>
+            }
+          />
+          <Route
+            path="/women"
+            element={
+              <PublicLayout>
+                <GenderCatalog defaultGender="WOMEN" />
+              </PublicLayout>
+            }
+          />
+          <Route
+            path="/women/:categorySlug"
+            element={
+              <PublicLayout>
+                <GenderCatalog defaultGender="WOMEN" />
               </PublicLayout>
             }
           />

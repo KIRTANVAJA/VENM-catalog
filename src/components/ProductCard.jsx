@@ -98,7 +98,14 @@ const ProductCard = ({ product, onQuickInquire, activeFestName }) => {
         <div className="p-4 space-y-1.5">
           <div className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase flex items-center justify-between">
             <span>{product.collectionName || 'COLLECTION'}</span>
-            <span className="font-semibold">{product.category}</span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold">{product.category}</span>
+              {product.gender && product.gender !== 'UNCLASSIFIED' && (
+                <span className="text-[9px] px-1 bg-neutral-100 text-neutral-800 font-bold border border-neutral-200">
+                  {product.gender === 'MEN' ? 'MEN' : product.gender === 'WOMEN' ? 'WOMEN' : 'UNISEX'}
+                </span>
+              )}
+            </div>
           </div>
 
           <Link to={`/product/${product.slug}`} className="block">

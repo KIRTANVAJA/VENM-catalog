@@ -282,6 +282,8 @@ export function apiGetProducts(params = {}) {
   if (params.status) query.append('status', params.status);
   if (params.featured) query.append('featured', 'true');
   if (params.search) query.append('search', params.search);
+  if (params.gender) query.append('gender', params.gender);
+  if (params.exact) query.append('exact', 'true');
 
   const qStr = query.toString();
   return request(`/products${qStr ? `?${qStr}` : ''}`);

@@ -41,6 +41,7 @@ const AdminProductForm = ({ mode = 'create' }) => {
     id: '',
     name: '',
     slug: '',
+    gender: '', // 'MEN' | 'WOMEN' | 'UNISEX'
     collectionId: '',
     collectionSlug: 'diwali',
     collectionName: 'DIWALI EDIT',
@@ -50,7 +51,7 @@ const AdminProductForm = ({ mode = 'create' }) => {
     images: [],
     isFeatured: true,
     isNavratriEdit: true,
-    sizes: ['S', 'M', 'L', 'XL', 'Custom'],
+    sizes: ['Custom'],
     availability: 'REQUESTABLE',
     tags: ['NavratriEdit', 'Outerwear'],
     garmentCare: 'Dry clean only.'
@@ -111,6 +112,7 @@ const AdminProductForm = ({ mode = 'create' }) => {
 
             setFormData({
               ...data,
+              gender: data.gender || '',
               collectionId: data.collectionId || '',
               collectionSlug: data.collectionSlug || '',
               collectionName: data.collectionName || '',
@@ -336,6 +338,14 @@ const AdminProductForm = ({ mode = 'create' }) => {
       return;
     }
 
+    // STRICT VALIDATION: Target Audience / Gender is required
+    const selectedGender = (formData.gender || '').trim().toUpperCase();
+    if (!selectedGender || !['MEN', 'WOMEN', 'UNISEX'].includes(selectedGender)) {
+      setIsErrorToast(true);
+      setToastMessage('TARGET AUDIENCE IS REQUIRED: Please explicitly select Men, Women, or Unisex.');
+      return;
+    }
+
     // NORMALIZE & VALIDATE IMAGES: Strictly ensure only clean URLs (Cloudinary HTTPS or /assets/) are submitted
     const cleanImages = (formData.images || [])
       .map((img) => (typeof img === 'string' ? img.trim() : (img?.secure_url || img?.url || '').trim()))
@@ -357,6 +367,7 @@ const AdminProductForm = ({ mode = 'create' }) => {
     setIsSaving(true);
     const finalData = {
       ...formData,
+      gender: selectedGender,
       images: cleanImages,
       availability: statusOverride || formData.availability
     };
@@ -464,6 +475,19 @@ const AdminProductForm = ({ mode = 'create' }) => {
 
       {/* Main Form */}
       <form onSubmit={handleSubmit} className="space-y-8">
+        {/* Unclassified Legacy Product Banner */}
+        {formData.gender === 'UNCLASSIFIED' && (
+          <div className="p-4 bg-amber-50 border border-amber-300 text-amber-900 text-xs font-mono flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+            <div className="space-y-0.5">
+              <p className="font-bold uppercase tracking-wider">PRODUCT AUDIENCE UNCLASSIFIED (LEGACY RECORD)</p>
+              <p className="text-[11px] text-amber-800 font-sans">
+                This product is currently marked for admin review. Please select <strong>Men</strong>, <strong>Women</strong>, or <strong>Unisex</strong> before updating.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Section 1: Basic Information */}
         <div className="bg-white p-6 sm:p-8 border border-neutral-200 space-y-6">
           <h3 className="text-xs font-mono text-neutral-500 tracking-[0.25em] uppercase border-b border-neutral-200 pb-3 font-semibold">
@@ -496,7 +520,7 @@ const AdminProductForm = ({ mode = 'create' }) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div className="space-y-1.5">
               <label className="text-[10px] font-mono text-neutral-500 tracking-widest uppercase">COLLECTION</label>
               <select
@@ -546,6 +570,39 @@ const AdminProductForm = ({ mode = 'create' }) => {
                 <option value="Bottoms">Bottoms</option>
                 <option value="Ethnic">Ethnic</option>
                 <option value="Accessories">Accessories</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-mono text-neutral-500 tracking-widest uppercase">
+                  TARGET AUDIENCE / GENDER *
+                </label>
+                {formData.gender === 'UNCLASSIFIED' && (
+                  <span className="text-[9px] font-mono font-bold text-amber-600 bg-amber-50 px-1 py-0.5 border border-amber-200">
+                    REVIEW NEEDED
+                  </span>
+                )}
+              </div>
+              <select
+                required
+                value={formData.gender || ''}
+                onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                className={`w-full bg-neutral-50 border px-4 py-2.5 text-xs text-neutral-900 outline-none font-mono font-bold ${
+                  !formData.gender || formData.gender === 'UNCLASSIFIED'
+                    ? 'border-amber-400 focus:border-neutral-900 ring-1 ring-amber-300'
+                    : 'border-neutral-300 focus:border-neutral-900'
+                }`}
+              >
+                <option value="">SELECT TARGET AUDIENCE *</option>
+                <option value="MEN">Men</option>
+                <option value="WOMEN">Women</option>
+                <option value="UNISEX">Unisex</option>
+                {formData.gender === 'UNCLASSIFIED' && (
+                  <option value="UNCLASSIFIED" disabled>
+                    ⚠️ Unclassified (Please Select Men, Women, or Unisex)
+                  </option>
+                )}
               </select>
             </div>
           </div>
@@ -953,26 +1010,17 @@ const AdminProductForm = ({ mode = 'create' }) => {
             </div>
           </div>
 
-          <div className="space-y-3 pt-4 border-t border-neutral-200">
-            <label className="text-[10px] font-mono text-neutral-500 tracking-widest uppercase">AVAILABLE SIZES</label>
-            <div className="flex flex-wrap gap-2">
-              {['XS', 'S', 'M', 'L', 'XL', 'XXL'].map((sz) => {
-                const isSelected = formData.sizes?.includes(sz);
-                return (
-                  <button
-                    key={sz}
-                    type="button"
-                    onClick={() => handleToggleSize(sz)}
-                    className={`min-w-[48px] py-2 px-3 text-xs font-mono transition-all border ${
-                      isSelected
-                        ? 'bg-black text-white border-black font-bold'
-                        : 'bg-neutral-50 text-neutral-700 border-neutral-300 hover:text-black'
-                    }`}
-                  >
-                    {sz}
-                  </button>
-                );
-              })}
+          <div className="space-y-2 pt-4 border-t border-neutral-200">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-mono text-neutral-500 tracking-widest uppercase">
+                SIZING & PRODUCTION MODEL
+              </label>
+              <span className="text-[10px] font-mono text-black font-bold bg-lime-300 px-2 py-0.5 uppercase tracking-wider">
+                100% BESPOKE / CUSTOM SIZE ONLY
+              </span>
+            </div>
+            <div className="p-3 bg-neutral-50 border border-neutral-200 text-xs font-mono text-neutral-700 leading-relaxed">
+              <span className="font-bold text-black">NO READYMADE INVENTORY:</span> All VENM products are crafted strictly to the customer's custom body measurements and specific fit requirements upon order commitment.
             </div>
           </div>
 
@@ -1074,12 +1122,14 @@ const AdminProductForm = ({ mode = 'create' }) => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-mono text-neutral-500 tracking-widest uppercase">SIZING APPROACH INFORMATION</label>
+            <label className="text-[10px] font-mono text-neutral-500 tracking-widest uppercase">
+              CUSTOM MEASUREMENTS & SIZING SPECIFICATIONS
+            </label>
             <input
               type="text"
               value={formData.sizingInfo || ''}
               onChange={(e) => setFormData({ ...formData, sizingInfo: e.target.value })}
-              placeholder="e.g. Custom sizing available according to your measurements..."
+              placeholder="e.g. Crafted to client's exact body measurements, shoulder drop, and required silhouette..."
               className="w-full bg-neutral-50 border border-neutral-300 focus:border-neutral-900 px-4 py-2.5 text-xs text-neutral-900 outline-none font-sans"
             />
           </div>

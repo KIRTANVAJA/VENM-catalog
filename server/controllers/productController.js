@@ -40,9 +40,48 @@ function containsBase64Image(images) {
 
 export const getProducts = async (req, res) => {
   try {
-    const { collection, category, status, featured, search } = req.query;
+    const { collection, category, status, featured, search, gender, exact } = req.query;
 
     const conditions = [];
+
+    // Gender / Target Audience Filtering
+    if (gender && gender !== 'ALL') {
+      const gUpper = gender.toUpperCase();
+      const isExact = exact === 'true' || exact === true;
+
+      if (gUpper === 'MEN') {
+        if (isExact) {
+          conditions.push({ gender: 'MEN' });
+        } else {
+          conditions.push({
+            OR: [
+              { gender: 'MEN' },
+              { gender: 'UNISEX' }
+            ]
+          });
+        }
+      } else if (gUpper === 'WOMEN') {
+        if (isExact) {
+          conditions.push({ gender: 'WOMEN' });
+        } else {
+          conditions.push({
+            OR: [
+              { gender: 'WOMEN' },
+              { gender: 'UNISEX' }
+            ]
+          });
+        }
+      } else if (gUpper === 'UNISEX') {
+        conditions.push({ gender: 'UNISEX' });
+      } else if (gUpper === 'UNCLASSIFIED') {
+        conditions.push({
+          OR: [
+            { gender: 'UNCLASSIFIED' },
+            { gender: null }
+          ]
+        });
+      }
+    }
 
     if (collection && collection !== 'ALL') {
       const foundCol = await prisma.collection.findFirst({
@@ -162,6 +201,7 @@ export const createProduct = async (req, res) => {
     const {
       name,
       slug,
+      gender,
       description,
       details,
       collectionId,
@@ -187,6 +227,14 @@ export const createProduct = async (req, res) => {
 
     if (!name) {
       return res.status(400).json({ message: 'REFERENCE NAME IS REQUIRED' });
+    }
+
+    // STRICT CHECK: Validate Gender / Target Audience
+    const normalizedGender = (gender || '').trim().toUpperCase();
+    if (!normalizedGender || !['MEN', 'WOMEN', 'UNISEX'].includes(normalizedGender)) {
+      return res.status(400).json({
+        message: 'TARGET AUDIENCE / GENDER IS REQUIRED: Please select Men, Women, or Unisex.'
+      });
     }
 
     // STRICT CHECK: Reject any Base64 image payload
@@ -237,6 +285,7 @@ export const createProduct = async (req, res) => {
       data: {
         name,
         slug: finalSlug,
+        gender: normalizedGender,
         description: description || '',
         details: JSON.stringify(details || []),
         collectionId: resolvedCollectionId,
@@ -245,14 +294,14 @@ export const createProduct = async (req, res) => {
         category: category || 'Outerwear',
         categoryId: categoryId || null,
         images: JSON.stringify(sanitizeImageArray(images || [])),
-        sizes: JSON.stringify(sizes || ['S', 'M', 'L', 'XL', 'Custom']),
+        sizes: JSON.stringify(sizes || ['Custom']),
         availability: availability || 'REQUESTABLE',
         estimatedPrice: estimatedPrice || 'Estimated from ₹1,800',
         minPrice: minPrice || '',
         maxPrice: maxPrice || '',
         priceDisplayMode: priceDisplayMode || 'STARTING_FROM',
         customizationInfo: customizationInfo || 'Custom embroidery, fit adjustments, and design alterations available.',
-        sizingInfo: sizingInfo || 'Custom sizing available according to your requirements.',
+        sizingInfo: sizingInfo || '100% bespoke made-to-measure. Crafted to your exact body measurements upon order commitment.',
         sourceAttribution: sourceAttribution || 'VENM Reference Design',
         isFeatured: Boolean(isFeatured),
         isNavratriEdit: Boolean(isNavratriEdit),
@@ -362,6 +411,16 @@ export const updateProduct = async (req, res) => {
     if (body.tags && typeof body.tags !== 'string') dataToUpdate.tags = JSON.stringify(body.tags);
     if (body.isFeatured !== undefined) dataToUpdate.isFeatured = Boolean(body.isFeatured);
     if (body.isNavratriEdit !== undefined) dataToUpdate.isNavratriEdit = Boolean(body.isNavratriEdit);
+
+    if (body.gender !== undefined) {
+      const normalizedGender = String(body.gender || '').trim().toUpperCase();
+      if (!['MEN', 'WOMEN', 'UNISEX', 'UNCLASSIFIED'].includes(normalizedGender)) {
+        return res.status(400).json({
+          message: 'INVALID GENDER VALUE: Must be Men, Women, or Unisex.'
+        });
+      }
+      dataToUpdate.gender = normalizedGender;
+    }
 
     const updated = await prisma.product.update({
       where: { id: existing.id },

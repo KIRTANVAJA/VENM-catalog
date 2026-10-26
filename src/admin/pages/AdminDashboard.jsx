@@ -903,7 +903,7 @@ const AdminDashboard = () => {
                           {inq.productName}
                         </span>
                         <span className="text-[10px] font-mono text-neutral-500">
-                          {inq.collectionName || 'REFERENCE'} • Size: {inq.selectedSize || 'Custom'}
+                          {inq.collectionName || 'REFERENCE'} • Sizing: Custom Measurement
                         </span>
                       </td>
                       <td className="py-3 px-3">
