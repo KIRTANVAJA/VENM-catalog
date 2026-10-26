@@ -455,6 +455,13 @@ export function apiUpdateHomepageSection(data) {
   });
 }
 
+export function apiResolveLocalImage(path, folder = 'campaign') {
+  return request('/homepage/resolve-image', {
+    method: 'POST',
+    body: JSON.stringify({ path, folder })
+  });
+}
+
 // ----------------------------------------------------
 // MEDIA LIBRARY & CLOUDINARY UPLOAD API
 // ----------------------------------------------------

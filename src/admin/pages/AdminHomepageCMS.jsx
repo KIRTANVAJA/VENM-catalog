@@ -1,14 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { apiGetHomepageSections, apiUpdateHomepageSection, apiUploadImageToCloudinary } from '../../services/api';
-import { Save, Eye, CheckCircle2, Layers, EyeOff, FileText, Image as ImageIcon, Upload, RefreshCw } from 'lucide-react';
+import {
+  apiGetHomepageSections,
+  apiUpdateHomepageSection,
+  apiUploadImageToCloudinary,
+  apiResolveLocalImage
+} from '../../services/api';
+import {
+  Save, Eye, CheckCircle2, Layers, EyeOff, FileText, Image as ImageIcon,
+  Upload, RefreshCw, Sliders, Move, ZoomIn, Crop, Maximize2, Sparkles, Check,
+  RotateCcw, Compass
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { normalizeImagePath } from '../../utils/imageUtils';
+import ImageAdjusterModal from '../components/ImageAdjusterModal';
 
 const AdminHomepageCMS = () => {
   const [sections, setSections] = useState([]);
   const [activeEditingId, setActiveEditingId] = useState('hero');
   const [loading, setLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState(null);
+  const [isHeroDragging, setIsHeroDragging] = useState(false);
+  const [adjusterModalOpen, setAdjusterModalOpen] = useState(false);
+  const [resolvingPath, setResolvingPath] = useState(false);
+  const [showFramingControls, setShowFramingControls] = useState(true);
+
   const heroFileInputRef = useRef(null);
   const featuredColFileInputRef = useRef(null);
   const storyFileInputRef = useRef(null);
@@ -112,6 +127,45 @@ const AdminHomepageCMS = () => {
       setToastMessage('UPLOAD ERROR: ' + (err.message || 'FAILED'));
       setTimeout(() => setToastMessage(null), 3000);
     }
+  };
+
+  const handleResolvePath = async (customPath) => {
+    const pathToResolve = (customPath || activeSection?.content?.heroImage || '').trim();
+    if (!pathToResolve) return;
+    setResolvingPath(true);
+    try {
+      const res = await apiResolveLocalImage(pathToResolve, 'campaign');
+      if (res?.resolvedUrl) {
+        handleContentChange('heroImage', res.resolvedUrl);
+        setToastMessage('PATH RESOLVED & ASSET IMPORTED');
+        setTimeout(() => setToastMessage(null), 2500);
+      }
+    } catch (err) {
+      console.warn('[PATH RESOLVE] Backend resolution skipped, using client normalizer:', err);
+      const normalized = normalizeImagePath(pathToResolve);
+      handleContentChange('heroImage', normalized);
+      setToastMessage(`NORMALIZED TO "${normalized}"`);
+      setTimeout(() => setToastMessage(null), 2500);
+    } finally {
+      setResolvingPath(false);
+    }
+  };
+
+  const handleResetFraming = () => {
+    if (!activeSection) return;
+    const currentKey = activeSection.sectionKey || activeSection.id;
+    const newContent = {
+      ...activeSection.content,
+      imagePositionX: 50,
+      imagePositionY: 50,
+      imageScale: 1,
+      imageOpacity: 35,
+      overlayDarkness: 50,
+      fitMode: 'cover'
+    };
+    setSections(sections.map((s) => (s.sectionKey || s.id) === currentKey ? { ...s, content: newContent } : s));
+    setToastMessage('HERO FRAMING RESET TO DEFAULTS');
+    setTimeout(() => setToastMessage(null), 2000);
   };
 
   const handleSaveSection = async () => {
@@ -299,35 +353,118 @@ const AdminHomepageCMS = () => {
                 />
               </div>
 
-              <div className="space-y-3 p-4 bg-neutral-100 border border-neutral-300">
-                <div className="flex items-center justify-between">
-                  <label className="text-neutral-900 font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
-                    <ImageIcon className="w-4 h-4 text-neutral-800" />
-                    HERO COVER IMAGE (BACKGROUND BANNER)
-                  </label>
-                  <span className="text-[10px] font-mono font-bold text-neutral-500 uppercase">
-                    LIVE HOMEPAGE BANNER
-                  </span>
+              <div className="space-y-4 p-5 bg-neutral-100 border border-neutral-300">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-200 pb-3">
+                  <div className="space-y-0.5">
+                    <label className="text-neutral-900 font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+                      <ImageIcon className="w-4 h-4 text-neutral-800" />
+                      HERO COVER IMAGE (BACKGROUND BANNER STUDIO)
+                    </label>
+                    <p className="text-[10px] font-mono text-neutral-500 uppercase">
+                      Drag & drop any photo from your desktop, paste any path, or adjust framing in real time
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setAdjusterModalOpen(true)}
+                      className="px-3 py-1 bg-white hover:bg-neutral-900 hover:text-white border border-neutral-300 text-neutral-800 text-[10px] font-mono font-bold uppercase flex items-center gap-1.5 transition-colors"
+                    >
+                      <Crop className="w-3.5 h-3.5" />
+                      <span>CROP & ROTATE STUDIO</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleResetFraming}
+                      title="Reset position and zoom"
+                      className="px-2.5 py-1 bg-white hover:bg-neutral-200 border border-neutral-300 text-neutral-700 text-[10px] font-mono font-bold uppercase flex items-center gap-1"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>RESET FRAMING</span>
+                    </button>
+                  </div>
                 </div>
 
-                {/* Banner Live Preview */}
-                <div className="relative w-full h-48 bg-neutral-900 border border-neutral-300 overflow-hidden group">
+                {/* Interactive Drag & Drop Banner Frame Preview */}
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsHeroDragging(true);
+                  }}
+                  onDragLeave={() => setIsHeroDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsHeroDragging(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) handleFileUpload('heroImage', file);
+                  }}
+                  className={`relative w-full h-56 sm:h-64 bg-neutral-950 border-2 overflow-hidden group transition-all ${
+                    isHeroDragging
+                      ? 'border-lime-500 scale-[1.01] shadow-2xl ring-4 ring-lime-400/20'
+                      : 'border-neutral-400 hover:border-neutral-900'
+                  }`}
+                >
+                  {/* Live Rendered Banner Image */}
                   <img
                     src={normalizeImagePath(activeSection.content.heroImage || '/assets/campaign/IMG_0628.jpg')}
                     alt="Hero Banner Preview"
-                    className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                    style={{
+                      objectPosition: `${activeSection.content.imagePositionX ?? 50}% ${activeSection.content.imagePositionY ?? 50}%`,
+                      transform: `scale(${activeSection.content.imageScale ?? 1})`,
+                      opacity: (activeSection.content.imageOpacity ?? 35) / 100,
+                      objectFit: activeSection.content.fitMode || 'cover'
+                    }}
+                    className="w-full h-full transition-all duration-300"
                     onError={(e) => {
                       e.currentTarget.onerror = null;
                       e.currentTarget.src = '/assets/campaign/HOMEPAGE_2.webp';
                     }}
                   />
-                  <div className="absolute inset-0 bg-neutral-950/20 pointer-events-none" />
-                  <div className="absolute bottom-2 left-2 bg-neutral-900/90 text-lime-400 font-mono text-[10px] px-2.5 py-1 border border-white/20 font-bold uppercase tracking-wider">
-                    CURRENT BANNER: {activeSection.content.heroImage || '/assets/campaign/IMG_0628.jpg'}
+
+                  {/* Live Scrim Gradient Overlay */}
+                  <div
+                    className="absolute inset-0 pointer-events-none transition-opacity duration-300"
+                    style={{
+                      background: `linear-gradient(to bottom, rgba(255,255,255,${((activeSection.content.overlayDarkness ?? 50) * 0.9) / 100}), rgba(255,255,255,${((activeSection.content.overlayDarkness ?? 50) * 0.45) / 100}), rgba(255,255,255,${((activeSection.content.overlayDarkness ?? 50) * 0.95) / 100}))`
+                    }}
+                  />
+
+                  {/* Headline Mock Overlay to test readability */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-4 text-center">
+                    <span className="text-[10px] font-mono tracking-widest text-neutral-800 bg-white/80 px-2 py-0.5 border border-neutral-300 mb-2 font-bold uppercase">
+                      {activeSection.content.campaignBadge || 'VENM REFERENCE CATALOG'}
+                    </span>
+                    <h3 className="text-xl sm:text-2xl font-black tracking-widest text-neutral-900 uppercase">
+                      {activeSection.content.title || 'VENM REFERENCE CATALOG'}
+                    </h3>
+                  </div>
+
+                  {/* Drag & Drop Overlay Indicator */}
+                  {isHeroDragging && (
+                    <div className="absolute inset-0 bg-lime-400/30 border-4 border-dashed border-lime-500 flex flex-col items-center justify-center backdrop-blur-xs z-30 animate-pulse pointer-events-none">
+                      <Upload className="w-10 h-10 text-neutral-900" />
+                      <span className="font-mono font-black text-xs text-neutral-900 bg-lime-400 px-3.5 py-1.5 mt-2 tracking-widest uppercase shadow-lg">
+                        DROP ANY PHOTO TO SET AS HERO BANNER
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Corner Badge */}
+                  <div className="absolute bottom-2 left-2 z-20 flex items-center gap-2">
+                    <div className="bg-neutral-900/90 text-lime-400 font-mono text-[10px] px-2.5 py-1 border border-white/20 font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md">
+                      <span className="w-2 h-2 rounded-full bg-lime-400 animate-ping inline-block" />
+                      LIVE PREVIEW: {activeSection.content.heroImage || '/assets/campaign/IMG_0628.jpg'}
+                    </div>
+                  </div>
+
+                  <div className="absolute top-2 right-2 z-20">
+                    <div className="bg-neutral-900/80 text-white font-mono text-[10px] px-2 py-1 border border-white/20">
+                      POS: {activeSection.content.imagePositionX ?? 50}% {activeSection.content.imagePositionY ?? 50}% | ZOOM: {activeSection.content.imageScale ?? 1}x
+                    </div>
                   </div>
                 </div>
 
-                {/* File Upload Area */}
+                {/* Quick File Select & Drag Button */}
                 <div
                   onClick={() => heroFileInputRef.current?.click()}
                   className="border-2 border-dashed border-neutral-400 bg-white hover:bg-neutral-50 p-4 text-center cursor-pointer transition-colors"
@@ -343,28 +480,278 @@ const AdminHomepageCMS = () => {
                     className="hidden"
                   />
                   <div className="flex flex-col items-center justify-center gap-1">
-                    <Upload className="w-5 h-5 text-neutral-700" />
-                    <span className="text-xs font-bold text-neutral-900 uppercase">
-                      CHOOSE BANNER IMAGE FROM DEVICE OR DRAG & DROP HERE
+                    <Upload className="w-5 h-5 text-neutral-800" />
+                    <span className="text-xs font-bold text-neutral-900 uppercase tracking-wider">
+                      CLICK TO CHOOSE ANY PHOTO FROM COMPUTER OR DRAG & DROP ONTO FRAME ABOVE
                     </span>
                     <span className="text-[10px] font-mono text-neutral-500">
-                      Supports JPG, PNG, WEBP, AVIF directly from your computer
+                      Supports any JPG, PNG, WEBP, AVIF from anywhere on your computer or USB drive
                     </span>
                   </div>
                 </div>
 
-                {/* Direct Path Input with Auto-Sanitization */}
-                <div className="space-y-1">
-                  <label className="text-neutral-700 font-bold text-[10px] uppercase block">
-                    IMAGE PATH / URL (AUTOMATICALLY CLEANS WINDOWS PATHS & QUOTES)
-                  </label>
-                  <input
-                    type="text"
-                    value={activeSection.content.heroImage || ''}
-                    placeholder="/assets/campaign/IMG_0628.jpg"
-                    onChange={(e) => handleContentChange('heroImage', normalizeImagePath(e.target.value))}
-                    className="w-full bg-white border border-neutral-300 px-3 py-2 text-neutral-900 font-mono text-xs outline-none focus:border-neutral-900"
-                  />
+                {/* Add ANY Image Path Input with Instant Resolver */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-neutral-800 font-bold text-[11px] uppercase block">
+                      OR ADD ANY IMAGE FROM ANYWHERE VIA FILE PATH OR URL
+                    </label>
+                    <span className="text-[10px] font-mono text-neutral-500 uppercase">
+                      Paste Windows path (D:\...), web link, or relative asset
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={activeSection.content.heroImage || ''}
+                      placeholder="e.g. D:\photos\look.jpg, C:\Users\..., /assets/..., or https://..."
+                      onChange={(e) => handleContentChange('heroImage', e.target.value)}
+                      className="flex-1 bg-white border border-neutral-300 px-3 py-2 text-neutral-900 font-mono text-xs outline-none focus:border-neutral-900"
+                    />
+                    <button
+                      type="button"
+                      disabled={resolvingPath}
+                      onClick={() => handleResolvePath()}
+                      className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white text-[11px] font-mono font-bold uppercase transition-colors shrink-0 flex items-center gap-1.5"
+                    >
+                      {resolvingPath ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>IMPORTING...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-lime-400" />
+                          <span>RESOLVE & IMPORT</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* ---------------------------------------------------- */}
+                {/* FRAME ADJUSTMENT & POSITIONING CONTROLS */}
+                {/* ---------------------------------------------------- */}
+                <div className="bg-white border border-neutral-300 p-4 space-y-4">
+                  <div className="flex items-center justify-between border-b border-neutral-200 pb-2">
+                    <span className="text-xs font-black uppercase text-neutral-900 flex items-center gap-1.5">
+                      <Sliders className="w-4 h-4 text-neutral-800" />
+                      FRAME ADJUSTMENT & FOCAL POINT CONTROLS
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowFramingControls(!showFramingControls)}
+                      className="text-[10px] font-mono text-neutral-600 hover:text-neutral-900 font-bold uppercase"
+                    >
+                      {showFramingControls ? 'HIDE CONTROLS' : 'SHOW CONTROLS'}
+                    </button>
+                  </div>
+
+                  {showFramingControls && (
+                    <div className="space-y-4 pt-1 animate-fadeIn">
+                      {/* 9-Point Alignment Grid Presets */}
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] font-mono font-bold text-neutral-600 uppercase block">
+                          🎯 9-POINT QUICK ALIGNMENT / FOCAL PRESETS:
+                        </span>
+                        <div className="grid grid-cols-3 gap-2 max-w-sm">
+                          {[
+                            { label: 'TOP-LEFT', x: 0, y: 0 },
+                            { label: 'TOP-CENTER', x: 50, y: 0 },
+                            { label: 'TOP-RIGHT', x: 100, y: 0 },
+                            { label: 'LEFT', x: 0, y: 50 },
+                            { label: 'CENTER', x: 50, y: 50 },
+                            { label: 'RIGHT', x: 100, y: 50 },
+                            { label: 'BTM-LEFT', x: 0, y: 100 },
+                            { label: 'BTM-CENTER', x: 50, y: 100 },
+                            { label: 'BTM-RIGHT', x: 100, y: 100 },
+                          ].map((pos, pIdx) => {
+                            const isCurrent =
+                              (activeSection.content.imagePositionX ?? 50) === pos.x &&
+                              (activeSection.content.imagePositionY ?? 50) === pos.y;
+                            return (
+                              <button
+                                key={pIdx}
+                                type="button"
+                                onClick={() => {
+                                  const currentKey = activeSection.sectionKey || activeSection.id;
+                                  const updatedContent = {
+                                    ...activeSection.content,
+                                    imagePositionX: pos.x,
+                                    imagePositionY: pos.y
+                                  };
+                                  setSections(
+                                    sections.map((s) =>
+                                      (s.sectionKey || s.id) === currentKey ? { ...s, content: updatedContent } : s
+                                    )
+                                  );
+                                }}
+                                className={`text-[10px] font-mono py-1.5 px-2 border transition-all text-center ${
+                                  isCurrent
+                                    ? 'bg-neutral-900 text-lime-400 border-neutral-900 font-black'
+                                    : 'bg-neutral-50 hover:bg-neutral-200 text-neutral-700 border-neutral-200 font-medium'
+                                }`}
+                              >
+                                {pos.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Sliders Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-neutral-200">
+                        {/* Horizontal Position X Slider */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center text-[10px] font-mono">
+                            <span className="font-bold text-neutral-800 uppercase">HORIZONTAL POSITION (X)</span>
+                            <span className="font-bold text-neutral-900 bg-neutral-100 px-2 py-0.5 border border-neutral-300">
+                              {activeSection.content.imagePositionX ?? 50}%
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={activeSection.content.imagePositionX ?? 50}
+                            onChange={(e) => handleContentChange('imagePositionX', Number(e.target.value))}
+                            className="w-full accent-neutral-900 cursor-pointer"
+                          />
+                          <div className="flex justify-between text-[9px] font-mono text-neutral-400">
+                            <span>0% (LEFT)</span>
+                            <span>50% (CENTER)</span>
+                            <span>100% (RIGHT)</span>
+                          </div>
+                        </div>
+
+                        {/* Vertical Position Y Slider */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center text-[10px] font-mono">
+                            <span className="font-bold text-neutral-800 uppercase">VERTICAL POSITION (Y)</span>
+                            <span className="font-bold text-neutral-900 bg-neutral-100 px-2 py-0.5 border border-neutral-300">
+                              {activeSection.content.imagePositionY ?? 50}%
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={activeSection.content.imagePositionY ?? 50}
+                            onChange={(e) => handleContentChange('imagePositionY', Number(e.target.value))}
+                            className="w-full accent-neutral-900 cursor-pointer"
+                          />
+                          <div className="flex justify-between text-[9px] font-mono text-neutral-400">
+                            <span>0% (TOP)</span>
+                            <span>50% (CENTER)</span>
+                            <span>100% (BOTTOM)</span>
+                          </div>
+                        </div>
+
+                        {/* Zoom / Scale Slider */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center text-[10px] font-mono">
+                            <span className="font-bold text-neutral-800 uppercase">ZOOM / FRAME SCALE</span>
+                            <span className="font-bold text-neutral-900 bg-neutral-100 px-2 py-0.5 border border-neutral-300">
+                              {activeSection.content.imageScale ?? 1}x
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min="1"
+                            max="2.5"
+                            step="0.05"
+                            value={activeSection.content.imageScale ?? 1}
+                            onChange={(e) => handleContentChange('imageScale', Number(e.target.value))}
+                            className="w-full accent-neutral-900 cursor-pointer"
+                          />
+                          <div className="flex justify-between text-[9px] font-mono text-neutral-400">
+                            <span>1.0x (NORMAL)</span>
+                            <span>1.5x</span>
+                            <span>2.5x (MAX ZOOM)</span>
+                          </div>
+                        </div>
+
+                        {/* Banner Visibility Opacity Slider */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center text-[10px] font-mono">
+                            <span className="font-bold text-neutral-800 uppercase">BANNER OPACITY / VISIBILITY</span>
+                            <span className="font-bold text-neutral-900 bg-neutral-100 px-2 py-0.5 border border-neutral-300">
+                              {activeSection.content.imageOpacity ?? 35}%
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min="10"
+                            max="100"
+                            step="5"
+                            value={activeSection.content.imageOpacity ?? 35}
+                            onChange={(e) => handleContentChange('imageOpacity', Number(e.target.value))}
+                            className="w-full accent-neutral-900 cursor-pointer"
+                          />
+                          <div className="flex justify-between text-[9px] font-mono text-neutral-400">
+                            <span>10% (SUBTLE)</span>
+                            <span>50% (VIBRANT)</span>
+                            <span>100% (FULL BOLD)</span>
+                          </div>
+                        </div>
+
+                        {/* Text Scrim Contrast Slider */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center text-[10px] font-mono">
+                            <span className="font-bold text-neutral-800 uppercase">TEXT SCRIM / WHITE OVERLAY</span>
+                            <span className="font-bold text-neutral-900 bg-neutral-100 px-2 py-0.5 border border-neutral-300">
+                              {activeSection.content.overlayDarkness ?? 50}%
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="5"
+                            value={activeSection.content.overlayDarkness ?? 50}
+                            onChange={(e) => handleContentChange('overlayDarkness', Number(e.target.value))}
+                            className="w-full accent-neutral-900 cursor-pointer"
+                          />
+                          <div className="flex justify-between text-[9px] font-mono text-neutral-400">
+                            <span>0% (CLEAR)</span>
+                            <span>50% (BALANCED)</span>
+                            <span>100% (HIGH CONTRAST)</span>
+                          </div>
+                        </div>
+
+                        {/* Fit Mode */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-mono font-bold text-neutral-800 uppercase block">
+                            FRAME FIT MODE
+                          </span>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleContentChange('fitMode', 'cover')}
+                              className={`py-2 text-[10px] font-mono font-bold border uppercase transition-all ${
+                                (activeSection.content.fitMode || 'cover') === 'cover'
+                                  ? 'bg-neutral-900 text-lime-400 border-neutral-900'
+                                  : 'bg-neutral-50 text-neutral-700 border-neutral-300 hover:bg-neutral-200'
+                              }`}
+                            >
+                              COVER (FILL ENTIRE FRAME)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleContentChange('fitMode', 'contain')}
+                              className={`py-2 text-[10px] font-mono font-bold border uppercase transition-all ${
+                                activeSection.content.fitMode === 'contain'
+                                  ? 'bg-neutral-900 text-lime-400 border-neutral-900'
+                                  : 'bg-neutral-50 text-neutral-700 border-neutral-300 hover:bg-neutral-200'
+                              }`}
+                            >
+                              CONTAIN (FIT WHOLE IMAGE)
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Quick-Select Studio Campaign Looks */}
@@ -879,6 +1266,20 @@ const AdminHomepageCMS = () => {
           </div>
         </div>
       </div>
+
+      {adjusterModalOpen && (
+        <ImageAdjusterModal
+          isOpen={adjusterModalOpen}
+          imageUrl={normalizeImagePath(activeSection?.content?.heroImage || '/assets/campaign/IMG_0628.jpg')}
+          defaultAspect="16:9"
+          onSave={(adjustedUrl) => {
+            handleContentChange('heroImage', adjustedUrl);
+            setToastMessage('TRANSFORMED IMAGE SAVED TO HERO BANNER');
+            setTimeout(() => setToastMessage(null), 2500);
+          }}
+          onClose={() => setAdjusterModalOpen(false)}
+        />
+      )}
     </div>
   );
 };

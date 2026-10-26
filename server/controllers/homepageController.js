@@ -231,3 +231,21 @@ export const updateHomepageSections = async (req, res) => {
   }
 };
 
+export const resolveLocalImagePath = async (req, res) => {
+  try {
+    const { path: rawPath, folder = 'campaign' } = req.body;
+    if (!rawPath) {
+      return res.status(400).json({ message: 'PATH IS REQUIRED' });
+    }
+
+    const resolvedUrl = sanitizeImageUrl(rawPath, folder);
+    res.json({
+      original: rawPath,
+      resolvedUrl,
+      success: true
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'FAILED TO RESOLVE IMAGE PATH', error: error.message });
+  }
+};
+

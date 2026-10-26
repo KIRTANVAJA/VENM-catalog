@@ -153,6 +153,12 @@ const Home = () => {
   const heroDesc = heroSec?.content?.description || "A FASHION REFERENCE CATALOG & BESPOKE CUSTOM REQUEST PLATFORM SHOWCASING WHAT VENM CAN CREATE, CUSTOMIZE, STYLE, SOURCE AND WORK ON.";
   const rawHeroImg = heroSec?.content?.heroImage || "/assets/campaign/HOMEPAGE_2.webp";
   const heroImg = normalizeImagePath(rawHeroImg, "/assets/campaign/HOMEPAGE_2.webp");
+  const heroPosX = heroSec?.content?.imagePositionX ?? 50;
+  const heroPosY = heroSec?.content?.imagePositionY ?? 50;
+  const heroScale = heroSec?.content?.imageScale ?? 1;
+  const heroOpacity = (heroSec?.content?.imageOpacity ?? 35) / 100;
+  const heroFitMode = heroSec?.content?.fitMode || 'cover';
+  const heroOverlay = heroSec?.content?.overlayDarkness ?? 50;
 
   return (
     <div className="min-h-screen bg-white text-neutral-900 space-y-20 pb-20 font-sans">
@@ -167,13 +173,24 @@ const Home = () => {
               src={heroImg}
               alt=""
               role="presentation"
-              className="w-full h-full object-cover object-center opacity-30 sm:opacity-40 transition-opacity duration-700"
+              style={{
+                objectPosition: `${heroPosX}% ${heroPosY}%`,
+                transform: `scale(${heroScale})`,
+                opacity: heroOpacity,
+                objectFit: heroFitMode
+              }}
+              className="w-full h-full transition-all duration-300"
               onError={(e) => {
                 e.currentTarget.onerror = null;
                 e.currentTarget.src = "/assets/campaign/HOMEPAGE_2.webp";
               }}
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/40 to-white/80 pointer-events-none" />
+            <div
+              className="absolute inset-0 pointer-events-none transition-opacity duration-300"
+              style={{
+                background: `linear-gradient(to bottom, rgba(255,255,255,${(heroOverlay * 0.9) / 100}), rgba(255,255,255,${(heroOverlay * 0.45) / 100}), rgba(255,255,255,${(heroOverlay * 0.95) / 100}))`
+              }}
+            />
           </div>
 
           {/* Hero Content */}

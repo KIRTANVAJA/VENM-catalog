@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X,
   Check,
@@ -36,19 +36,7 @@ const ImageAdjusterModal = ({ isOpen, imageUrl, onSave, onClose, defaultAspect =
   const canvasRef = useRef(null);
   const imgRef = useRef(null);
 
-  useEffect(() => {
-    if (isOpen && imageUrl) {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.src = imageUrl;
-      img.onload = () => {
-        imgRef.current = img;
-        renderCanvas();
-      };
-    }
-  }, [isOpen, imageUrl, aspect, fitMode, zoom, posX, posY, rotation, bgColor]);
-
-  const renderCanvas = () => {
+  const renderCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     const img = imgRef.current;
     if (!canvas || !img) return;
@@ -103,7 +91,19 @@ const ImageAdjusterModal = ({ isOpen, imageUrl, onSave, onClose, defaultAspect =
 
     ctx.drawImage(img, -drawW / 2 - offsetX, -drawH / 2 - offsetY, drawW, drawH);
     ctx.restore();
-  };
+  }, [aspect, fitMode, zoom, posX, posY, rotation, bgColor]);
+
+  useEffect(() => {
+    if (isOpen && imageUrl) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = imageUrl;
+      img.onload = () => {
+        imgRef.current = img;
+        renderCanvas();
+      };
+    }
+  }, [isOpen, imageUrl, renderCanvas]);
 
   const [uploadProgress, setUploadProgress] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
@@ -128,25 +128,35 @@ const ImageAdjusterModal = ({ isOpen, imageUrl, onSave, onClose, defaultAspect =
         );
       });
 
-      // Direct upload from browser to Cloudinary with fresh server signature
-      const uploadResult = await apiUploadImageToCloudinary(
-        blob,
-        'venm-catalog/products',
-        (percent) => {
-          setUploadProgress(percent);
-        }
-      );
+      try {
+        // Direct upload from browser to Cloudinary with fresh server signature
+        const uploadResult = await apiUploadImageToCloudinary(
+          blob,
+          'venm-catalog/campaign',
+          (percent) => {
+            setUploadProgress(percent);
+          }
+        );
 
-      if (uploadResult?.secure_url) {
-        onSave(uploadResult.secure_url);
+        if (uploadResult?.secure_url) {
+          onSave(uploadResult.secure_url);
+          setIsProcessing(false);
+          onClose();
+          return;
+        }
+      } catch (cloudErr) {
+        console.warn('[IMAGE ADJUSTER] Cloudinary unavailable or failed, saving canvas directly:', cloudErr.message);
+        const dataUrl = canvas.toDataURL('image/webp', 0.92);
+        onSave(dataUrl);
         setIsProcessing(false);
         onClose();
-      } else {
-        throw new Error('Upload succeeded but no secure URL was returned.');
+        return;
       }
+
+      throw new Error('Upload succeeded but no image URL was returned.');
     } catch (err) {
-      console.error('[IMAGE ADJUSTER] Cloudinary upload failed:', err);
-      setErrorMessage(err.message || 'Failed to upload adjusted image.');
+      console.error('[IMAGE ADJUSTER] Adjustment save failed:', err);
+      setErrorMessage(err.message || 'Failed to save adjusted image.');
       setIsProcessing(false);
     }
   };
