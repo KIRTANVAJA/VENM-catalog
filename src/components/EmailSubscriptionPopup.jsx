@@ -1,54 +1,92 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { X, Mail, CheckCircle2, AlertTriangle, ArrowRight, Sparkles } from 'lucide-react';
 import { apiSubscribe } from '../services/api';
+import { hasUserDecided } from '../utils/cookieConsent';
 
 const CONSENT_WORDING = "I agree to receive promotional emails from VENM about new collections, product launches, campaigns and offers. I understand that I can unsubscribe at any time.";
 const POPUP_DISMISS_KEY = 'venm_email_popup_dismissed';
 const SUBSCRIBED_KEY = 'venm_subscriber_status';
+const POPUP_DELAY_MS = 20000; // 20 seconds of genuine browsing before showing
 
 const EmailSubscriptionPopup = () => {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [marketingConsent, setMarketingConsent] = useState(false); // MUST be unchecked by default
-  const [honeypot, setHoneypot] = useState(''); // Anti-bot honeypot
+  const [honeypot, setHoneypot] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
 
-  // Check if visitor should see the popup
+  const timerRef = useRef(null);
+
+  // Determine if popup is eligible to be shown
   useEffect(() => {
-    // Never show on admin pages or unsubscribe / legal pages
+    // 1. Never show on admin or legal/unsubscribe pages
     if (
       location.pathname.startsWith('/admin') ||
-      location.pathname.startsWith('/unsubscribe')
+      location.pathname.startsWith('/unsubscribe') ||
+      location.pathname.startsWith('/privacy')
     ) {
       return;
     }
 
+    // 2. Check if already subscribed
     try {
-      const isAlreadySubscribed = localStorage.getItem(SUBSCRIBED_KEY) === 'subscribed';
-      if (isAlreadySubscribed) return;
+      if (localStorage.getItem(SUBSCRIBED_KEY) === 'subscribed') {
+        return;
+      }
 
+      // 3. Check if previously dismissed (suppress for 14 days)
       const lastDismissed = localStorage.getItem(POPUP_DISMISS_KEY);
       if (lastDismissed) {
         const dismissedTime = parseInt(lastDismissed, 10);
-        // Suppress popup for 7 days after dismissal
-        if (Date.now() - dismissedTime < 7 * 24 * 60 * 60 * 1000) {
+        if (Date.now() - dismissedTime < 14 * 24 * 60 * 60 * 1000) {
           return;
         }
       }
     } catch (e) {
-      // Ignore localStorage errors
+      // Storage access safety
     }
 
-    // Display popup after 18 seconds of browsing
-    const timer = setTimeout(() => {
-      setIsOpen(true);
-    }, 18000);
+    // Helper to start the browsing timer
+    const startBrowsingTimer = () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        // Double check not subscribed or dismissed before opening
+        try {
+          if (
+            localStorage.getItem(SUBSCRIBED_KEY) !== 'subscribed' &&
+            !localStorage.getItem(POPUP_DISMISS_KEY)
+          ) {
+            setIsOpen(true);
+          }
+        } catch (e) {
+          setIsOpen(true);
+        }
+      }, POPUP_DELAY_MS);
+    };
 
-    return () => clearTimeout(timer);
+    // If visitor has already completed cookie consent, start the 20s browsing timer
+    if (hasUserDecided()) {
+      startBrowsingTimer();
+    } else {
+      // If cookie banner is still pending, do NOT show the email popup over the cookie banner!
+      // Listen for cookie consent completion, and only then start the 20s timer
+      const handleCookieChoice = () => {
+        startBrowsingTimer();
+      };
+      window.addEventListener('venm_cookie_consent_change', handleCookieChoice, { once: true });
+      return () => {
+        window.removeEventListener('venm_cookie_consent_change', handleCookieChoice);
+        if (timerRef.current) clearTimeout(timerRef.current);
+      };
+    }
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, [location.pathname]);
 
   const handleDismiss = () => {
@@ -63,10 +101,14 @@ const EmailSubscriptionPopup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Prevent duplicate concurrent submissions
+    if (isSubmitting) return;
+
     setErrorMessage(null);
 
-    // Strict client-side validation
-    const cleanEmail = email.trim();
+    // Client-side validation
+    const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) {
       setErrorMessage('Please enter your email address.');
       return;
@@ -79,7 +121,7 @@ const EmailSubscriptionPopup = () => {
     }
 
     if (!marketingConsent) {
-      setErrorMessage('Please confirm your marketing consent by checking the box below.');
+      setErrorMessage('Please check the box below to agree to marketing emails.');
       return;
     }
 
@@ -94,20 +136,31 @@ const EmailSubscriptionPopup = () => {
         honeypot
       });
 
+      // Mark locally so user is never prompted again
       try {
         localStorage.setItem(SUBSCRIBED_KEY, 'subscribed');
       } catch (e) {}
 
-      setSuccessMessage(response.message || 'YOU ARE ON THE LIST. First access will be delivered to your inbox.');
+      if (response?.alreadySubscribed) {
+        setSuccessMessage('YOU ARE ALREADY ON THE LIST. Thank you for your continued support.');
+      } else {
+        setSuccessMessage(response?.message || "YOU ARE ON THE LIST. You'll receive first access to upcoming drops.");
+      }
+
       setEmail('');
 
-      // Auto close modal after showing success state
+      // Auto close modal after showing confirmation
       setTimeout(() => {
         setIsOpen(false);
-      }, 3500);
+      }, 3000);
 
     } catch (err) {
-      setErrorMessage(err.message || 'Unable to subscribe at this moment. Please try again.');
+      const msg = err.message || '';
+      if (msg.includes('TOO MANY') || msg.includes('429')) {
+        setErrorMessage('Too many subscription attempts. Please wait a moment before trying again.');
+      } else {
+        setErrorMessage(msg || 'Unable to subscribe at this moment. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -155,7 +208,7 @@ const EmailSubscriptionPopup = () => {
           </div>
         ) : (
           <div className="space-y-5">
-            {/* Tagline */}
+            {/* Header */}
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-lime-400" />
@@ -245,7 +298,7 @@ const EmailSubscriptionPopup = () => {
                   disabled={isSubmitting}
                   className="w-full py-3 px-6 bg-lime-400 hover:bg-lime-300 text-black font-extrabold text-xs font-mono uppercase tracking-widest flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer shadow-md"
                 >
-                  <span>{isSubmitting ? 'VERIFYING...' : 'SUBSCRIBE TO DROPS'}</span>
+                  <span>{isSubmitting ? 'PROCESSING...' : 'SUBSCRIBE TO DROPS'}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
 
@@ -271,4 +324,3 @@ const EmailSubscriptionPopup = () => {
 };
 
 export default EmailSubscriptionPopup;
-

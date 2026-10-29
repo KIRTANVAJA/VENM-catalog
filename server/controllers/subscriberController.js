@@ -130,6 +130,14 @@ export const subscribe = async (req, res) => {
     });
 
   } catch (error) {
+    // Graceful handling of concurrent duplicate submissions
+    if (error.code === 'P2002') {
+      return res.status(200).json({
+        success: true,
+        message: 'You are already subscribed to VENM drops & campaign updates.',
+        alreadySubscribed: true
+      });
+    }
     console.error('[SUBSCRIBE ERROR]:', error.message);
     return res.status(500).json({ error: 'Subscription request could not be processed at this time.' });
   }

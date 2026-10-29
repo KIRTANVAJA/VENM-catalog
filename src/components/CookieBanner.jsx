@@ -106,7 +106,7 @@ const CookieBanner = () => {
                   className="text-[11px] font-mono text-neutral-400 hover:text-white underline underline-offset-4 flex items-center gap-1 cursor-pointer"
                 >
                   <Settings2 className="w-3.5 h-3.5" />
-                  <span>Customize Preferences</span>
+                  <span>Cookie Settings</span>
                 </button>
                 <a
                   href="/privacy"
@@ -125,7 +125,7 @@ const CookieBanner = () => {
                 onClick={handleRejectOptional}
                 className="w-full sm:w-auto px-4 py-2.5 text-xs font-mono tracking-wider uppercase border border-neutral-700 bg-neutral-900 hover:bg-neutral-800 hover:border-neutral-500 text-neutral-200 transition-all font-bold cursor-pointer"
               >
-                Reject Optional
+                Reject Optional Cookies
               </button>
 
               <button
