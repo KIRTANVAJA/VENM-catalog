@@ -7,6 +7,8 @@ import Footer from './components/Footer';
 import BrandLoader from './components/BrandLoader';
 import AdminPasskeyModal from './components/AdminPasskeyModal';
 import AuthModal from './components/AuthModal';
+import CookieBanner from './components/CookieBanner';
+import EmailSubscriptionPopup from './components/EmailSubscriptionPopup';
 import { AuthProvider } from './context/AuthContext';
 
 import Home from './pages/Home';
@@ -17,6 +19,8 @@ import About from './pages/About';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
 import GenderCatalog from './pages/GenderCatalog';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import Unsubscribe from './pages/Unsubscribe';
 
 // Admin Panel Components & Pages
 import AdminLogin from './admin/pages/AdminLogin';
@@ -33,9 +37,11 @@ import AdminActiveFest from './admin/pages/AdminActiveFest';
 import AdminMediaLibrary from './admin/pages/AdminMediaLibrary';
 import AdminSettings from './admin/pages/AdminSettings';
 import AdminUsers from './admin/pages/AdminUsers';
+import AdminEmailMarketing from './admin/pages/AdminEmailMarketing';
 
 import { useAuth } from './context/AuthContext';
 import { apiSendHeartbeat } from './services/api';
+import { isAnalyticsAllowed } from './utils/cookieConsent';
 
 // Helper component to reset scroll position on route change
 const ScrollToTop = () => {
@@ -52,8 +58,22 @@ const ScrollToTop = () => {
 const VisitorPresenceTracker = () => {
   const { pathname } = useLocation();
   const { currentUser } = useAuth();
+  const [analyticsAllowed, setAnalyticsAllowed] = useState(() => isAnalyticsAllowed());
 
   useEffect(() => {
+    const handleConsentChange = (e) => {
+      setAnalyticsAllowed(Boolean(e.detail?.analytics));
+    };
+    window.addEventListener('venm_cookie_consent_change', handleConsentChange);
+    return () => window.removeEventListener('venm_cookie_consent_change', handleConsentChange);
+  }, []);
+
+  useEffect(() => {
+    // Privacy safeguard: do not transmit tracking beacons without affirmative analytics consent
+    if (!analyticsAllowed) {
+      return;
+    }
+
     // 1. Persistent Unique Visitor ID (persists across visits, browser restarts, and days)
     let visitorId = null;
     try {
@@ -98,7 +118,7 @@ const VisitorPresenceTracker = () => {
     const interval = setInterval(sendBeat, 15000);
 
     return () => clearInterval(interval);
-  }, [pathname, currentUser]);
+  }, [pathname, currentUser, analyticsAllowed]);
 
   return null;
 };
@@ -134,6 +154,9 @@ const App = () => {
         <VisitorPresenceTracker />
         {/* Global Shortcut Listener for Ctrl+Shift+A Passkey Modal */}
         <AdminPasskeyModal />
+        {/* Privacy Consent & Marketing Overlay Components */}
+        <CookieBanner />
+        <EmailSubscriptionPopup />
 
         <Routes>
           {/* PUBLIC CATALOG ROUTES */}
@@ -209,6 +232,18 @@ const App = () => {
               </PublicLayout>
             }
           />
+          <Route
+            path="/privacy"
+            element={
+              <PublicLayout>
+                <PrivacyPolicy />
+              </PublicLayout>
+            }
+          />
+          <Route
+            path="/unsubscribe"
+            element={<Unsubscribe />}
+          />
           {/* Customer login/register removed: redirect smoothly to home */}
           <Route path="/login" element={<Navigate to="/" replace />} />
           <Route path="/register" element={<Navigate to="/" replace />} />
@@ -221,6 +256,8 @@ const App = () => {
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="users" element={<AdminUsers />} />
+          <Route path="marketing" element={<AdminEmailMarketing />} />
+          <Route path="email-marketing" element={<AdminEmailMarketing />} />
 
           {/* Products */}
           <Route path="products" element={<AdminProducts />} />

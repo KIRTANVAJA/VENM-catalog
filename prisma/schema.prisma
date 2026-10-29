@@ -190,3 +190,49 @@ model Inquiry {
   @@index([status])
   @@index([createdAt(sort: Desc)])
 }
+
+model EmailSubscriber {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  marketingConsent  Boolean   @default(false)
+  consentTimestamp  DateTime?
+  consentSource     String    @default("POPUP") // POPUP | FOOTER | MODAL | ADMIN
+  consentWording    String?
+  consentVersion    String    @default("1.0")
+  status            String    @default("SUBSCRIBED") // SUBSCRIBED | UNSUBSCRIBED | SUPPRESSED
+  unsubscribeToken  String    @unique @default(uuid())
+  unsubscribedAt    DateTime?
+  unsubscribeReason String?
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([status])
+  @@index([email])
+  @@index([createdAt(sort: Desc)])
+}
+
+model EmailCampaign {
+  id             String    @id @default(uuid())
+  title          String
+  subject        String
+  previewText    String?
+  campaignType   String    // COLLECTION_ANNOUNCEMENT | PRODUCT_DROP | CUSTOM_SERVICES | SPECIAL_OFFER | BRAND_ANNOUNCEMENT
+  contentHtml    String
+  contentText    String?
+  status         String    @default("DRAFT") // DRAFT | REVIEWED | APPROVED | SENDING | SENT | CANCELLED
+  approvedBy     String?
+  approvedAt     DateTime?
+  sentAt         DateTime?
+  recipientCount Int       @default(0)
+  openCount      Int       @default(0)
+  clickCount     Int       @default(0)
+  metadata       String?   @default("{}")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status])
+  @@index([campaignType])
+  @@index([createdAt(sort: Desc)])
+}

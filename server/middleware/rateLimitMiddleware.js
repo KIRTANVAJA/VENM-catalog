@@ -49,3 +49,9 @@ export const analyticsLimiter = createRateLimiter({
   max: 100,
   message: 'TOO MANY EVENTS LOGGED. PLEASE SLOW DOWN.'
 });
+
+export const subscriberLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  message: 'TOO MANY SUBSCRIPTION ATTEMPTS. PLEASE TRY AGAIN LATER.'
+});

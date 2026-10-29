@@ -15,6 +15,7 @@ import mediaRoutes from './routes/mediaRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import activityRoutes from './routes/activityRoutes.js';
 import inquiryRoutes from './routes/inquiryRoutes.js';
+import { publicRouter as subscriberRoutes, adminSubscriberRouter, adminCampaignRouter } from './routes/subscriberRoutes.js';
 import { inquiryLimiter, analyticsLimiter } from './middleware/rateLimitMiddleware.js';
 import { logActivity } from './utils/activityLogger.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
@@ -141,6 +142,9 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/admin/activity', activityRoutes);
 app.use('/api/analytics', analyticsLimiter, activityRoutes);
 app.use('/api/inquiries', inquiryLimiter, inquiryRoutes);
+app.use('/api/subscribers', subscriberRoutes);
+app.use('/api/admin/subscribers', adminSubscriberRouter);
+app.use('/api/admin/email-campaigns', adminCampaignRouter);
 
 // Error Middleware
 app.use(notFound);

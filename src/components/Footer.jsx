@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, Instagram, MessageCircle } from 'lucide-react';
+import { ArrowUpRight, Instagram, MessageCircle, Cookie } from 'lucide-react';
 import { BRAND_ASSETS } from '../config/assets';
 import { getSettings, fetchLiveSettings } from '../data/settings';
+import { openCookiePreferences } from '../utils/cookieConsent';
 
 const Footer = () => {
   const [settings, setSettings] = useState(() => getSettings());
@@ -66,6 +67,9 @@ const Footer = () => {
               <li>
                 <Link to="/about" className="hover:text-black transition-colors">ABOUT VENM</Link>
               </li>
+              <li>
+                <Link to="/privacy" className="hover:text-black transition-colors">PRIVACY POLICY</Link>
+              </li>
             </ul>
           </div>
 
@@ -128,7 +132,20 @@ const Footer = () => {
         {/* Bottom copyright */}
         <div className="pt-8 border-t border-neutral-200 flex flex-col md:flex-row items-center justify-between text-xs text-neutral-500 font-mono tracking-wider gap-4">
           <p>© {new Date().getFullYear()} VENM CATALOG. ALL RIGHTS RESERVED.</p>
-          <div className="flex items-center space-x-6">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <Link to="/privacy" className="hover:text-black transition-colors">
+              PRIVACY NOTICE
+            </Link>
+            <button
+              type="button"
+              onClick={openCookiePreferences}
+              className="hover:text-black transition-colors underline cursor-pointer"
+            >
+              COOKIE PREFERENCES
+            </button>
+            <Link to="/unsubscribe" className="hover:text-black transition-colors">
+              OPT-OUT
+            </Link>
             <span>{settings?.general?.location || "AHMEDABAD // GUJARAT"}</span>
             <span>{settings?.general?.contactEmail || "venm1310@gmail.com"}</span>
           </div>

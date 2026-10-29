@@ -631,3 +631,98 @@ export function apiGetAllInquiries() {
   return request('/inquiries');
 }
 
+
+
+// ----------------------------------------------------
+// EMAIL MARKETING & SUBSCRIBERS API
+// ----------------------------------------------------
+export function apiSubscribe(subscriptionData) {
+  return request('/subscribers/subscribe', {
+    method: 'POST',
+    body: JSON.stringify(subscriptionData)
+  });
+}
+
+export function apiUnsubscribe(unsubscribeData) {
+  return request('/subscribers/unsubscribe', {
+    method: 'POST',
+    body: JSON.stringify(unsubscribeData)
+  });
+}
+
+export function apiGetUnsubscribeInfo(token) {
+  return request(`/subscribers/unsubscribe-info?token=${encodeURIComponent(token)}`);
+}
+
+export function apiGetAdminSubscribers(params = {}) {
+  const query = new URLSearchParams();
+  if (params.page) query.append('page', params.page);
+  if (params.limit) query.append('limit', params.limit);
+  if (params.status) query.append('status', params.status);
+  if (params.search) query.append('search', params.search);
+  const qStr = query.toString();
+  return request(`/admin/subscribers${qStr ? `?${qStr}` : ''}`);
+}
+
+export function apiExportSubscribersCsv() {
+  const token = getStoredAdminToken();
+  const base = getBaseUrl();
+  const url = `${base}/admin/subscribers/export`;
+  return fetch(url, {
+    headers: {
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    },
+    credentials: 'include'
+  });
+}
+
+export function apiUpdateSubscriberStatus(id, status, reason) {
+  return request(`/admin/subscribers/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, reason })
+  });
+}
+
+export function apiSuppressEmail(email, reason) {
+  return request('/admin/subscribers/suppress', {
+    method: 'POST',
+    body: JSON.stringify({ email, reason })
+  });
+}
+
+export function apiGetEmailCampaigns() {
+  return request('/admin/email-campaigns');
+}
+
+export function apiCreateEmailCampaign(campaignData) {
+  return request('/admin/email-campaigns', {
+    method: 'POST',
+    body: JSON.stringify(campaignData)
+  });
+}
+
+export function apiUpdateEmailCampaign(id, campaignData) {
+  return request(`/admin/email-campaigns/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(campaignData)
+  });
+}
+
+export function apiApproveEmailCampaign(id) {
+  return request(`/admin/email-campaigns/${id}/approve`, {
+    method: 'POST'
+  });
+}
+
+export function apiTestEmailCampaign(id, testEmail) {
+  return request(`/admin/email-campaigns/${id}/test`, {
+    method: 'POST',
+    body: JSON.stringify({ testEmail })
+  });
+}
+
+export function apiSendEmailCampaign(id) {
+  return request(`/admin/email-campaigns/${id}/send`, {
+    method: 'POST'
+  });
+}

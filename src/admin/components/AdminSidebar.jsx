@@ -18,7 +18,8 @@ import {
   ExternalLink,
   LogOut,
   X,
-  Users
+  Users,
+  Mail
 } from 'lucide-react';
 
 const AdminSidebar = ({ mobileOpen, setMobileOpen }) => {
@@ -32,9 +33,10 @@ const AdminSidebar = ({ mobileOpen, setMobileOpen }) => {
       ]
     },
     {
-      title: 'AUDIENCE & TRAFFIC',
+      title: 'AUDIENCE & MARKETING',
       items: [
-        { name: 'Visitor Activity & Traffic', path: '/admin/users', icon: Users, badge: 'LIVE' }
+        { name: 'Visitor Activity & Traffic', path: '/admin/users', icon: Users, badge: 'LIVE' },
+        { name: 'Email Marketing', path: '/admin/marketing', icon: Mail }
       ]
     },
     {
