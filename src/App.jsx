@@ -38,6 +38,9 @@ import AdminMediaLibrary from './admin/pages/AdminMediaLibrary';
 import AdminSettings from './admin/pages/AdminSettings';
 import AdminUsers from './admin/pages/AdminUsers';
 import AdminEmailMarketing from './admin/pages/AdminEmailMarketing';
+import AdminInvoices from './admin/pages/AdminInvoices';
+import AdminInvoiceForm from './admin/pages/AdminInvoiceForm';
+import AdminInvoiceDetail from './admin/pages/AdminInvoiceDetail';
 
 import { useAuth } from './context/AuthContext';
 import { apiSendHeartbeat } from './services/api';
@@ -255,6 +258,15 @@ const App = () => {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
+
+          {/* Invoices */}
+          <Route path="invoices" element={<AdminInvoices />} />
+          <Route path="invoices/new" element={<AdminInvoiceForm mode="create" />} />
+          <Route path="invoices/create" element={<AdminInvoiceForm mode="create" />} />
+          <Route path="invoices/:id" element={<AdminInvoiceDetail />} />
+          <Route path="invoices/:id/edit" element={<AdminInvoiceForm mode="edit" />} />
+          <Route path="invoices/edit/:id" element={<AdminInvoiceForm mode="edit" />} />
+
           <Route path="users" element={<AdminUsers />} />
           <Route path="marketing" element={<AdminEmailMarketing />} />
           <Route path="email-marketing" element={<AdminEmailMarketing />} />

@@ -236,3 +236,146 @@ model EmailCampaign {
   @@index([campaignType])
   @@index([createdAt(sort: Desc)])
 }
+
+model Invoice {
+  id                  String        @id @default(uuid())
+  invoiceNumber       String        @unique
+  invoiceDate         DateTime      @default(now())
+  dueDate             DateTime?
+  invoiceType         String        @default("TAX_INVOICE") // TAX_INVOICE | PROFORMA | COMMERCIAL | RECEIPT
+  status              String        @default("DRAFT") // DRAFT | ISSUED | PAID | CANCELLED
+  paymentStatus       String        @default("UNPAID") // UNPAID | PARTIALLY_PAID | PAID
+  paymentMethod       String?       @default("UPI") // UPI | BANK_TRANSFER | CASH | CARD | CHEQUE | OTHER
+  preparedBy          String?       // admin name or email
+  orderId             String?       // optional linked order / inquiry ID
+  orderDate           DateTime?
+
+  // Brand Details Snapshot
+  brandName           String        @default("VENM")
+  brandTagline        String?       @default("Tradition with a Bite")
+  brandLogo           String?
+  brandEmail          String?       @default("venm1310@gmail.com")
+  brandPhone          String?       @default("+91 74340 96095")
+  brandGstin          String?       @default("24AAAAA0000A1Z5")
+  brandAddress        String?       @default("Ahmedabad, Gujarat, India")
+
+  // Customer Details Snapshot
+  customerName        String
+  customerPhone       String?
+  customerEmail       String?
+  billingAddress      String?
+  shippingAddress     String?
+  city                String?
+  state               String?       @default("Gujarat")
+  pincode             String?
+  customerGstin       String?
+
+  // Tax & Pricing Mode
+  taxEnabled          Boolean       @default(true)
+  taxType             String        @default("INTRA_STATE") // INTRA_STATE (CGST+SGST) | INTER_STATE (IGST)
+  pricingMode         String        @default("TAX_EXCLUSIVE") // TAX_EXCLUSIVE | TAX_INCLUSIVE
+
+  // Financial Calculations
+  subtotal            Float         @default(0)
+  itemDiscountTotal   Float         @default(0)
+  invoiceDiscountType String        @default("FIXED") // FIXED | PERCENTAGE
+  invoiceDiscountValue Float        @default(0)
+  invoiceDiscountTotal Float        @default(0)
+  totalDiscount       Float         @default(0)
+  taxableAmount       Float         @default(0)
+  cgstAmount          Float         @default(0)
+  sgstAmount          Float         @default(0)
+  igstAmount          Float         @default(0)
+  totalTax            Float         @default(0)
+  shippingCharges     Float         @default(0)
+  packagingCharges    Float         @default(0)
+  additionalCharges   Float         @default(0)
+  roundOff            Float         @default(0)
+  grandTotal          Float         @default(0)
+  amountPaid          Float         @default(0)
+  advancePaid         Float         @default(0)
+  balanceDue          Float         @default(0)
+  paymentDate         DateTime?
+  transactionRef      String?
+
+  // Notes & Additional Fields
+  customerNotes       String?
+  customizationNotes  String?
+  deliveryNotes       String?
+  paymentTerms        String?
+  termsAndConditions  String?
+  thankYouMessage     String?       @default("Thank you for choosing VENM.")
+  internalNotes       String?
+
+  // Display Visibility Toggles
+  showBrandLogo       Boolean       @default(true)
+  showBrandGstin      Boolean       @default(true)
+  showShippingAddress Boolean       @default(true)
+  showItemImages      Boolean       @default(false)
+  showItemHsn         Boolean       @default(true)
+  showItemDiscount    Boolean       @default(true)
+  showItemDescription Boolean       @default(true)
+  showCustomerNotes   Boolean       @default(true)
+  showPaymentDetails  Boolean       @default(true)
+  showTerms           Boolean       @default(true)
+
+  items               InvoiceItem[]
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@index([invoiceNumber])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([customerName])
+  @@index([invoiceDate(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+}
+
+model InvoiceItem {
+  id              String   @id @default(uuid())
+  invoiceId       String
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId       String?  // Reference to catalog product (snapshot only, never mutates catalog)
+  name            String
+  sku             String?
+  image           String?
+  size            String?
+  color           String?
+  description     String?
+  hsnCode         String?  @default("6203")
+  quantity        Int      @default(1)
+  unitPrice       Float    @default(0)
+  discountType    String   @default("PERCENTAGE") // PERCENTAGE | FIXED
+  discountValue   Float    @default(0)
+  discountAmount  Float    @default(0)
+  taxRate         Float    @default(12)
+  taxableAmount   Float    @default(0)
+  taxAmount       Float    @default(0)
+  lineTotal       Float    @default(0)
+  displayOrder    Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([invoiceId])
+  @@index([productId])
+}
+
+model InvoiceSetting {
+  id                  String   @id @default(uuid())
+  brandName           String   @default("VENM")
+  brandTagline        String?  @default("Tradition with a Bite")
+  brandLogo           String?
+  brandEmail          String?  @default("venm1310@gmail.com")
+  brandPhone          String?  @default("+91 74340 96095")
+  brandGstin          String?  @default("24AAAAA0000A1Z5")
+  brandAddress        String?  @default("Ahmedabad, Gujarat, India")
+  invoicePrefix       String   @default("VNM-INV")
+  defaultTaxRate      Float    @default(12)
+  defaultTaxEnabled   Boolean  @default(true)
+  defaultTaxType      String   @default("INTRA_STATE") // INTRA_STATE | INTER_STATE
+  defaultPricingMode  String   @default("TAX_EXCLUSIVE")
+  defaultPaymentTerms String?  @default("Full payment due within 7 days of invoice date.")
+  defaultTerms        String?  @default("1. Goods once customized or sold cannot be returned without prior authorization.\n2. All bespoke tailoring alterations must be claimed within 15 days of delivery.\n3. Subject to Ahmedabad jurisdiction.")
+  defaultThankYou     String?  @default("Thank you for choosing VENM. Tradition with a Bite.")
+  updatedAt           DateTime @updatedAt
+}

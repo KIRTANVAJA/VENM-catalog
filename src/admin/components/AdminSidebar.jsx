@@ -19,7 +19,8 @@ import {
   LogOut,
   X,
   Users,
-  Mail
+  Mail,
+  Receipt
 } from 'lucide-react';
 
 const AdminSidebar = ({ mobileOpen, setMobileOpen }) => {
@@ -30,6 +31,12 @@ const AdminSidebar = ({ mobileOpen, setMobileOpen }) => {
       title: 'OVERVIEW',
       items: [
         { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard }
+      ]
+    },
+    {
+      title: 'BILLING & SALES',
+      items: [
+        { name: 'Invoices', path: '/admin/invoices', icon: Receipt, badge: 'NEW' }
       ]
     },
     {

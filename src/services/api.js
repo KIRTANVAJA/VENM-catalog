@@ -726,3 +726,96 @@ export function apiSendEmailCampaign(id) {
     method: 'POST'
   });
 }
+
+
+// ----------------------------------------------------
+// INVOICE MANAGEMENT API
+// ----------------------------------------------------
+export function apiGetInvoices(params = {}) {
+  const query = new URLSearchParams();
+  if (params.page) query.append('page', params.page);
+  if (params.limit) query.append('limit', params.limit);
+  if (params.status) query.append('status', params.status);
+  if (params.paymentStatus) query.append('paymentStatus', params.paymentStatus);
+  if (params.search) query.append('search', params.search);
+  if (params.startDate) query.append('startDate', params.startDate);
+  if (params.endDate) query.append('endDate', params.endDate);
+  if (params.sortBy) query.append('sortBy', params.sortBy);
+  if (params.sortOrder) query.append('sortOrder', params.sortOrder);
+  const qStr = query.toString();
+  return request(`/admin/invoices${qStr ? `?${qStr}` : ''}`);
+}
+
+export function apiGetNextInvoiceNumber() {
+  return request('/admin/invoices/next-number');
+}
+
+export function apiGetInvoice(id) {
+  return request(`/admin/invoices/${id}`);
+}
+
+export function apiCreateInvoice(invoiceData) {
+  return request('/admin/invoices', {
+    method: 'POST',
+    body: JSON.stringify(invoiceData)
+  });
+}
+
+export function apiUpdateInvoice(id, invoiceData) {
+  return request(`/admin/invoices/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(invoiceData)
+  });
+}
+
+export function apiUpdateInvoiceStatus(id, statusData) {
+  return request(`/admin/invoices/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify(statusData)
+  });
+}
+
+export function apiDeleteInvoice(id) {
+  return request(`/admin/invoices/${id}`, {
+    method: 'DELETE'
+  });
+}
+
+export async function apiDownloadInvoicePdf(id, invoiceNumber = 'invoice') {
+  const token = getStoredAdminToken();
+  const base = getBaseUrl();
+  const url = `${base}/admin/invoices/${id}/pdf`;
+
+  const res = await fetch(url, {
+    headers: {
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    },
+    credentials: 'include'
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: 'Failed to download PDF' }));
+    throw new Error(err.error || err.message || 'PDF Download Error');
+  }
+
+  const blob = await res.blob();
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = downloadUrl;
+  a.download = `invoice-${invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(downloadUrl);
+}
+
+export function apiGetInvoiceSettings() {
+  return request('/admin/invoices/settings');
+}
+
+export function apiUpdateInvoiceSettings(settingsData) {
+  return request('/admin/invoices/settings', {
+    method: 'PUT',
+    body: JSON.stringify(settingsData)
+  });
+}
