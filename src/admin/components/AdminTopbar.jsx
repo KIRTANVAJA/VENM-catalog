@@ -1,12 +1,16 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, ExternalLink } from 'lucide-react';
+import { Menu, ExternalLink, Receipt } from 'lucide-react';
 
 const AdminTopbar = ({ setMobileOpen }) => {
   const location = useLocation();
 
   const getBreadcrumbTitle = () => {
     const path = location.pathname;
+    if (path.includes('/invoices/new') || path.includes('/invoices/create')) return 'CREATE INVOICE';
+    if (path.includes('/invoices/') && path.includes('/edit')) return 'EDIT INVOICE';
+    if (path.match(/\/invoices\/[^/]+/)) return 'INVOICE DETAILS';
+    if (path.includes('/invoices')) return 'INVOICE MANAGEMENT';
     if (path.includes('/products/new')) return 'ADD NEW PRODUCT';
     if (path.includes('/products/') && path.includes('/edit')) return 'EDIT PRODUCT';
     if (path.includes('/products')) return 'PRODUCT MANAGEMENT';
@@ -50,6 +54,14 @@ const AdminTopbar = ({ setMobileOpen }) => {
           <span className="w-2 h-2 rounded-full bg-emerald-600" />
           <span>CMS ONLINE</span>
         </div>
+
+        <Link
+          to="/admin/invoices"
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 hover:bg-black text-xs font-mono text-white border border-neutral-800 transition-colors uppercase font-bold"
+        >
+          <Receipt className="w-3.5 h-3.5 text-lime-400" />
+          <span>INVOICES</span>
+        </Link>
 
         <Link
           to="/"

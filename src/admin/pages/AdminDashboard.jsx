@@ -38,7 +38,8 @@ import {
   BarChart3,
   LineChart,
   ArrowUpRight,
-  ShieldCheck
+  ShieldCheck,
+  Receipt
 } from 'lucide-react';
 
 function formatTimeAgo(dateString) {
@@ -472,6 +473,7 @@ const AdminDashboard = () => {
   }, []);
 
   const quickActions = [
+    { title: 'INVOICES & BILLING', path: '/admin/invoices', icon: Receipt },
     { title: 'ADD PRODUCT', path: '/admin/products/new', icon: Plus },
     { title: 'CREATE COLLECTION', path: '/admin/collections/new', icon: Layers },
     { title: 'EDIT HOMEPAGE', path: '/admin/homepage', icon: Home },
@@ -524,6 +526,13 @@ const AdminDashboard = () => {
             <RefreshCw className={`w-4 h-4 text-neutral-900 ${loading ? 'animate-spin' : ''}`} />
             <span>SYNC DATA</span>
           </button>
+          <Link
+            to="/admin/invoices"
+            className="btn-venm-outline px-4 py-2.5 text-xs font-mono font-bold flex items-center gap-2 uppercase"
+          >
+            <Receipt className="w-4 h-4 text-neutral-900" />
+            <span>INVOICES</span>
+          </Link>
           <Link
             to="/admin/products/new"
             className="btn-venm-primary px-5 py-2.5 text-xs font-bold tracking-widest flex items-center gap-2 uppercase"
