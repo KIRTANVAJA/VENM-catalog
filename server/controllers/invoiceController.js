@@ -268,120 +268,116 @@ export const createInvoice = async (req, res) => {
 
     const preparedBy = payload.preparedBy || req.user?.name || req.user?.email || 'VENM Administrator';
 
-    // Execute atomic transaction
-    const newInvoice = await prisma.$transaction(async (tx) => {
-      const inv = await tx.invoice.create({
-        data: {
-          invoiceNumber,
-          invoiceDate: payload.invoiceDate ? new Date(payload.invoiceDate) : new Date(),
-          dueDate: payload.dueDate ? new Date(payload.dueDate) : null,
-          invoiceType: payload.invoiceType || 'TAX_INVOICE',
-          status: payload.status || 'DRAFT',
-          paymentStatus: calculated.paymentStatus,
-          paymentMethod: payload.paymentMethod || 'UPI',
-          preparedBy,
-          orderId: payload.orderId ? payload.orderId.trim() : null,
-          orderDate: payload.orderDate ? new Date(payload.orderDate) : null,
+    // Execute atomic creation with nested line items
+    const newInvoice = await prisma.invoice.create({
+      data: {
+        invoiceNumber,
+        invoiceDate: payload.invoiceDate ? new Date(payload.invoiceDate) : new Date(),
+        dueDate: payload.dueDate ? new Date(payload.dueDate) : null,
+        invoiceType: payload.invoiceType || 'TAX_INVOICE',
+        status: payload.status || 'DRAFT',
+        paymentStatus: calculated.paymentStatus,
+        paymentMethod: payload.paymentMethod || 'UPI',
+        preparedBy,
+        orderId: payload.orderId ? payload.orderId.trim() : null,
+        orderDate: payload.orderDate ? new Date(payload.orderDate) : null,
 
-          // Brand Snapshot
-          brandName: payload.brandName || setting.brandName,
-          brandTagline: payload.brandTagline !== undefined ? payload.brandTagline : setting.brandTagline,
-          brandLogo: payload.brandLogo || setting.brandLogo || '/assets/brand/logo2.png',
-          brandEmail: payload.brandEmail || setting.brandEmail,
-          brandPhone: payload.brandPhone || setting.brandPhone,
-          brandGstin: payload.brandGstin || setting.brandGstin,
-          brandAddress: payload.brandAddress || setting.brandAddress,
+        // Brand Snapshot
+        brandName: payload.brandName || setting.brandName,
+        brandTagline: payload.brandTagline !== undefined ? payload.brandTagline : setting.brandTagline,
+        brandLogo: payload.brandLogo || setting.brandLogo || '/assets/brand/logo2.png',
+        brandEmail: payload.brandEmail || setting.brandEmail,
+        brandPhone: payload.brandPhone || setting.brandPhone,
+        brandGstin: payload.brandGstin || setting.brandGstin,
+        brandAddress: payload.brandAddress || setting.brandAddress,
 
-          // Customer Details Snapshot
-          customerName: payload.customerName.trim(),
-          customerPhone: payload.customerPhone?.trim() || null,
-          customerEmail: payload.customerEmail?.trim() || null,
-          billingAddress: payload.billingAddress?.trim() || null,
-          shippingAddress: payload.shippingAddress?.trim() || null,
-          city: payload.city?.trim() || null,
-          state: payload.state?.trim() || 'Gujarat',
-          pincode: payload.pincode?.trim() || null,
-          customerGstin: payload.customerGstin?.trim() || null,
+        // Customer Details Snapshot
+        customerName: payload.customerName.trim(),
+        customerPhone: payload.customerPhone?.trim() || null,
+        customerEmail: payload.customerEmail?.trim() || null,
+        billingAddress: payload.billingAddress?.trim() || null,
+        shippingAddress: payload.shippingAddress?.trim() || null,
+        city: payload.city?.trim() || null,
+        state: payload.state?.trim() || 'Gujarat',
+        pincode: payload.pincode?.trim() || null,
+        customerGstin: payload.customerGstin?.trim() || null,
 
-          // Configuration
-          taxEnabled: calculated.items[0]?.taxRate > 0 || payload.taxEnabled !== false,
-          taxType: payload.taxType || 'INTRA_STATE',
-          pricingMode: payload.pricingMode || 'TAX_EXCLUSIVE',
+        // Configuration
+        taxEnabled: calculated.items[0]?.taxRate > 0 || payload.taxEnabled !== false,
+        taxType: payload.taxType || 'INTRA_STATE',
+        pricingMode: payload.pricingMode || 'TAX_EXCLUSIVE',
 
-          // Totals
-          subtotal: calculated.subtotal,
-          itemDiscountTotal: calculated.itemDiscountTotal,
-          invoiceDiscountType: calculated.invoiceDiscountType,
-          invoiceDiscountValue: calculated.invoiceDiscountValue,
-          invoiceDiscountTotal: calculated.invoiceDiscountTotal,
-          totalDiscount: calculated.totalDiscount,
-          taxableAmount: calculated.taxableAmount,
-          cgstAmount: calculated.cgstAmount,
-          sgstAmount: calculated.sgstAmount,
-          igstAmount: calculated.igstAmount,
-          totalTax: calculated.totalTax,
-          shippingCharges: calculated.shippingCharges,
-          packagingCharges: calculated.packagingCharges,
-          additionalCharges: calculated.additionalCharges,
-          roundOff: calculated.roundOff,
-          grandTotal: calculated.grandTotal,
-          amountPaid: calculated.amountPaid,
-          advancePaid: calculated.advancePaid,
-          balanceDue: calculated.balanceDue,
-          paymentDate: payload.paymentDate ? new Date(payload.paymentDate) : null,
-          transactionRef: payload.transactionRef?.trim() || null,
+        // Totals
+        subtotal: calculated.subtotal,
+        itemDiscountTotal: calculated.itemDiscountTotal,
+        invoiceDiscountType: calculated.invoiceDiscountType,
+        invoiceDiscountValue: calculated.invoiceDiscountValue,
+        invoiceDiscountTotal: calculated.invoiceDiscountTotal,
+        totalDiscount: calculated.totalDiscount,
+        taxableAmount: calculated.taxableAmount,
+        cgstAmount: calculated.cgstAmount,
+        sgstAmount: calculated.sgstAmount,
+        igstAmount: calculated.igstAmount,
+        totalTax: calculated.totalTax,
+        shippingCharges: calculated.shippingCharges,
+        packagingCharges: calculated.packagingCharges,
+        additionalCharges: calculated.additionalCharges,
+        roundOff: calculated.roundOff,
+        grandTotal: calculated.grandTotal,
+        amountPaid: calculated.amountPaid,
+        advancePaid: calculated.advancePaid,
+        balanceDue: calculated.balanceDue,
+        paymentDate: payload.paymentDate ? new Date(payload.paymentDate) : null,
+        transactionRef: payload.transactionRef?.trim() || null,
 
-          // Notes
-          customerNotes: payload.customerNotes?.trim() || null,
-          customizationNotes: payload.customizationNotes?.trim() || null,
-          deliveryNotes: payload.deliveryNotes?.trim() || null,
-          paymentTerms: payload.paymentTerms?.trim() || setting.defaultPaymentTerms,
-          termsAndConditions: payload.termsAndConditions?.trim() || setting.defaultTerms,
-          thankYouMessage: payload.thankYouMessage?.trim() || setting.defaultThankYou,
-          internalNotes: payload.internalNotes?.trim() || null,
+        // Notes
+        customerNotes: payload.customerNotes?.trim() || null,
+        customizationNotes: payload.customizationNotes?.trim() || null,
+        deliveryNotes: payload.deliveryNotes?.trim() || null,
+        paymentTerms: payload.paymentTerms?.trim() || setting.defaultPaymentTerms,
+        termsAndConditions: payload.termsAndConditions?.trim() || setting.defaultTerms,
+        thankYouMessage: payload.thankYouMessage?.trim() || setting.defaultThankYou,
+        internalNotes: payload.internalNotes?.trim() || null,
 
-          // Visibility Toggles
-          showBrandLogo: payload.showBrandLogo !== undefined ? Boolean(payload.showBrandLogo) : true,
-          showBrandGstin: payload.showBrandGstin !== undefined ? Boolean(payload.showBrandGstin) : true,
-          showShippingAddress: payload.showShippingAddress !== undefined ? Boolean(payload.showShippingAddress) : true,
-          showItemImages: payload.showItemImages !== undefined ? Boolean(payload.showItemImages) : false,
-          showItemHsn: payload.showItemHsn !== undefined ? Boolean(payload.showItemHsn) : true,
-          showItemDiscount: payload.showItemDiscount !== undefined ? Boolean(payload.showItemDiscount) : true,
-          showItemDescription: payload.showItemDescription !== undefined ? Boolean(payload.showItemDescription) : true,
-          showCustomerNotes: payload.showCustomerNotes !== undefined ? Boolean(payload.showCustomerNotes) : true,
-          showPaymentDetails: payload.showPaymentDetails !== undefined ? Boolean(payload.showPaymentDetails) : true,
-          showTerms: payload.showTerms !== undefined ? Boolean(payload.showTerms) : true,
+        // Visibility Toggles
+        showBrandLogo: payload.showBrandLogo !== undefined ? Boolean(payload.showBrandLogo) : true,
+        showBrandGstin: payload.showBrandGstin !== undefined ? Boolean(payload.showBrandGstin) : true,
+        showShippingAddress: payload.showShippingAddress !== undefined ? Boolean(payload.showShippingAddress) : true,
+        showItemImages: payload.showItemImages !== undefined ? Boolean(payload.showItemImages) : false,
+        showItemHsn: payload.showItemHsn !== undefined ? Boolean(payload.showItemHsn) : true,
+        showItemDiscount: payload.showItemDiscount !== undefined ? Boolean(payload.showItemDiscount) : true,
+        showItemDescription: payload.showItemDescription !== undefined ? Boolean(payload.showItemDescription) : true,
+        showCustomerNotes: payload.showCustomerNotes !== undefined ? Boolean(payload.showCustomerNotes) : true,
+        showPaymentDetails: payload.showPaymentDetails !== undefined ? Boolean(payload.showPaymentDetails) : true,
+        showTerms: payload.showTerms !== undefined ? Boolean(payload.showTerms) : true,
 
-          // Create Line Items (Snapshot preservation)
-          items: {
-            create: calculated.items.map((item, idx) => ({
-              productId: item.productId || null,
-              name: item.name.trim(),
-              sku: item.sku?.trim() || null,
-              image: item.image || null,
-              size: item.size?.trim() || null,
-              color: item.color?.trim() || null,
-              description: item.description?.trim() || null,
-              hsnCode: item.hsnCode?.trim() || '6203',
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              discountType: item.discountType,
-              discountValue: item.discountValue,
-              discountAmount: item.discountAmount,
-              taxRate: item.taxRate,
-              taxableAmount: item.taxableAmount,
-              taxAmount: item.taxAmount,
-              lineTotal: item.lineTotal,
-              displayOrder: idx
-            }))
-          }
-        },
-        include: {
-          items: true
+        // Create Line Items (Snapshot preservation)
+        items: {
+          create: calculated.items.map((item, idx) => ({
+            productId: item.productId || null,
+            name: item.name.trim(),
+            sku: item.sku?.trim() || null,
+            image: item.image || null,
+            size: item.size?.trim() || null,
+            color: item.color?.trim() || null,
+            description: item.description?.trim() || null,
+            hsnCode: item.hsnCode?.trim() || '6203',
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discountType: item.discountType,
+            discountValue: item.discountValue,
+            discountAmount: item.discountAmount,
+            taxRate: item.taxRate,
+            taxableAmount: item.taxableAmount,
+            taxAmount: item.taxAmount,
+            lineTotal: item.lineTotal,
+            displayOrder: idx
+          }))
         }
-      });
-
-      return inv;
+      },
+      include: {
+        items: true
+      }
     });
 
     await logActivity({
@@ -444,121 +440,118 @@ export const updateInvoice = async (req, res) => {
       roundGrandTotal: true
     });
 
-    const updated = await prisma.$transaction(async (tx) => {
-      // 1. Delete previous line items
-      await tx.invoiceItem.deleteMany({
-        where: { invoiceId: id }
-      });
+    // Delete existing line items and update invoice with recreated items
+    await prisma.invoiceItem.deleteMany({
+      where: { invoiceId: id }
+    });
 
-      // 2. Update invoice and recreate items
-      return await tx.invoice.update({
-        where: { id },
-        data: {
-          invoiceDate: payload.invoiceDate ? new Date(payload.invoiceDate) : existing.invoiceDate,
-          dueDate: payload.dueDate ? new Date(payload.dueDate) : null,
-          invoiceType: payload.invoiceType || existing.invoiceType,
-          status: payload.status || existing.status,
-          paymentStatus: calculated.paymentStatus,
-          paymentMethod: payload.paymentMethod || existing.paymentMethod,
-          orderId: payload.orderId !== undefined ? (payload.orderId?.trim() || null) : existing.orderId,
-          orderDate: payload.orderDate ? new Date(payload.orderDate) : existing.orderDate,
+    const updated = await prisma.invoice.update({
+      where: { id },
+      data: {
+        invoiceDate: payload.invoiceDate ? new Date(payload.invoiceDate) : existing.invoiceDate,
+        dueDate: payload.dueDate ? new Date(payload.dueDate) : null,
+        invoiceType: payload.invoiceType || existing.invoiceType,
+        status: payload.status || existing.status,
+        paymentStatus: calculated.paymentStatus,
+        paymentMethod: payload.paymentMethod || existing.paymentMethod,
+        orderId: payload.orderId !== undefined ? (payload.orderId?.trim() || null) : existing.orderId,
+        orderDate: payload.orderDate ? new Date(payload.orderDate) : existing.orderDate,
 
-          // Brand Snapshot
-          brandName: payload.brandName || existing.brandName,
-          brandTagline: payload.brandTagline !== undefined ? payload.brandTagline : existing.brandTagline,
-          brandLogo: payload.brandLogo || existing.brandLogo,
-          brandEmail: payload.brandEmail || existing.brandEmail,
-          brandPhone: payload.brandPhone || existing.brandPhone,
-          brandGstin: payload.brandGstin || existing.brandGstin,
-          brandAddress: payload.brandAddress || existing.brandAddress,
+        // Brand Snapshot
+        brandName: payload.brandName || existing.brandName,
+        brandTagline: payload.brandTagline !== undefined ? payload.brandTagline : existing.brandTagline,
+        brandLogo: payload.brandLogo || existing.brandLogo,
+        brandEmail: payload.brandEmail || existing.brandEmail,
+        brandPhone: payload.brandPhone || existing.brandPhone,
+        brandGstin: payload.brandGstin || existing.brandGstin,
+        brandAddress: payload.brandAddress || existing.brandAddress,
 
-          // Customer Details Snapshot
-          customerName: payload.customerName.trim(),
-          customerPhone: payload.customerPhone?.trim() || null,
-          customerEmail: payload.customerEmail?.trim() || null,
-          billingAddress: payload.billingAddress?.trim() || null,
-          shippingAddress: payload.shippingAddress?.trim() || null,
-          city: payload.city?.trim() || null,
-          state: payload.state?.trim() || existing.state,
-          pincode: payload.pincode?.trim() || null,
-          customerGstin: payload.customerGstin?.trim() || null,
+        // Customer Details Snapshot
+        customerName: payload.customerName.trim(),
+        customerPhone: payload.customerPhone?.trim() || null,
+        customerEmail: payload.customerEmail?.trim() || null,
+        billingAddress: payload.billingAddress?.trim() || null,
+        shippingAddress: payload.shippingAddress?.trim() || null,
+        city: payload.city?.trim() || null,
+        state: payload.state?.trim() || existing.state,
+        pincode: payload.pincode?.trim() || null,
+        customerGstin: payload.customerGstin?.trim() || null,
 
-          // Tax & Pricing Mode
-          taxEnabled: payload.taxEnabled !== undefined ? Boolean(payload.taxEnabled) : existing.taxEnabled,
-          taxType: payload.taxType || existing.taxType,
-          pricingMode: payload.pricingMode || existing.pricingMode,
+        // Tax & Pricing Mode
+        taxEnabled: payload.taxEnabled !== undefined ? Boolean(payload.taxEnabled) : existing.taxEnabled,
+        taxType: payload.taxType || existing.taxType,
+        pricingMode: payload.pricingMode || existing.pricingMode,
 
-          // Calculations
-          subtotal: calculated.subtotal,
-          itemDiscountTotal: calculated.itemDiscountTotal,
-          invoiceDiscountType: calculated.invoiceDiscountType,
-          invoiceDiscountValue: calculated.invoiceDiscountValue,
-          invoiceDiscountTotal: calculated.invoiceDiscountTotal,
-          totalDiscount: calculated.totalDiscount,
-          taxableAmount: calculated.taxableAmount,
-          cgstAmount: calculated.cgstAmount,
-          sgstAmount: calculated.sgstAmount,
-          igstAmount: calculated.igstAmount,
-          totalTax: calculated.totalTax,
-          shippingCharges: calculated.shippingCharges,
-          packagingCharges: calculated.packagingCharges,
-          additionalCharges: calculated.additionalCharges,
-          roundOff: calculated.roundOff,
-          grandTotal: calculated.grandTotal,
-          amountPaid: calculated.amountPaid,
-          advancePaid: calculated.advancePaid,
-          balanceDue: calculated.balanceDue,
-          paymentDate: payload.paymentDate ? new Date(payload.paymentDate) : null,
-          transactionRef: payload.transactionRef?.trim() || null,
+        // Calculations
+        subtotal: calculated.subtotal,
+        itemDiscountTotal: calculated.itemDiscountTotal,
+        invoiceDiscountType: calculated.invoiceDiscountType,
+        invoiceDiscountValue: calculated.invoiceDiscountValue,
+        invoiceDiscountTotal: calculated.invoiceDiscountTotal,
+        totalDiscount: calculated.totalDiscount,
+        taxableAmount: calculated.taxableAmount,
+        cgstAmount: calculated.cgstAmount,
+        sgstAmount: calculated.sgstAmount,
+        igstAmount: calculated.igstAmount,
+        totalTax: calculated.totalTax,
+        shippingCharges: calculated.shippingCharges,
+        packagingCharges: calculated.packagingCharges,
+        additionalCharges: calculated.additionalCharges,
+        roundOff: calculated.roundOff,
+        grandTotal: calculated.grandTotal,
+        amountPaid: calculated.amountPaid,
+        advancePaid: calculated.advancePaid,
+        balanceDue: calculated.balanceDue,
+        paymentDate: payload.paymentDate ? new Date(payload.paymentDate) : null,
+        transactionRef: payload.transactionRef?.trim() || null,
 
-          // Notes
-          customerNotes: payload.customerNotes !== undefined ? payload.customerNotes?.trim() : existing.customerNotes,
-          customizationNotes: payload.customizationNotes !== undefined ? payload.customizationNotes?.trim() : existing.customizationNotes,
-          deliveryNotes: payload.deliveryNotes !== undefined ? payload.deliveryNotes?.trim() : existing.deliveryNotes,
-          paymentTerms: payload.paymentTerms !== undefined ? payload.paymentTerms?.trim() : existing.paymentTerms,
-          termsAndConditions: payload.termsAndConditions !== undefined ? payload.termsAndConditions?.trim() : existing.termsAndConditions,
-          thankYouMessage: payload.thankYouMessage !== undefined ? payload.thankYouMessage?.trim() : existing.thankYouMessage,
-          internalNotes: payload.internalNotes !== undefined ? payload.internalNotes?.trim() : existing.internalNotes,
+        // Notes
+        customerNotes: payload.customerNotes !== undefined ? payload.customerNotes?.trim() : existing.customerNotes,
+        customizationNotes: payload.customizationNotes !== undefined ? payload.customizationNotes?.trim() : existing.customizationNotes,
+        deliveryNotes: payload.deliveryNotes !== undefined ? payload.deliveryNotes?.trim() : existing.deliveryNotes,
+        paymentTerms: payload.paymentTerms !== undefined ? payload.paymentTerms?.trim() : existing.paymentTerms,
+        termsAndConditions: payload.termsAndConditions !== undefined ? payload.termsAndConditions?.trim() : existing.termsAndConditions,
+        thankYouMessage: payload.thankYouMessage !== undefined ? payload.thankYouMessage?.trim() : existing.thankYouMessage,
+        internalNotes: payload.internalNotes !== undefined ? payload.internalNotes?.trim() : existing.internalNotes,
 
-          // Visibility Toggles
-          showBrandLogo: payload.showBrandLogo !== undefined ? Boolean(payload.showBrandLogo) : existing.showBrandLogo,
-          showBrandGstin: payload.showBrandGstin !== undefined ? Boolean(payload.showBrandGstin) : existing.showBrandGstin,
-          showShippingAddress: payload.showShippingAddress !== undefined ? Boolean(payload.showShippingAddress) : existing.showShippingAddress,
-          showItemImages: payload.showItemImages !== undefined ? Boolean(payload.showItemImages) : existing.showItemImages,
-          showItemHsn: payload.showItemHsn !== undefined ? Boolean(payload.showItemHsn) : existing.showItemHsn,
-          showItemDiscount: payload.showItemDiscount !== undefined ? Boolean(payload.showItemDiscount) : existing.showItemDiscount,
-          showItemDescription: payload.showItemDescription !== undefined ? Boolean(payload.showItemDescription) : existing.showItemDescription,
-          showCustomerNotes: payload.showCustomerNotes !== undefined ? Boolean(payload.showCustomerNotes) : existing.showCustomerNotes,
-          showPaymentDetails: payload.showPaymentDetails !== undefined ? Boolean(payload.showPaymentDetails) : existing.showPaymentDetails,
-          showTerms: payload.showTerms !== undefined ? Boolean(payload.showTerms) : existing.showTerms,
+        // Visibility Toggles
+        showBrandLogo: payload.showBrandLogo !== undefined ? Boolean(payload.showBrandLogo) : existing.showBrandLogo,
+        showBrandGstin: payload.showBrandGstin !== undefined ? Boolean(payload.showBrandGstin) : existing.showBrandGstin,
+        showShippingAddress: payload.showShippingAddress !== undefined ? Boolean(payload.showShippingAddress) : existing.showShippingAddress,
+        showItemImages: payload.showItemImages !== undefined ? Boolean(payload.showItemImages) : existing.showItemImages,
+        showItemHsn: payload.showItemHsn !== undefined ? Boolean(payload.showItemHsn) : existing.showItemHsn,
+        showItemDiscount: payload.showItemDiscount !== undefined ? Boolean(payload.showItemDiscount) : existing.showItemDiscount,
+        showItemDescription: payload.showItemDescription !== undefined ? Boolean(payload.showItemDescription) : existing.showItemDescription,
+        showCustomerNotes: payload.showCustomerNotes !== undefined ? Boolean(payload.showCustomerNotes) : existing.showCustomerNotes,
+        showPaymentDetails: payload.showPaymentDetails !== undefined ? Boolean(payload.showPaymentDetails) : existing.showPaymentDetails,
+        showTerms: payload.showTerms !== undefined ? Boolean(payload.showTerms) : existing.showTerms,
 
-          items: {
-            create: calculated.items.map((item, idx) => ({
-              productId: item.productId || null,
-              name: item.name.trim(),
-              sku: item.sku?.trim() || null,
-              image: item.image || null,
-              size: item.size?.trim() || null,
-              color: item.color?.trim() || null,
-              description: item.description?.trim() || null,
-              hsnCode: item.hsnCode?.trim() || '6203',
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              discountType: item.discountType,
-              discountValue: item.discountValue,
-              discountAmount: item.discountAmount,
-              taxRate: item.taxRate,
-              taxableAmount: item.taxableAmount,
-              taxAmount: item.taxAmount,
-              lineTotal: item.lineTotal,
-              displayOrder: idx
-            }))
-          }
-        },
-        include: {
-          items: true
+        items: {
+          create: calculated.items.map((item, idx) => ({
+            productId: item.productId || null,
+            name: item.name.trim(),
+            sku: item.sku?.trim() || null,
+            image: item.image || null,
+            size: item.size?.trim() || null,
+            color: item.color?.trim() || null,
+            description: item.description?.trim() || null,
+            hsnCode: item.hsnCode?.trim() || '6203',
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discountType: item.discountType,
+            discountValue: item.discountValue,
+            discountAmount: item.discountAmount,
+            taxRate: item.taxRate,
+            taxableAmount: item.taxableAmount,
+            taxAmount: item.taxAmount,
+            lineTotal: item.lineTotal,
+            displayOrder: idx
+          }))
         }
-      });
+      },
+      include: {
+        items: true
+      }
     });
 
     await logActivity({

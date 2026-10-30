@@ -202,7 +202,50 @@ const AdminInvoiceDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white pb-20 font-sans print:bg-white print:text-black print:pb-0">
+    <div className="min-h-screen bg-neutral-950 text-white pb-20 font-sans print:bg-white print:text-black print:pb-0 print:p-0">
+      {/* PRINT-SPECIFIC CSS RULES */}
+      <style>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 12mm 14mm 14mm 14mm;
+          }
+          html, body {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          nav, aside, header, .print\\:hidden, .no-print {
+            display: none !important;
+          }
+          .invoice-paper-container {
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+          }
+          table {
+            width: 100% !important;
+            page-break-inside: auto;
+          }
+          thead {
+            display: table-header-group !important;
+          }
+          tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          .summary-container {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+        }
+      `}</style>
+
       {/* SCREEN ACTION TOPBAR (Hidden in Print) */}
       <div className="print:hidden border-b border-neutral-800 bg-neutral-900/90 backdrop-blur sticky top-0 z-30 px-6 py-4">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
@@ -331,7 +374,7 @@ const AdminInvoiceDetail = () => {
 
       {/* INVOICE CANVAS / A4 PAPER CONTAINER */}
       <div className="max-w-4xl mx-auto mt-8 print:mt-0 px-4 sm:px-6 print:px-0">
-        <div className="bg-white text-neutral-900 rounded shadow-2xl p-8 sm:p-12 print:p-0 print:shadow-none border border-neutral-200 print:border-none">
+        <div className="invoice-paper-container bg-white text-neutral-900 rounded shadow-2xl p-8 sm:p-12 print:p-0 print:shadow-none border border-neutral-200 print:border-none">
           
           {/* HEADER: BRAND & INVOICE META */}
           <div className="flex flex-col sm:flex-row justify-between items-start gap-6 pb-8 border-b-2 border-neutral-900">
@@ -438,79 +481,66 @@ const AdminInvoiceDetail = () => {
           </div>
 
           {/* LINE ITEMS TABLE */}
-          <div className="py-6 overflow-x-auto">
+          <div className="py-6 overflow-x-visible">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b-2 border-neutral-900 text-[10px] uppercase font-bold tracking-wider text-neutral-700">
-                  <th className="py-2.5 pr-2 w-8">#</th>
-                  <th className="py-2.5 px-2">Item Description</th>
-                  {invoice.showItemHsn && <th className="py-2.5 px-2 text-center w-16">HSN</th>}
-                  <th className="py-2.5 px-2 text-center w-16">Size/Col</th>
-                  <th className="py-2.5 px-2 text-right w-12">Qty</th>
-                  <th className="py-2.5 px-2 text-right w-20">Rate</th>
-                  {invoice.showItemDiscount && <th className="py-2.5 px-2 text-right w-20">Disc</th>}
-                  <th className="py-2.5 px-2 text-right w-24">Taxable</th>
-                  {invoice.taxEnabled && <th className="py-2.5 px-2 text-right w-24">Tax</th>}
-                  <th className="py-2.5 pl-2 text-right w-24">Total</th>
+                <tr className="border-b-2 border-neutral-900 bg-neutral-100/70 text-[10px] uppercase font-bold tracking-wider text-neutral-800">
+                  <th className="py-2.5 px-2 text-center w-[5%]">#</th>
+                  <th className="py-2.5 px-3 text-left w-[46%]">Item Description & Specifications</th>
+                  <th className="py-2.5 px-2 text-right w-[6%]">Qty</th>
+                  <th className="py-2.5 px-2 text-right w-[12%]">Rate (₹)</th>
+                  {invoice.showItemDiscount && <th className="py-2.5 px-2 text-right w-[10%]">Disc</th>}
+                  {invoice.taxEnabled && <th className="py-2.5 px-2 text-right w-[8%]">Tax</th>}
+                  <th className="py-2.5 px-3 text-right w-[13%]">Total (₹)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-200">
                 {invoice.items && invoice.items.length > 0 ? (
                   invoice.items.map((item, idx) => (
-                    <tr key={item.id || idx} className="hover:bg-neutral-50/50">
-                      <td className="py-3 pr-2 text-neutral-500 font-mono">{idx + 1}</td>
-                      <td className="py-3 px-2">
-                        <div className="flex items-start gap-2.5">
-                          {invoice.showItemImages && item.image && (
-                            <img
-                              src={item.image}
-                              alt={item.name}
-                              className="w-9 h-9 object-cover rounded border border-neutral-200 flex-shrink-0"
-                            />
+                    <tr key={item.id || idx} className="hover:bg-neutral-50/50 align-top">
+                      <td className="py-3 px-2 text-center text-neutral-500 font-mono text-[11px]">{idx + 1}</td>
+                      <td className="py-3 px-3">
+                        <div className="space-y-1">
+                          <p className="font-bold text-neutral-900 text-[12px] leading-snug break-words">
+                            {item.name}
+                          </p>
+                          {(item.size || item.color || item.sku || (invoice.showItemHsn && item.hsnCode)) && (
+                            <div className="flex flex-wrap items-center gap-x-2 text-[10px] text-neutral-500 font-mono">
+                              {item.size && <span>Size: <strong className="text-neutral-700">{item.size}</strong></span>}
+                              {item.color && <span>• Colour: <strong className="text-neutral-700">{item.color}</strong></span>}
+                              {item.sku && <span>• SKU: <strong className="text-neutral-700">{item.sku}</strong></span>}
+                              {invoice.showItemHsn && item.hsnCode && <span>• HSN: <strong className="text-neutral-700">{item.hsnCode}</strong></span>}
+                            </div>
                           )}
-                          <div>
-                            <p className="font-bold text-neutral-900">{item.name}</p>
-                            {item.sku && <p className="text-[10px] text-neutral-500 font-mono">SKU: {item.sku}</p>}
-                            {invoice.showItemDescription && item.description && (
-                              <p className="text-[11px] text-neutral-600 mt-0.5">{item.description}</p>
-                            )}
-                          </div>
+                          {invoice.showItemDescription && item.description && (
+                            <p className="text-[11px] text-neutral-600 leading-relaxed whitespace-pre-line break-words pt-0.5">
+                              {item.description}
+                            </p>
+                          )}
                         </div>
                       </td>
-                      {invoice.showItemHsn && (
-                        <td className="py-3 px-2 text-center font-mono text-neutral-600">{item.hsnCode || '-'}</td>
-                      )}
-                      <td className="py-3 px-2 text-center text-neutral-700">
-                        {[item.size, item.color].filter(Boolean).join(' / ') || '-'}
-                      </td>
-                      <td className="py-3 px-2 text-right font-mono font-medium">{item.quantity}</td>
-                      <td className="py-3 px-2 text-right font-mono">{formatINR(item.unitPrice)}</td>
+                      <td className="py-3 px-2 text-right font-mono font-medium text-neutral-900">{item.quantity}</td>
+                      <td className="py-3 px-2 text-right font-mono text-neutral-800">{formatINR(item.unitPrice)}</td>
                       {invoice.showItemDiscount && (
                         <td className="py-3 px-2 text-right font-mono text-neutral-600">
-                          {item.discountAmount > 0 ? `-${formatINR(item.discountAmount)}` : '-'}
+                          {item.discountAmount > 0
+                            ? (item.discountType === 'PERCENTAGE' ? `${item.discountValue}%` : `-${formatINR(item.discountAmount)}`)
+                            : '-'}
                         </td>
                       )}
-                      <td className="py-3 px-2 text-right font-mono font-medium">{formatINR(item.taxableAmount)}</td>
                       {invoice.taxEnabled && (
                         <td className="py-3 px-2 text-right font-mono text-neutral-700">
-                          {item.taxRate > 0 ? (
-                            <div>
-                              <span>{formatINR(item.taxAmount)}</span>
-                              <span className="text-[10px] text-neutral-500 block">({item.taxRate}%)</span>
-                            </div>
-                          ) : (
-                            '0.00'
-                          )}
+                          {item.taxRate > 0 ? `${item.taxRate}%` : '0%'}
                         </td>
                       )}
-                      <td className="py-3 pl-2 text-right font-mono font-bold text-neutral-900">
+                      <td className="py-3 px-3 text-right font-mono font-bold text-neutral-900">
                         {formatINR(item.lineTotal)}
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="10" className="py-4 text-center text-neutral-500 italic">
+                    <td colSpan="7" className="py-4 text-center text-neutral-500 italic">
                       No items recorded in invoice.
                     </td>
                   </tr>
@@ -520,7 +550,7 @@ const AdminInvoiceDetail = () => {
           </div>
 
           {/* FINANCIAL SUMMARY & TOTALS */}
-          <div className="pt-4 border-t-2 border-neutral-900 grid grid-cols-1 sm:grid-cols-12 gap-8">
+          <div className="pt-4 border-t-2 border-neutral-900 grid grid-cols-1 sm:grid-cols-12 gap-8 summary-container">
             {/* Left Column: Words, Payment Details, Terms */}
             <div className="sm:col-span-7 space-y-5 text-xs text-neutral-700">
               {/* Words */}
