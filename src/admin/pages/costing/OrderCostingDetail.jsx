@@ -12,12 +12,15 @@ import {
   AlertTriangle,
   RefreshCw,
   Gift,
-  HelpCircle
+  HelpCircle,
+  ExternalLink,
+  ChevronDown
 } from 'lucide-react';
 import {
   apiGetOrderCostingByInvoiceId,
   apiSaveOrderCosting,
-  apiGetCostCategories
+  apiGetCostCategories,
+  apiGetInvoices
 } from '../../../services/api';
 
 const OrderCostingDetail = () => {
@@ -27,6 +30,7 @@ const OrderCostingDetail = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [invoice, setInvoice] = useState(null);
+  const [allInvoices, setAllInvoices] = useState([]);
   const [categories, setCategories] = useState([]);
   const [toast, setToast] = useState(null);
 
@@ -46,18 +50,39 @@ const OrderCostingDetail = () => {
     const loadData = async () => {
       setLoading(true);
       try {
-        const catRes = await apiGetCostCategories();
+        // Load categories and all invoices in parallel
+        const [catRes, invsRes] = await Promise.all([
+          apiGetCostCategories(),
+          apiGetInvoices({ limit: 100, status: 'ALL' })
+        ]);
+
         if (catRes.data) setCategories(catRes.data);
+        if (invsRes.invoices) setAllInvoices(invsRes.invoices);
 
-        const res = await apiGetOrderCostingByInvoiceId(invoiceId);
-        setInvoice(res.invoice);
+        // If invoiceId is provided and not 'undefined', fetch costing
+        if (invoiceId && invoiceId !== 'undefined') {
+          const res = await apiGetOrderCostingByInvoiceId(invoiceId);
+          setInvoice(res.invoice);
 
-        if (res.data) {
-          setAllocationMethod(res.data.allocationMethod || 'QUANTITY');
-          setCostingStatus(res.data.status || 'COMPLETED');
-          setNotes(res.data.notes || '');
-          setItems(res.data.items || []);
-          setExpenseAllocations(res.data.expenseAllocations || []);
+          if (res.data) {
+            setAllocationMethod(res.data.allocationMethod || 'QUANTITY');
+            setCostingStatus(res.data.status || 'COMPLETED');
+            setNotes(res.data.notes || '');
+            setItems(res.data.items || []);
+            setExpenseAllocations(res.data.expenseAllocations || []);
+          }
+        } else if (invsRes.invoices && invsRes.invoices.length > 0) {
+          // If no invoiceId given, automatically default to first invoice in system
+          const firstInv = invsRes.invoices[0];
+          const res = await apiGetOrderCostingByInvoiceId(firstInv.id);
+          setInvoice(res.invoice);
+          if (res.data) {
+            setAllocationMethod(res.data.allocationMethod || 'QUANTITY');
+            setCostingStatus(res.data.status || 'COMPLETED');
+            setNotes(res.data.notes || '');
+            setItems(res.data.items || []);
+            setExpenseAllocations(res.data.expenseAllocations || []);
+          }
         }
       } catch (err) {
         showToast('FAILED TO LOAD ORDER COSTING: ' + err.message, true);
@@ -187,10 +212,11 @@ const OrderCostingDetail = () => {
   const netMargin = effectiveRevenue > 0 ? Math.round((((effectiveRevenue - totalOrderCost) / effectiveRevenue) * 100) * 10) / 10 : 0;
 
   const handleSave = async () => {
+    if (!invoice) return;
     setSubmitting(true);
     try {
       await apiSaveOrderCosting({
-        invoiceId,
+        invoiceId: invoice.id,
         status: costingStatus,
         allocationMethod,
         notes,
@@ -225,13 +251,65 @@ const OrderCostingDetail = () => {
     );
   }
 
+  // Fallback if no invoice could be loaded
   if (!invoice) {
     return (
-      <div className="p-8 text-center text-neutral-600 font-mono">
-        Invoice record not found.{' '}
-        <Link to="/admin/costing/orders" className="underline font-bold text-black">
-          Back to list
-        </Link>
+      <div className="bg-white p-8 border border-neutral-200 shadow-xs space-y-6 max-w-3xl mx-auto my-6 animate-fadeIn">
+        <div className="text-center space-y-2">
+          <Receipt className="w-10 h-10 text-neutral-400 mx-auto" />
+          <h3 className="text-lg font-black font-mono tracking-wider text-neutral-900 uppercase">
+            SELECT AN INVOICE TO PROCESS COSTING
+          </h3>
+          <p className="text-xs text-neutral-600 font-sans">
+            Choose any invoice from your VENM sales catalog to itemize direct material and production costs.
+          </p>
+        </div>
+
+        {allInvoices.length === 0 ? (
+          <div className="p-8 text-center text-neutral-400 font-sans border border-dashed border-neutral-200">
+            No invoices have been issued yet on VENM.{' '}
+            <Link to="/admin/invoices/new" className="underline font-bold text-neutral-900">
+              Create an Invoice first
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+            {allInvoices.map((inv) => (
+              <div
+                key={inv.id}
+                className="p-4 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-xs text-neutral-900">{inv.invoiceNumber}</span>
+                    <span className="text-[10px] font-mono uppercase bg-neutral-200 px-1.5 py-0.2">
+                      {inv.paymentStatus}
+                    </span>
+                  </div>
+                  <div className="font-sans text-xs text-neutral-600 mt-0.5">
+                    Customer: <strong className="text-neutral-900">{inv.customerName}</strong> &bull; Total: ₹{Number(inv.grandTotal).toLocaleString('en-IN')}
+                  </div>
+                </div>
+
+                <Link
+                  to={`/admin/costing/orders/${inv.id}`}
+                  className="btn-venm-neon px-4 py-2 text-xs font-mono font-bold uppercase shrink-0 text-center"
+                >
+                  Cost This Order &rarr;
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="text-center pt-2">
+          <Link
+            to="/admin/costing/orders"
+            className="text-xs font-mono underline uppercase font-bold text-neutral-700 hover:text-black"
+          >
+            &larr; Back to Order Costing Overview
+          </Link>
+        </div>
       </div>
     );
   }
@@ -260,7 +338,7 @@ const OrderCostingDetail = () => {
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-xl font-black font-mono tracking-wider text-neutral-900 uppercase">
                 ORDER COSTING: {invoice.invoiceNumber}
               </h2>
@@ -274,15 +352,35 @@ const OrderCostingDetail = () => {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={submitting}
-          className="btn-venm-neon px-5 py-2.5 text-xs font-bold font-mono tracking-widest uppercase flex items-center gap-2 cursor-pointer shadow-xs"
-        >
-          <Save className="w-4 h-4 text-neutral-900" />
-          <span>{submitting ? 'SAVING...' : 'SAVE ORDER COSTING'}</span>
-        </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Quick Invoice Switcher Dropdown */}
+          {allInvoices.length > 1 && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-mono text-neutral-500 uppercase font-bold">Switch Invoice:</span>
+              <select
+                value={invoice.id}
+                onChange={(e) => navigate(`/admin/costing/orders/${e.target.value}`)}
+                className="border border-neutral-300 px-2 py-2 text-xs font-mono bg-white font-bold max-w-[220px]"
+              >
+                {allInvoices.map((inv) => (
+                  <option key={inv.id} value={inv.id}>
+                    {inv.invoiceNumber} - {inv.customerName} (₹{inv.grandTotal})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={submitting}
+            className="btn-venm-neon px-5 py-2.5 text-xs font-bold font-mono tracking-widest uppercase flex items-center gap-2 cursor-pointer shadow-xs shrink-0"
+          >
+            <Save className="w-4 h-4 text-neutral-900" />
+            <span>{submitting ? 'SAVING...' : 'SAVE ORDER COSTING'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Invoice Overview Pill */}
@@ -379,6 +477,7 @@ const OrderCostingDetail = () => {
                       min="0"
                       value={it.unitCost}
                       onChange={(e) => handleItemCostChange(idx, e.target.value)}
+                      placeholder="0.00"
                       className="w-24 border border-neutral-300 px-2 py-1 text-right font-bold text-rose-600 bg-white"
                     />
                   </td>
@@ -423,7 +522,7 @@ const OrderCostingDetail = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[10px] font-mono text-neutral-600 uppercase font-bold">Allocation Rule:</span>
             <select
               value={allocationMethod}
@@ -582,4 +681,3 @@ const OrderCostingDetail = () => {
 };
 
 export default OrderCostingDetail;
-

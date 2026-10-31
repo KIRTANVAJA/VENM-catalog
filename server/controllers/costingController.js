@@ -699,8 +699,17 @@ export const getOrderCostingByInvoiceId = async (req, res) => {
   try {
     const { invoiceId } = req.params;
 
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
+    if (!invoiceId || invoiceId === 'undefined' || invoiceId === 'null') {
+      return res.status(400).json({ success: false, message: 'Valid Invoice ID or Number is required.' });
+    }
+
+    const invoice = await prisma.invoice.findFirst({
+      where: {
+        OR: [
+          { id: invoiceId },
+          { invoiceNumber: invoiceId }
+        ]
+      },
       include: {
         items: true,
         orderCosting: {
@@ -713,7 +722,7 @@ export const getOrderCostingByInvoiceId = async (req, res) => {
     });
 
     if (!invoice) {
-      return res.status(404).json({ success: false, message: 'Invoice not found.' });
+      return res.status(404).json({ success: false, message: `Invoice "${invoiceId}" not found.` });
     }
 
     // If costing already exists, return it

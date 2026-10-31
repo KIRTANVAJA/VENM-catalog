@@ -103,7 +103,8 @@ export const getInvoices = async (req, res) => {
         include: {
           items: {
             select: { id: true, name: true, quantity: true, lineTotal: true }
-          }
+          },
+          orderCosting: true
         }
       }),
       prisma.invoice.count({ where }),

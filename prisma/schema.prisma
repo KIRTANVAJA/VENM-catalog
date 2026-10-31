@@ -474,7 +474,7 @@ model OrderCosting {
   netProfitMargin    Float                    @default(0) // (netProfit / netRevenue) * 100
   notes              String?
   items              OrderItemCosting[]
-  expenses           OrderExpenseAllocation[]
+  expenseAllocations OrderExpenseAllocation[]
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
 
