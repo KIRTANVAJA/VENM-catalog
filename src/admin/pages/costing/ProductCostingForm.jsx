@@ -139,14 +139,15 @@ const ProductCostingForm = ({ mode = 'create' }) => {
     }
     const found = catalogProducts.find((p) => p.id === productId);
     if (found) {
+      const parsedPrice = Number(found.minPrice || (typeof found.estimatedPrice === 'string' ? found.estimatedPrice.replace(/[^0-9]/g, '') : 0)) || 0;
       setFormData((prev) => ({
         ...prev,
         productId: found.id,
         productName: found.name || prev.productName,
-        sku: found.sku || prev.sku,
-        actualSellingPrice: Number(found.price) || prev.actualSellingPrice,
+        sku: found.slug || prev.sku,
+        actualSellingPrice: parsedPrice || prev.actualSellingPrice,
         category: found.category || prev.category,
-        collection: found.collection || prev.collection
+        collection: found.collectionName || (typeof found.collection === 'object' ? found.collection?.name : found.collection) || prev.collection
       }));
     }
   };
@@ -340,7 +341,7 @@ const ProductCostingForm = ({ mode = 'create' }) => {
                   <option value="">-- Choose Catalog Product --</option>
                   {catalogProducts.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name} {p.sku ? `(${p.sku})` : ''}
+                      {p.name} {p.slug ? `(${p.slug})` : ''}
                     </option>
                   ))}
                 </select>

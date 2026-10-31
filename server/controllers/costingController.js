@@ -304,7 +304,7 @@ export const getProductCostings = async (req, res) => {
       prisma.productCosting.findMany({
         where,
         include: {
-          product: { select: { id: true, name: true, sku: true, price: true, images: true } },
+          product: { select: { id: true, name: true, slug: true, estimatedPrice: true, images: true } },
           _count: { select: { components: true } }
         },
         orderBy: { updatedAt: 'desc' },
