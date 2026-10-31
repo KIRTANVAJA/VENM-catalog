@@ -20,7 +20,8 @@ import {
   X,
   Users,
   Mail,
-  Receipt
+  Receipt,
+  TrendingUp
 } from 'lucide-react';
 
 const AdminSidebar = ({ mobileOpen, setMobileOpen }) => {
@@ -36,7 +37,8 @@ const AdminSidebar = ({ mobileOpen, setMobileOpen }) => {
     {
       title: 'BILLING & SALES',
       items: [
-        { name: 'Invoices', path: '/admin/invoices', icon: Receipt, badge: 'NEW' }
+        { name: 'Invoices', path: '/admin/invoices', icon: Receipt },
+        { name: 'Costing & Profit', path: '/admin/costing', icon: TrendingUp, badge: 'NEW' }
       ]
     },
     {

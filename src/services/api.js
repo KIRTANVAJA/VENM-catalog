@@ -819,3 +819,165 @@ export function apiUpdateInvoiceSettings(settingsData) {
     body: JSON.stringify(settingsData)
   });
 }
+
+// ==========================================
+// COSTING & PROFIT MANAGEMENT API METHODS
+// ==========================================
+
+export function apiGetCostingOverview(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/admin/costing/overview${query ? `?${query}` : ''}`);
+}
+
+export function apiGetProfitReports(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/admin/costing/reports${query ? `?${query}` : ''}`);
+}
+
+export async function apiExportProfitReportsCSV(groupBy = 'product') {
+  const token = getStoredAdminToken();
+  const base = getBaseUrl();
+  const url = `${base}/admin/costing/reports/export?groupBy=${groupBy}`;
+
+  const res = await fetch(url, {
+    headers: {
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    },
+    credentials: 'include'
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to export profit report CSV');
+  }
+
+  const blob = await res.blob();
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = downloadUrl;
+  a.download = `venm-profit-report-${groupBy}-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(downloadUrl);
+}
+
+export function apiGetCostingSettings() {
+  return request('/admin/costing/settings');
+}
+
+export function apiUpdateCostingSettings(settingsData) {
+  return request('/admin/costing/settings', {
+    method: 'PUT',
+    body: JSON.stringify(settingsData)
+  });
+}
+
+export function apiGetCostCategories() {
+  return request('/admin/costing/categories');
+}
+
+export function apiCreateCostCategory(categoryData) {
+  return request('/admin/costing/categories', {
+    method: 'POST',
+    body: JSON.stringify(categoryData)
+  });
+}
+
+export function apiUpdateCostCategory(id, categoryData) {
+  return request(`/admin/costing/categories/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(categoryData)
+  });
+}
+
+export function apiDeleteCostCategory(id) {
+  return request(`/admin/costing/categories/${id}`, {
+    method: 'DELETE'
+  });
+}
+
+export function apiGetProductCostings(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/admin/costing/products${query ? `?${query}` : ''}`);
+}
+
+export function apiGetProductCostingById(id) {
+  return request(`/admin/costing/products/${id}`);
+}
+
+export function apiCreateProductCosting(costingData) {
+  return request('/admin/costing/products', {
+    method: 'POST',
+    body: JSON.stringify(costingData)
+  });
+}
+
+export function apiUpdateProductCosting(id, costingData) {
+  return request(`/admin/costing/products/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(costingData)
+  });
+}
+
+export function apiDeleteProductCosting(id) {
+  return request(`/admin/costing/products/${id}`, {
+    method: 'DELETE'
+  });
+}
+
+export function apiDuplicateProductCosting(id) {
+  return request(`/admin/costing/products/${id}/duplicate`, {
+    method: 'POST'
+  });
+}
+
+export function apiGetOrderCostings(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/admin/costing/orders${query ? `?${query}` : ''}`);
+}
+
+export function apiGetOrderCostingByInvoiceId(invoiceId) {
+  return request(`/admin/costing/orders/invoice/${invoiceId}`);
+}
+
+export function apiSaveOrderCosting(orderCostingData) {
+  return request('/admin/costing/orders', {
+    method: 'POST',
+    body: JSON.stringify(orderCostingData)
+  });
+}
+
+export function apiDeleteOrderCosting(id) {
+  return request(`/admin/costing/orders/${id}`, {
+    method: 'DELETE'
+  });
+}
+
+export function apiGetExpenses(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/admin/costing/expenses${query ? `?${query}` : ''}`);
+}
+
+export function apiGetExpenseById(id) {
+  return request(`/admin/costing/expenses/${id}`);
+}
+
+export function apiCreateExpense(expenseData) {
+  return request('/admin/costing/expenses', {
+    method: 'POST',
+    body: JSON.stringify(expenseData)
+  });
+}
+
+export function apiUpdateExpense(id, expenseData) {
+  return request(`/admin/costing/expenses/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(expenseData)
+  });
+}
+
+export function apiDeleteExpense(id) {
+  return request(`/admin/costing/expenses/${id}`, {
+    method: 'DELETE'
+  });
+}

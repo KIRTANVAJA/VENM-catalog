@@ -81,6 +81,7 @@ model Product {
   viewCount         Int         @default(0)
   displayOrder      Int         @default(0)
   inquiries         Inquiry[]
+  costingProfiles   ProductCosting[]
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
@@ -320,6 +321,7 @@ model Invoice {
   showTerms           Boolean       @default(true)
 
   items               InvoiceItem[]
+  orderCosting        OrderCosting?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
@@ -378,4 +380,201 @@ model InvoiceSetting {
   defaultTerms        String?  @default("1. Goods once customized or sold cannot be returned without prior authorization.\n2. All bespoke tailoring alterations must be claimed within 15 days of delivery.\n3. Subject to Ahmedabad jurisdiction.")
   defaultThankYou     String?  @default("Thank you for choosing VENM. Tradition with a Bite.")
   updatedAt           DateTime @updatedAt
+}
+
+model CostCategory {
+  id           String                 @id @default(uuid())
+  name         String
+  slug         String                 @unique
+  description  String?
+  costType     String                 @default("DIRECT_COGS") // DIRECT_COGS | PACKAGING_SHIPPING | MARKETING | OPERATING
+  isDefault    Boolean                @default(false)
+  isActive     Boolean                @default(true)
+  displayOrder Int                    @default(0)
+  components   ProductCostComponent[]
+  expenses     Expense[]
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  @@index([slug])
+  @@index([costType])
+}
+
+model ProductCosting {
+  id                    String                 @id @default(uuid())
+  productId             String?
+  product               Product?               @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName           String
+  sku                   String?
+  category              String?
+  collection            String?
+  productType           String                 @default("READY_TO_WEAR") // READY_TO_WEAR | BESPOKE | PROMOTIONAL_GIFT | CUSTOM_ORDER
+  size                  String?
+  color                 String?
+  batchQuantity         Int                    @default(1)
+  targetMargin          Float                  @default(65.0) // %
+  estimatedUnitCost     Float                  @default(0)
+  actualUnitCost        Float                  @default(0)
+  estimatedSellingPrice Float                  @default(0)
+  actualSellingPrice    Float                  @default(0)
+  suggestedSellingPrice Float                  @default(0)
+  grossProfit           Float                  @default(0)
+  grossProfitMargin     Float                  @default(0)
+  markupPercentage      Float                  @default(0)
+  status                String                 @default("COMPLETED") // DRAFT | ESTIMATED | COMPLETED | ARCHIVED
+  notes                 String?
+  components            ProductCostComponent[]
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  @@index([productId])
+  @@index([sku])
+  @@index([status])
+}
+
+model ProductCostComponent {
+  id               String         @id @default(uuid())
+  productCostingId String
+  productCosting   ProductCosting @relation(fields: [productCostingId], references: [id], onDelete: Cascade)
+  categoryId       String?
+  category         CostCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  categoryName     String
+  description      String
+  quantity         Float          @default(1)
+  unit             String?        @default("pcs")
+  unitCost         Float          @default(0)
+  totalCost        Float          @default(0)
+  costType         String         @default("ACTUAL") // ESTIMATED | ACTUAL
+  supplier         String?
+  expenseDate      DateTime?
+  paymentStatus    String?        @default("PAID")
+  receiptUrl       String?
+  notes            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([productCostingId])
+  @@index([categoryId])
+}
+
+model OrderCosting {
+  id                 String                   @id @default(uuid())
+  invoiceId          String                   @unique
+  invoice            Invoice                  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  orderId            String?
+  status             String                   @default("COMPLETED") // PENDING | IN_PROGRESS | COMPLETED | REVIEWED
+  allocationMethod   String                   @default("BY_REVENUE") // EQUAL | BY_QUANTITY | BY_REVENUE | MANUAL
+  totalDirectCost    Float                    @default(0) // Sum of line item COGS
+  totalAllocatedCost Float                    @default(0) // Shared packaging, actual shipping, delivery, gifts, payment fees
+  totalOrderCost     Float                    @default(0) // totalDirectCost + totalAllocatedCost
+  netRevenue         Float                    @default(0) // Invoice taxable amount (revenue excluding sales tax)
+  grossProfit        Float                    @default(0) // netRevenue - totalDirectCost
+  grossProfitMargin  Float                    @default(0) // (grossProfit / netRevenue) * 100
+  netProfit          Float                    @default(0) // grossProfit - totalAllocatedCost
+  netProfitMargin    Float                    @default(0) // (netProfit / netRevenue) * 100
+  notes              String?
+  items              OrderItemCosting[]
+  expenses           OrderExpenseAllocation[]
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  @@index([invoiceId])
+  @@index([orderId])
+  @@index([status])
+}
+
+model OrderItemCosting {
+  id                String       @id @default(uuid())
+  orderCostingId    String
+  orderCosting      OrderCosting @relation(fields: [orderCostingId], references: [id], onDelete: Cascade)
+  invoiceItemId     String?
+  productId         String?
+  name              String
+  sku               String?
+  size              String?
+  color             String?
+  quantity          Int          @default(1)
+  sellingPrice      Float        @default(0)
+  discountAmount    Float        @default(0)
+  netItemRevenue    Float        @default(0)
+  isPromotionalGift Boolean      @default(false)
+  unitCost          Float        @default(0)
+  totalCost         Float        @default(0) // quantity * unitCost
+  allocatedExpense  Float        @default(0)
+  grossProfit       Float        @default(0)
+  grossProfitMargin Float        @default(0)
+  costComponents    String?      @default("[]") // JSON string of component details
+  notes             String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([orderCostingId])
+  @@index([invoiceItemId])
+  @@index([productId])
+}
+
+model OrderExpenseAllocation {
+  id               String       @id @default(uuid())
+  orderCostingId   String
+  orderCosting     OrderCosting @relation(fields: [orderCostingId], references: [id], onDelete: Cascade)
+  expenseId        String?
+  categoryName     String
+  description      String
+  amount           Float        @default(0)
+  allocationMethod String       @default("BY_REVENUE")
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([orderCostingId])
+  @@index([expenseId])
+}
+
+model Expense {
+  id                       String        @id @default(uuid())
+  expenseNumber            String        @unique // e.g. VNM-EXP-2026-0001
+  expenseDate              DateTime      @default(now())
+  categoryId               String?
+  category                 CostCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  categoryName             String
+  description              String
+  expenseType              String        @default("OPERATING") // DIRECT_COGS | ORDER_VARIABLE | OPERATING | MARKETING | CAPITAL
+  amountBeforeTax          Float         @default(0)
+  taxRate                  Float         @default(0)
+  taxAmount                Float         @default(0)
+  totalAmount              Float         @default(0) // amountBeforeTax + taxAmount
+  isInputTaxCreditEligible Boolean       @default(false)
+  currency                 String        @default("INR")
+  supplier                 String?
+  paymentStatus            String        @default("PAID") // UNPAID | PARTIALLY_PAID | PAID
+  paymentMethod            String?       @default("UPI") // UPI | BANK_TRANSFER | CASH | CARD | OTHER
+  paymentDate              DateTime?
+  invoiceId                String?       // optional link to invoice / order
+  productId                String?       // optional link to product
+  receiptUrl               String?
+  notes                    String?
+  isAllocatedToOrder       Boolean       @default(false) // Prevents double counting in reports
+  isArchived               Boolean       @default(false)
+  createdBy                String?
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+
+  @@index([expenseNumber])
+  @@index([expenseDate(sort: Desc)])
+  @@index([categoryId])
+  @@index([expenseType])
+  @@index([paymentStatus])
+}
+
+model CostingSetting {
+  id                      String   @id @default(uuid())
+  defaultTargetMargin     Float    @default(65.0) // %
+  currency                String   @default("INR")
+  defaultPackagingCost    Float    @default(50.0)
+  defaultShippingCost     Float    @default(150.0)
+  defaultGiftCost         Float    @default(200.0)
+  defaultAllocationMethod String   @default("BY_REVENUE") // EQUAL | BY_QUANTITY | BY_REVENUE | MANUAL
+  taxPreference           String   @default("TAX_EXCLUSIVE")
+  lowMarginThreshold      Float    @default(30.0)
+  criticalMarginThreshold Float    @default(15.0)
+  updatedAt               DateTime @updatedAt
 }

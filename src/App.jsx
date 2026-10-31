@@ -42,6 +42,18 @@ import AdminInvoices from './admin/pages/AdminInvoices';
 import AdminInvoiceForm from './admin/pages/AdminInvoiceForm';
 import AdminInvoiceDetail from './admin/pages/AdminInvoiceDetail';
 
+// Costing & Profit Management Pages
+import CostingLayout from './admin/pages/costing/CostingLayout';
+import CostingOverview from './admin/pages/costing/CostingOverview';
+import ProductCostingList from './admin/pages/costing/ProductCostingList';
+import ProductCostingForm from './admin/pages/costing/ProductCostingForm';
+import OrderCostingList from './admin/pages/costing/OrderCostingList';
+import OrderCostingDetail from './admin/pages/costing/OrderCostingDetail';
+import ExpenseList from './admin/pages/costing/ExpenseList';
+import ProfitReports from './admin/pages/costing/ProfitReports';
+import CostCategories from './admin/pages/costing/CostCategories';
+import CostingSettings from './admin/pages/costing/CostingSettings';
+
 import { useAuth } from './context/AuthContext';
 import { apiSendHeartbeat } from './services/api';
 import { isAnalyticsAllowed } from './utils/cookieConsent';
@@ -266,6 +278,21 @@ const App = () => {
           <Route path="invoices/:id" element={<AdminInvoiceDetail />} />
           <Route path="invoices/:id/edit" element={<AdminInvoiceForm mode="edit" />} />
           <Route path="invoices/edit/:id" element={<AdminInvoiceForm mode="edit" />} />
+
+          {/* Costing & Profit Management */}
+          <Route path="costing" element={<CostingLayout />}>
+            <Route index element={<CostingOverview />} />
+            <Route path="overview" element={<CostingOverview />} />
+            <Route path="products" element={<ProductCostingList />} />
+            <Route path="products/new" element={<ProductCostingForm mode="create" />} />
+            <Route path="products/:id/edit" element={<ProductCostingForm mode="edit" />} />
+            <Route path="orders" element={<OrderCostingList />} />
+            <Route path="orders/:invoiceId" element={<OrderCostingDetail />} />
+            <Route path="expenses" element={<ExpenseList />} />
+            <Route path="reports" element={<ProfitReports />} />
+            <Route path="categories" element={<CostCategories />} />
+            <Route path="settings" element={<CostingSettings />} />
+          </Route>
 
           <Route path="users" element={<AdminUsers />} />
           <Route path="marketing" element={<AdminEmailMarketing />} />
