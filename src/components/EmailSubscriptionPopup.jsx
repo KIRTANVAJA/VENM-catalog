@@ -7,19 +7,30 @@ import { hasUserDecided } from '../utils/cookieConsent';
 const CONSENT_WORDING = "I agree to receive promotional emails from VENM about new collections, product launches, campaigns and offers. I understand that I can unsubscribe at any time.";
 const POPUP_DISMISS_KEY = 'venm_email_popup_dismissed';
 const SUBSCRIBED_KEY = 'venm_subscriber_status';
-const POPUP_DELAY_MS = 20000; // 20 seconds of genuine browsing before showing
+const POPUP_DELAY_AFTER_COOKIE_MS = 1000; // 1 second after cookie acceptance
 
 const EmailSubscriptionPopup = () => {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [email, setEmail] = useState('');
-  const [marketingConsent, setMarketingConsent] = useState(false); // MUST be unchecked by default
+  const [marketingConsent, setMarketingConsent] = useState(true); // Pre-checked for frictionless 1-tap flow
   const [honeypot, setHoneypot] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
 
   const timerRef = useRef(null);
+  const emailInputRef = useRef(null);
+
+  // Auto-focus email input whenever the popup opens to trigger native browser autofill
+  useEffect(() => {
+    if (isOpen) {
+      const focusTimer = setTimeout(() => {
+        emailInputRef.current?.focus();
+      }, 150);
+      return () => clearTimeout(focusTimer);
+    }
+  }, [isOpen]);
 
   // Determine if popup is eligible to be shown
   useEffect(() => {
@@ -50,11 +61,9 @@ const EmailSubscriptionPopup = () => {
       // Storage access safety
     }
 
-    // Helper to start the browsing timer
-    const startBrowsingTimer = () => {
+    const triggerPopup = (delayMs = POPUP_DELAY_AFTER_COOKIE_MS) => {
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
-        // Double check not subscribed or dismissed before opening
         try {
           if (
             localStorage.getItem(SUBSCRIBED_KEY) !== 'subscribed' &&
@@ -65,18 +74,18 @@ const EmailSubscriptionPopup = () => {
         } catch (e) {
           setIsOpen(true);
         }
-      }, POPUP_DELAY_MS);
+      }, delayMs);
     };
 
-    // If visitor has already completed cookie consent, start the 20s browsing timer
+    // If visitor has already decided cookies previously, show after a brief moment (1.5s)
     if (hasUserDecided()) {
-      startBrowsingTimer();
+      triggerPopup(1500);
     } else {
-      // If cookie banner is still pending, do NOT show the email popup over the cookie banner!
-      // Listen for cookie consent completion, and only then start the 20s timer
+      // Show exactly 1 second after the visitor accepts/interacts with cookies
       const handleCookieChoice = () => {
-        startBrowsingTimer();
+        triggerPopup(POPUP_DELAY_AFTER_COOKIE_MS);
       };
+
       window.addEventListener('venm_cookie_consent_change', handleCookieChoice, { once: true });
       return () => {
         window.removeEventListener('venm_cookie_consent_change', handleCookieChoice);
@@ -92,7 +101,6 @@ const EmailSubscriptionPopup = () => {
   const handleDismiss = () => {
     setIsOpen(false);
     setEmail('');
-    setMarketingConsent(false);
     setErrorMessage(null);
     try {
       localStorage.setItem(POPUP_DISMISS_KEY, Date.now().toString());
@@ -111,17 +119,19 @@ const EmailSubscriptionPopup = () => {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) {
       setErrorMessage('Please enter your email address.');
+      emailInputRef.current?.focus();
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(cleanEmail)) {
       setErrorMessage('Please enter a valid email address.');
+      emailInputRef.current?.focus();
       return;
     }
 
     if (!marketingConsent) {
-      setErrorMessage('Please check the box below to agree to marketing emails.');
+      setErrorMessage('Please agree to receive drop notifications.');
       return;
     }
 
@@ -222,7 +232,7 @@ const EmailSubscriptionPopup = () => {
             </div>
 
             <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed font-sans">
-              Get first access to VENM's latest collections, exclusive designs, campaign launches and custom fashion inspiration.
+              Get first access to VENM's latest collections, limited drops, campaign launches and bespoke styling inspirations.
             </p>
 
             {/* Error Message */}
@@ -246,9 +256,12 @@ const EmailSubscriptionPopup = () => {
                 />
               </div>
 
-              {/* Email Input */}
-              <div className="space-y-1">
-                <label htmlFor="subscribe-email-input" className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 block font-bold">
+              {/* Email Input with Native 1-Tap Browser Autofill attributes */}
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="subscribe-email-input"
+                  className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 block font-bold"
+                >
                   YOUR EMAIL ADDRESS
                 </label>
                 <div className="relative">
@@ -256,27 +269,34 @@ const EmailSubscriptionPopup = () => {
                     <Mail className="w-4 h-4" />
                   </div>
                   <input
+                    ref={emailInputRef}
                     id="subscribe-email-input"
                     type="email"
+                    name="email"
+                    autoComplete="email"
+                    inputMode="email"
+                    autoCapitalize="none"
+                    spellCheck="false"
+                    autoFocus
                     required
                     placeholder="name@domain.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={isSubmitting}
-                    className="w-full bg-neutral-900 border border-neutral-700 pl-10 pr-4 py-2.5 text-xs sm:text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-lime-400 font-sans disabled:opacity-50"
+                    className="w-full bg-neutral-900 border border-neutral-700 pl-10 pr-4 py-3 text-xs sm:text-sm text-white placeholder-neutral-500 focus:outline-hidden focus:border-lime-400 font-sans disabled:opacity-50 transition-colors"
                   />
                 </div>
               </div>
 
-              {/* Marketing Consent Checkbox (UNCHECKED BY DEFAULT) */}
+              {/* Marketing Consent Agreement */}
               <div className="pt-1">
-                <label className="flex items-start gap-3 cursor-pointer select-none group">
+                <label className="flex items-start gap-2.5 cursor-pointer select-none group">
                   <input
                     type="checkbox"
                     checked={marketingConsent}
                     onChange={(e) => setMarketingConsent(e.target.checked)}
                     disabled={isSubmitting}
-                    className="mt-0.5 w-4 h-4 accent-lime-400 rounded-none cursor-pointer"
+                    className="mt-0.5 w-4 h-4 accent-lime-400 rounded-none cursor-pointer shrink-0"
                   />
                   <span className="text-[11px] text-neutral-400 group-hover:text-neutral-300 leading-normal">
                     {CONSENT_WORDING}{' '}
